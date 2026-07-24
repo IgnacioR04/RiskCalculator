@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# build
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# env — nunca commitear secretos
+.env
+.env.local
+.env.*.local
+
+# logs
+npm-debug.log*
+*.log
+
+# editor/os
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# test artifacts
+coverage/
+playwright-report/
+test-results/
