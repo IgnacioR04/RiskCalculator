@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Card, EmptyState, Note, NumberField, SignedValue, Stat } from '../components/ui'
 import { dec } from '../lib/finance/decimal'
 import { applyStress, contributionImpact, type StressPosition } from '../lib/finance/stress'
+import { STRESS_PRESETS, type StressPreset } from '../lib/finance/stressPresets'
 import { targetPriceWithBudget } from '../lib/finance/recovery'
 import { formatDateTime, formatMoney, formatPct, parseUserNumber } from '../lib/format'
 import { buildPortfolioView } from '../lib/portfolio'
@@ -67,12 +68,21 @@ export function EscenariosPage() {
 
 function StressSection({ positions }: { positions: StressPosition[] }) {
   const displayCurrency = useAppStore((s) => s.settings.displayCurrency)
+  const [preset, setPreset] = useState<StressPreset | null>(null)
   const [general, setGeneral] = useState('')
   const [cryptoShock, setCryptoShock] = useState('')
   const [equityShock, setEquityShock] = useState('')
   const [fxShock, setFxShock] = useState('')
   const [assetId, setAssetId] = useState('')
   const [assetShock, setAssetShock] = useState('')
+
+  // Cualquier ajuste manual desactiva el preset activo (evita mezclas confusas).
+  function manual<T>(setter: (v: T) => void): (v: T) => void {
+    return (v: T) => {
+      setPreset(null)
+      setter(v)
+    }
+  }
 
   const parsedShock = (raw: string): string | null => {
     if (raw.trim() === '') return null
@@ -83,6 +93,14 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
 
   const result = useMemo(() => {
     if (positions.length === 0) return null
+    if (preset !== null) {
+      return applyStress(positions, {
+        ...(preset.general !== undefined ? { general: preset.general } : {}),
+        ...(preset.byType !== undefined ? { byType: preset.byType } : {}),
+        ...(preset.fxForeign !== undefined ? { fxForeign: preset.fxForeign } : {}),
+        displayCurrency,
+      })
+    }
     const g = parsedShock(general)
     const crypto = parsedShock(cryptoShock)
     const equity = parsedShock(equityShock)
@@ -101,7 +119,7 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
       ...(fx !== null ? { fxForeign: fx } : {}),
       displayCurrency,
     })
-  }, [positions, general, cryptoShock, equityShock, fxShock, assetId, assetShock, displayCurrency])
+  }, [positions, preset, general, cryptoShock, equityShock, fxShock, assetId, assetShock, displayCurrency])
 
   if (positions.length === 0) {
     return (
@@ -119,22 +137,40 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
   return (
     <Card title="Escenarios de estrés">
       <p className="muted">
-        Introduce shocks en porcentaje (negativos para caídas). Se componen multiplicativamente.
+        Elige un escenario típico (magnitudes coherentes por clase de activo) o define tus propios
+        shocks abajo. Todo es determinista, no una predicción.
       </p>
-      <div className="row" style={{ marginBottom: 'var(--space-3)' }}>
-        <button type="button" className="btn small" onClick={() => setGeneral('-20')}>
-          Caída general −20 %
-        </button>
-        <button type="button" className="btn small" onClick={() => setCryptoShock('-50')}>
-          Cripto −50 %
-        </button>
-        <button type="button" className="btn small" onClick={() => setFxShock('-10')}>
-          Divisa extranjera −10 %
-        </button>
+      <div className="row" style={{ marginBottom: 'var(--space-2)', gap: 'var(--space-2)' }}>
+        {STRESS_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className="btn small"
+            aria-pressed={preset?.id === p.id}
+            style={
+              preset?.id === p.id
+                ? { borderColor: 'var(--color-primary)', color: 'var(--color-primary-strong)' }
+                : undefined
+            }
+            title={p.description}
+            onClick={() => {
+              setPreset(p)
+              setGeneral('')
+              setCryptoShock('')
+              setEquityShock('')
+              setFxShock('')
+              setAssetId('')
+              setAssetShock('')
+            }}
+          >
+            {p.name}
+          </button>
+        ))}
         <button
           type="button"
           className="btn small"
           onClick={() => {
+            setPreset(null)
             setGeneral('')
             setCryptoShock('')
             setEquityShock('')
@@ -146,32 +182,42 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
           Limpiar
         </button>
       </div>
-      <div className="grid-2">
-        <NumberField label="Shock general" hint="A toda la cartera. Ej.: −20" value={general} onChange={setGeneral} suffix="%" />
-        <NumberField label="Shock a cripto" hint="Solo clase cripto" value={cryptoShock} onChange={setCryptoShock} suffix="%" />
-        <NumberField label="Shock a renta variable" hint="Acciones y ETF (proxy de subida de tipos u otro evento)" value={equityShock} onChange={setEquityShock} suffix="%" />
-        <NumberField
-          label="Movimiento divisa extranjera"
-          hint="Afecta a activos cotizados en divisa distinta a la tuya"
-          value={fxShock}
-          onChange={setFxShock}
-          suffix="%"
-        />
-        <div className="field">
-          <label htmlFor="stress-asset">Shock a un activo concreto</label>
-          <select id="stress-asset" value={assetId} onChange={(e) => setAssetId(e.target.value)}>
-            <option value="">— Ninguno —</option>
-            {positions.map((p) => (
-              <option key={p.assetId} value={p.assetId}>
-                {p.symbol}
-              </option>
-            ))}
-          </select>
+      {preset !== null && (
+        <Note kind="info">
+          <strong>{preset.name}:</strong> {preset.description}
+        </Note>
+      )}
+      <details className="math">
+        <summary>Definir shocks manualmente</summary>
+        <div className="math-body">
+          <div className="grid-2">
+            <NumberField label="Shock general" hint="A toda la cartera. Ej.: −20" value={general} onChange={manual(setGeneral)} suffix="%" />
+            <NumberField label="Shock a cripto" hint="Solo clase cripto" value={cryptoShock} onChange={manual(setCryptoShock)} suffix="%" />
+            <NumberField label="Shock a renta variable" hint="Acciones y ETF" value={equityShock} onChange={manual(setEquityShock)} suffix="%" />
+            <NumberField
+              label="Movimiento divisa extranjera"
+              hint="Afecta a activos cotizados en divisa distinta a la tuya"
+              value={fxShock}
+              onChange={manual(setFxShock)}
+              suffix="%"
+            />
+            <div className="field">
+              <label htmlFor="stress-asset">Shock a un activo concreto</label>
+              <select id="stress-asset" value={assetId} onChange={(e) => manual(setAssetId)(e.target.value)}>
+                <option value="">— Ninguno —</option>
+                {positions.map((p) => (
+                  <option key={p.assetId} value={p.assetId}>
+                    {p.symbol}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {assetId !== '' && (
+              <NumberField label="Shock del activo" hint="Ej.: −30" value={assetShock} onChange={manual(setAssetShock)} suffix="%" />
+            )}
+          </div>
         </div>
-        {assetId !== '' && (
-          <NumberField label="Shock del activo" hint="Ej.: −30" value={assetShock} onChange={setAssetShock} suffix="%" />
-        )}
-      </div>
+      </details>
 
       {result !== null && (
         <>

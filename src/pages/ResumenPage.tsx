@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { AllocationDonut } from '../components/charts/AllocationDonut'
+import { ProjectionChart } from '../components/charts/ProjectionChart'
 import { Card, EmptyState, Note, QualityChip, SignedValue, Stat } from '../components/ui'
 import { buildPortfolioView } from '../lib/portfolio'
 import { formatDateTime, formatMoney, formatPct } from '../lib/format'
@@ -147,6 +149,16 @@ export function ResumenPage() {
         </Card>
 
         <Card title="Distribución por clase">
+          {view.byType.length > 0 && (
+            <AllocationDonut
+              currency={displayCurrency}
+              data={view.byType.map((s) => ({
+                label: s.label,
+                value: Number(s.value.toString()),
+                weight: s.weight !== null ? Number(s.weight.toString()) : 0,
+              }))}
+            />
+          )}
           <div className="table-wrap">
             <table className="data">
               <thead>
@@ -177,6 +189,28 @@ export function ResumenPage() {
           )}
         </Card>
       </div>
+
+      <Card title="Proyección ilustrativa">
+        <p className="muted">
+          Cómo evolucionaría tu valor actual ({formatMoney(view.totalValue, displayCurrency)}) con
+          rentabilidades anuales constantes. <strong>No es una predicción</strong>: es interés
+          compuesto sobre supuestos que eliges tú, para hacerte una idea de las magnitudes.
+        </p>
+        <ProjectionChart
+          initialValue={Number(view.totalValue.toString())}
+          years={10}
+          currency={displayCurrency}
+          scenarios={[
+            { name: 'Pesimista', annualReturn: -0.03 },
+            { name: 'Base', annualReturn: 0.05 },
+            { name: 'Optimista', annualReturn: 0.12 },
+          ]}
+        />
+        <p className="muted mb-0">
+          Supuestos: −3 % / +5 % / +12 % anual, sin aportaciones nuevas. Los mercados no crecen de
+          forma constante; la realidad tiene subidas y bajadas.
+        </p>
+      </Card>
     </>
   )
 }

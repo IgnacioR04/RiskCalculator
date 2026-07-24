@@ -1,30 +1,47 @@
 /* ── Sistema visual RiskCalculator ─────────────────────────────────────────
-   Herramienta financiera clara, no un terminal de trading.
-   Mobile first; los tokens viven en variables CSS. */
+   Tema oscuro, limpio y sobrio. Herramienta financiera, no un terminal de
+   trading. Mobile first; los tokens viven en variables CSS.
+   Paleta de gráficas validada para fondo oscuro (contraste y daltonismo). */
 
 :root {
-  /* Color base */
-  --color-bg: #f6f7f9;
-  --color-surface: #ffffff;
-  --color-surface-2: #eef0f4;
-  --color-border: #d9dde3;
-  --color-text: #1a2233;
-  --color-text-muted: #5a6478;
-  --color-text-faint: #8791a5;
+  color-scheme: dark;
 
-  /* Marca */
-  --color-primary: #2554c7;
-  --color-primary-strong: #1c409c;
-  --color-primary-soft: #e8eefb;
+  /* Color base — grises azulados profundos */
+  --color-bg: #0e1117;
+  --color-bg-grad: radial-gradient(1200px 600px at 80% -10%, #16203099, transparent),
+    radial-gradient(900px 500px at 0% 0%, #1a162e66, transparent);
+  --color-surface: #161b24;
+  --color-surface-2: #1e2530;
+  --color-surface-3: #262e3b;
+  --color-border: #2c3543;
+  --color-border-strong: #3a475a;
+  --color-text: #eef2f8;
+  --color-text-muted: #a7b0c0;
+  --color-text-faint: #727d8f;
 
-  /* Semántica: nunca solo color — siempre acompañada de signo/símbolo/texto */
-  --color-positive: #0e7a4e;
-  --color-positive-soft: #e2f4ea;
-  --color-negative: #b3382c;
-  --color-negative-soft: #fbe9e6;
-  --color-warning: #8a6100;
-  --color-warning-soft: #fdf3d7;
-  --color-info-soft: #e8f1fb;
+  /* Marca — azul luminoso validado para oscuro */
+  --color-primary: #3f8ff0;
+  --color-primary-strong: #5aa0f5;
+  --color-primary-soft: #16324f;
+
+  /* Semántica: nunca solo color — siempre con signo/símbolo/texto */
+  --color-positive: #2fce93;
+  --color-positive-soft: #10362a;
+  --color-negative: #f26d6d;
+  --color-negative-soft: #3a1f22;
+  --color-warning: #e7b23d;
+  --color-warning-soft: #3a2f13;
+  --color-info-soft: #14263c;
+
+  /* Paleta categórica de gráficas (dark, validada) */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #9085e9;
+  --chart-grid: #2a323f;
+  --chart-ink: #a7b0c0;
 
   /* Tipografía */
   --font-sans:
@@ -32,9 +49,10 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Espaciado y forma */
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow: 0 1px 3px rgb(16 24 40 / 0.08), 0 1px 2px rgb(16 24 40 / 0.04);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 6px rgb(0 0 0 / 0.35), 0 1px 2px rgb(0 0 0 / 0.25);
+  --shadow-lg: 0 10px 30px rgb(0 0 0 / 0.45);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -42,7 +60,7 @@
   --space-5: 24px;
   --space-6: 32px;
 
-  --nav-height: 60px;
+  --nav-height: 62px;
 }
 
 * {
@@ -58,6 +76,8 @@ body {
 body {
   font-family: var(--font-sans);
   background: var(--color-bg);
+  background-image: var(--color-bg-grad);
+  background-attachment: fixed;
   color: var(--color-text);
   font-size: 16px;
   line-height: 1.5;
@@ -100,6 +120,33 @@ button {
   font: inherit;
 }
 
+/* ── Login ── */
+.login-screen {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  box-shadow: var(--shadow-lg);
+}
+
+.login-brand {
+  font-weight: 800;
+  font-size: 1.5rem;
+  text-align: center;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-2);
+}
+
+.login-brand span {
+  color: var(--color-primary);
+}
+
 /* ── Layout ── */
 
 .app-shell {
@@ -110,7 +157,8 @@ button {
 }
 
 .app-header {
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
   padding: var(--space-3) var(--space-4);
   display: flex;
@@ -209,7 +257,7 @@ button {
 /* ── Componentes ── */
 
 .card {
-  background: var(--color-surface);
+  background: linear-gradient(180deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 88%, #000));
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -218,8 +266,8 @@ button {
 }
 
 .card.highlight {
-  border-color: var(--color-primary);
-  border-width: 1.5px;
+  border-color: color-mix(in srgb, var(--color-primary) 60%, var(--color-border));
+  box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .card h2 {
@@ -263,11 +311,21 @@ button {
 .field textarea {
   font: inherit;
   padding: 10px 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: var(--color-bg);
   color: var(--color-text);
   width: 100%;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--color-text-faint);
+}
+
+.field select option {
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .field input:focus-visible,
@@ -297,6 +355,26 @@ a:focus-visible {
 
 .input-suffix input {
   padding-right: 44px;
+}
+
+.input-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+}
+
+.input-search input {
+  flex: 1;
+  padding-left: 38px;
+}
+
+.input-search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 0.95rem;
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .input-suffix .suffix {
@@ -341,8 +419,8 @@ a:focus-visible {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-2);
   color: var(--color-text);
   padding: 10px 16px;
   border-radius: var(--radius-sm);
@@ -350,21 +428,33 @@ a:focus-visible {
   font-weight: 600;
   font-size: 0.9rem;
   text-decoration: none;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.06s ease;
+}
+
+.btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-3);
+}
+
+.btn:active {
+  transform: translateY(1px);
 }
 
 .btn.primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #fff;
+  background: linear-gradient(180deg, #4a97f4, #2f74d6);
+  border-color: #2f74d6;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgb(47 116 214 / 0.35);
 }
 
 .btn.primary:hover {
-  background: var(--color-primary-strong);
+  background: linear-gradient(180deg, #5aa2f6, #3a7fdd);
 }
 
 .btn.danger {
-  border-color: var(--color-negative);
+  border-color: color-mix(in srgb, var(--color-negative) 55%, var(--color-border));
   color: var(--color-negative);
+  background: var(--color-negative-soft);
 }
 
 .btn:disabled {
@@ -430,24 +520,26 @@ a:focus-visible {
 
 .note.info {
   background: var(--color-info-soft);
-  border-color: #c3d8f0;
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  color: var(--color-text);
 }
 
 .note.warning {
   background: var(--color-warning-soft);
-  border-color: #ecd9a0;
-  color: #5f4700;
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+  color: #f2d489;
 }
 
 .note.negative {
   background: var(--color-negative-soft);
-  border-color: #efc0ba;
+  border-color: color-mix(in srgb, var(--color-negative) 45%, transparent);
+  color: #f6b4b4;
 }
 
 .note.demo {
   background: var(--color-warning-soft);
-  border: 1px dashed #d1a940;
-  color: #5f4700;
+  border: 1px dashed color-mix(in srgb, var(--color-warning) 60%, transparent);
+  color: #f2d489;
   font-weight: 600;
 }
 

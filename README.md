@@ -50,6 +50,20 @@ npm run dev        # http://localhost:5173
 La aplicación funciona completa sin configurar nada (modo local + datos demo
 + CoinGecko/BCE sin clave). Pulsa «Cargar datos de demostración» en Resumen.
 
+### Acceso de prueba
+
+La app abre con una pantalla de login. Credenciales de demo:
+
+- Usuario: **admin1**
+- Contraseña: **1234**
+
+> ⚠️ Esta puerta de acceso **no es seguridad real**: la app es de
+> solo-navegador (GitHub Pages), así que cualquier credencial embebida es
+> visible en el bundle. Sirve como pantalla de acceso del piloto. La
+> autenticación real es el enlace mágico de Supabase (dentro, en Perfil), que
+> protege los datos con RLS. Puedes cambiar el usuario/contraseña de demo con
+> `VITE_DEMO_USER` / `VITE_DEMO_PASSWORD`.
+
 ### Comandos
 
 | Comando | Qué hace |

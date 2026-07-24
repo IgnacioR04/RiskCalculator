@@ -6,6 +6,7 @@
 import type { Asset, BrokerAccount, Currency, Transaction } from '../domain'
 import { uid } from '../domain'
 import { dec } from '../finance/decimal'
+import { aggregatePosition, type FinTransaction } from '../finance/position'
 import type { ImportPayload } from './schema'
 
 export interface ImportProposal {
@@ -191,6 +192,32 @@ export function buildImportProposal(
       notes.push(`Posición ${i + 1} (${asset.symbol}): descartada, sin valor ni cantidad utilizables.`)
     }
   })
+
+  // Aviso previo de incoherencias (ventas que exceden compras) por activo,
+  // usando el mismo motor que valorará la cartera. Así el usuario lo ve en la
+  // previsualización, antes de confirmar.
+  const byAsset = new Map<string, { symbol: string; txs: FinTransaction[] }>()
+  for (const t of transactions) {
+    const asset =
+      newAssets.find((a) => a.id === t.assetId) ?? existingAssets.find((a) => a.id === t.assetId)
+    const entry = byAsset.get(t.assetId) ?? { symbol: asset?.symbol ?? '?', txs: [] }
+    entry.txs.push({
+      type: t.type,
+      datetime: t.datetime,
+      quantity: t.quantity,
+      amount: t.investedAmount,
+    })
+    byAsset.set(t.assetId, entry)
+  }
+  for (const { symbol, txs } of byAsset.values()) {
+    try {
+      aggregatePosition(txs)
+    } catch (e) {
+      notes.push(
+        `⚠ ${symbol}: ${e instanceof Error ? e.message : 'operaciones incoherentes'}. Suele ser una venta sin su compra previa; revísalo antes de confirmar (podrás corregirlo o borrarlo después).`,
+      )
+    }
+  }
 
   return { newAccounts, newAssets, transactions, notes }
 }

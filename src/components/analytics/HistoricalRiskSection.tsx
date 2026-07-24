@@ -19,6 +19,7 @@ import {
   type SeriesPoint,
 } from '../../lib/finance/historical'
 import { formatPct } from '../../lib/format'
+import { CorrelationHeatmap } from '../charts/CorrelationHeatmap'
 import { coingeckoProvider } from '../../lib/market/coingecko'
 import { twelveDataProvider } from '../../lib/market/twelvedata'
 import { useAppStore } from '../../state/store'
@@ -197,42 +198,25 @@ export function HistoricalRiskSection() {
 
           {loaded.length > 1 && (
             <>
-              <h3>Correlaciones (retornos diarios alineados por fechas comunes)</h3>
-              <div className="table-wrap">
-                <table className="data">
-                  <thead>
-                    <tr>
-                      <th scope="col"></th>
-                      {loaded.map((s) => (
-                        <th key={s.asset.id} scope="col">
-                          {s.asset.symbol}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loaded.map((row) => (
-                      <tr key={row.asset.id}>
-                        <td>
-                          <strong>{row.asset.symbol}</strong>
-                        </td>
-                        {loaded.map((col) => {
-                          if (row.asset.id === col.asset.id) {
-                            return <td key={col.asset.id}>1,00</td>
-                          }
-                          const aligned = alignReturns(row.returns, col.returns)
-                          const corr = correlation(aligned.a, aligned.b)
-                          return (
-                            <td key={col.asset.id}>
-                              {corr.ok ? corr.value.toFixed(2) : `Insuf. (${aligned.a.length})`}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <h3>Matriz de correlación (relaciones entre tus activos)</h3>
+              <p className="muted">
+                Mide cómo se han movido juntos tus activos en el periodo. Activos muy
+                correlacionados (naranja) diversifican poco entre sí; correlación baja o negativa
+                (azul) reparte mejor el riesgo. Es historia, no una garantía futura.
+              </p>
+              <CorrelationHeatmap
+                matrix={{
+                  labels: loaded.map((s) => s.asset.symbol),
+                  cells: loaded.map((row) =>
+                    loaded.map((col) => {
+                      if (row.asset.id === col.asset.id) return { value: 1 }
+                      const aligned = alignReturns(row.returns, col.returns)
+                      const corr = correlation(aligned.a, aligned.b)
+                      return { value: corr.ok ? corr.value : null }
+                    }),
+                  ),
+                }}
+              />
 
               <h3>Beta contra un benchmark</h3>
               <div className="field">

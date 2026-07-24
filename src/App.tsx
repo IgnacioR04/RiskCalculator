@@ -1,4 +1,5 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { endDemoSession, getDemoSession } from './lib/demoAuth'
 import { CalculadoraPage } from './pages/CalculadoraPage'
 import { EscenariosPage } from './pages/EscenariosPage'
 import { ImportarPage } from './pages/ImportarPage'
@@ -22,6 +23,23 @@ export function App() {
         <NavLink to="/resumen" className="brand">
           Risk<span>Calculator</span>
         </NavLink>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          {getDemoSession() !== null && (
+            <span className="muted" style={{ fontSize: '0.8rem' }}>
+              {getDemoSession()}
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn small"
+            onClick={() => {
+              endDemoSession()
+              window.location.reload()
+            }}
+          >
+            Salir
+          </button>
+        </div>
       </header>
       <nav className="app-nav" aria-label="Navegación principal">
         {NAV_ITEMS.map((item) => (

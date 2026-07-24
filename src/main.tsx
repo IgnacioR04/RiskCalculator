@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { LoginGate } from './components/LoginGate'
 import './styles/global.css'
 
 // HashRouter: funciona igual en local, Vercel y GitHub Pages (subpath
@@ -10,9 +11,11 @@ import './styles/global.css'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <HashRouter>
-        <App />
-      </HashRouter>
+      <LoginGate>
+        <HashRouter>
+          <App />
+        </HashRouter>
+      </LoginGate>
     </ErrorBoundary>
   </StrictMode>,
 )

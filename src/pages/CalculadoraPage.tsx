@@ -6,6 +6,7 @@ import {
   type PricePoint,
 } from '../components/charts/PriceOutcomeChart'
 import { Card, MathDetails, Note, NumberField, Segmented, SignedValue, Stat } from '../components/ui'
+import { TickerSearch } from '../components/TickerSearch'
 import { Decimal, dec } from '../lib/finance/decimal'
 import {
   breakevenContribution,
@@ -555,6 +556,10 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
   return (
     <>
       <Card title="Tu posición">
+        <TickerSearch
+          currency={currency}
+          onPrice={(price) => currentPrice.setRaw(price)}
+        />
         <div className="grid-2">
           <NumberField
             label="Dinero invertido hasta hoy"

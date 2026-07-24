@@ -10,7 +10,7 @@ import type { Asset, Currency, Quote } from '../domain'
 import { useAppStore } from '../../state/store'
 import { coingeckoProvider } from './coingecko'
 import { ecbFxProvider } from './ecb'
-import { ProviderError, type AssetMatch } from './provider'
+import { ProviderError, type AssetMatch, type MarketQuote } from './provider'
 import { twelveDataProvider } from './twelvedata'
 
 const QUOTE_TTL_MS = 5 * 60 * 1000
@@ -183,6 +183,43 @@ export async function historicalDailyPrice(
     }
   }
   return null
+}
+
+export type MatchQuoteResult =
+  | { ok: true; quote: MarketQuote }
+  | { ok: false; reason: 'no_provider' | 'error'; message: string }
+
+/**
+ * Cotización actual de un resultado de búsqueda (sin registrarlo). Usada por
+ * el buscador de la calculadora: cripto vía CoinGecko (sin clave); acciones/
+ * ETF vía Twelve Data solo si el proxy está configurado.
+ */
+export async function getQuoteForMatch(
+  match: AssetMatch,
+  preferred: Currency,
+): Promise<MatchQuoteResult> {
+  const tdId = match.providerIds['twelvedata']
+  if (tdId !== undefined && twelveDataProvider.isConfigured()) {
+    try {
+      return { ok: true, quote: await twelveDataProvider.getQuote(tdId, preferred) }
+    } catch (e) {
+      return { ok: false, reason: 'error', message: e instanceof Error ? e.message : 'error' }
+    }
+  }
+  const cgId = match.providerIds['coingecko']
+  if (cgId !== undefined && match.assetType === 'crypto') {
+    try {
+      return { ok: true, quote: await coingeckoProvider.getQuote(cgId, preferred) }
+    } catch (e) {
+      return { ok: false, reason: 'error', message: e instanceof Error ? e.message : 'error' }
+    }
+  }
+  return {
+    ok: false,
+    reason: 'no_provider',
+    message:
+      'Este activo necesita Twelve Data (proxy con clave, no configurado). Introduce el precio a mano.',
+  }
 }
 
 export function providerStatus(): { id: string; label: string; configured: boolean }[] {
