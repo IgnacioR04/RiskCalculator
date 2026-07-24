@@ -14,7 +14,10 @@ export interface CashFlow {
 
 export type XirrResult =
   | { ok: true; rate: number; iterations: number }
-  | { ok: false; reason: 'insufficient_flows' | 'no_sign_change' | 'no_convergence' }
+  | {
+      ok: false
+      reason: 'insufficient_flows' | 'no_sign_change' | 'no_convergence' | 'missing_data'
+    }
 
 const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000
 

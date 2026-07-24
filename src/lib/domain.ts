@@ -23,6 +23,38 @@ export interface BrokerAccount {
   accountLabel: string
   defaultCurrency: Currency
   country?: string
+  /**
+   * Regla de comisión elegida por el usuario. Las reglas de catálogo son
+   * sugerencias editables: el plan real del bróker siempre prevalece.
+   */
+  feePolicy?: BrokerFeePolicy
+}
+
+export type FeePolicyMode = 'catalog' | 'custom' | 'none'
+
+export interface BrokerFeePolicy {
+  mode: FeePolicyMode
+  /** Identificador estable de la regla de catálogo, si procede. */
+  catalogId?: string
+  label: string
+  /** Porcentaje expresado como fracción: 0.0025 = 0,25 %. */
+  rate: string
+  /** Cargo fijo y mínimo en `currency`. */
+  fixed: string
+  minimum: string
+  currency: Currency
+  /** Operaciones gratuitas restantes del ciclo, si el usuario las conoce. */
+  freeTradesRemaining?: number
+  /** Fecha de referencia de la regla y fuente informativa. */
+  asOf?: string
+  sourceUrl?: string
+}
+
+export interface AssetHolding {
+  symbol: string
+  name?: string
+  /** Peso dentro del ETF/fondo como fracción 0–1; opcional si no se conoce. */
+  weight?: string
 }
 
 export interface Asset {
@@ -35,6 +67,8 @@ export interface Asset {
   exchange?: string
   sector?: string
   country?: string
+  /** Componentes conocidos de un ETF/fondo para detectar solapamientos. */
+  holdings?: AssetHolding[]
   /** Identificadores por proveedor (p. ej. { twelvedata: 'AAPL', coingecko: 'bitcoin' }). */
   providerIds?: Record<string, string>
   /** Último precio introducido a mano (respaldo universal). */
@@ -43,7 +77,12 @@ export interface Asset {
   isDemo?: boolean
 }
 
-export type TransactionSource = 'exact' | 'historical_estimate' | 'return_estimate' | 'json_import'
+export type TransactionSource =
+  | 'exact'
+  | 'historical_estimate'
+  | 'return_estimate'
+  | 'json_import'
+  | 'position_snapshot'
 export type Confidence = 'exact' | 'high' | 'medium' | 'low'
 
 export interface Transaction {
@@ -60,12 +99,17 @@ export interface Transaction {
   /** Precio de ejecución por unidad en quoteCurrency; null si no se conoce. */
   executionPrice: string | null
   quoteCurrency: Currency
-  /** Comisiones: se conservan por compatibilidad futura; el MVP las ignora. */
+  /** Comisión real o estimada aplicada a la operación. */
   fee: string | null
   feeCurrency: Currency | null
   sourceType: TransactionSource
   confidence: Confidence
   estimationNotes?: string
+  /**
+   * false cuando una captura solo permite conocer unidades/valor actual pero
+   * no el coste histórico. La posición se muestra, pero no se calcula P&L.
+   */
+  costKnown?: boolean
   isDemo?: boolean
 }
 

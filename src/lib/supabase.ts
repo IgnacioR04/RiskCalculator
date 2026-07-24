@@ -22,3 +22,8 @@ export function getSupabase(): SupabaseClient | null {
 export function isSupabaseConfigured(): boolean {
   return getSupabase() !== null
 }
+
+/** URL válida tanto en raíz como bajo /RiskCalculator/ de GitHub Pages. */
+export function authRedirectUrl(): string {
+  return new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+}

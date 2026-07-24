@@ -19,7 +19,8 @@ Notas y limitaciones conocidas:
 
 - **Twelve Data plan gratuito**: límites de peticiones/minuto y /día;
   intradía limitado según plan. El adaptador respeta rate limit por usuario y
-  cachea. Si el plan no permite intradía, la estimación histórica usa cierre
+  cachea. Requiere una sesión Supabase válida: el navegador envía el JWT del
+  usuario y la Edge Function mantiene la clave privada. Si el plan no permite intradía, la estimación histórica usa cierre
   diario y muestra el rango mín–máx del día (regla de la especificación).
 - **CoinGecko público**: sin clave, límites estrictos (~10-30 req/min);
   solo respaldo. Datos diarios; sin precisión horaria garantizada.
@@ -36,6 +37,9 @@ Notas y limitaciones conocidas:
   que un índice no es directamente invertible y ofrece elegir el instrumento
   real (ETF/fondo) al registrar posiciones.
 - Sin scraping ni endpoints no oficiales.
+- GitHub Pages no puede guardar una clave privada. Por eso las acciones y ETF
+  en vivo se activan al desplegar `market-proxy`; hasta entonces la entrada
+  manual sigue disponible.
 
 ## Política de resiliencia
 
@@ -46,7 +50,7 @@ Implementado en la capa `MarketDataProvider`:
 - Caché negativa para símbolos no encontrados.
 - Deduplicación de solicitudes concurrentes idénticas.
 - Timeout y reintentos limitados (máx. 2, backoff).
-- Rate limiting por usuario en el proxy.
+- JWT obligatorio y rate limiting por usuario en el proxy.
 - Estados de carga y error en UI; indicador «actualizado a las …» y etiqueta
   real / demorado / estimado / demo / manual en cada dato.
 - Si una cotización no llega casi instantáneamente, la UI permite continuar
@@ -87,3 +91,4 @@ y `quality: 'real' | 'delayed' | 'estimated' | 'demo' | 'manual'`.
 - `.env.example` documenta las variables sin valores.
 - El frontend solo conoce la URL del proxy y la anon key de Supabase (pública
   por diseño, protegida por RLS).
+- CORS se limita a los orígenes configurados en `ALLOWED_ORIGINS`.

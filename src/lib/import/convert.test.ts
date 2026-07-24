@@ -28,7 +28,29 @@ describe('buildImportProposal — aviso de incoherencias', () => {
       ],
     })
     const proposal = proposalFrom(json)
-    expect(proposal.notes.some((n) => n.includes('ZZZ') && n.includes('venta sin su compra'))).toBe(true)
+    expect(proposal.notes.some((n) => n.includes('ZZZ') && n.includes('venta supera'))).toBe(true)
+  })
+
+  it('una posición sin coste conserva unidades pero bloquea P&L', () => {
+    const json = JSON.stringify({
+      schema_version: 1,
+      accounts: [{ broker: 'Test', label: 'Cuenta', currency: 'EUR' }],
+      positions: [
+        {
+          account_broker: 'Test',
+          asset: { symbol: 'BTC', name: 'Bitcoin', type: 'crypto', quote_currency: 'EUR', isin: null },
+          quantity: '0.01',
+          current_value: '600',
+          currency: 'EUR',
+          evidence: '0.01 BTC · 600 €',
+          confidence: 'high',
+        },
+      ],
+    })
+    const proposal = proposalFrom(json)
+    expect(proposal.transactions).toHaveLength(1)
+    expect(proposal.transactions[0]!.costKnown).toBe(false)
+    expect(proposal.newAssets[0]!.manualPrice?.price).toBe('60000')
   })
 
   it('una compra seguida de venta válida NO genera aviso de incoherencia', () => {

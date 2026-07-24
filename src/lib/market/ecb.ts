@@ -19,6 +19,40 @@ interface FrankfurterResponse {
   rates: Record<string, number>
 }
 
+interface FrankfurterSeriesResponse {
+  base: string
+  start_date: string
+  end_date: string
+  rates: Record<string, Record<string, number>>
+}
+
+export interface FxSeriesPoint {
+  date: string
+  rate: number
+}
+
+/**
+ * Serie de cambios de referencia. Frankfurter solo devuelve días hábiles; el
+ * consumidor decide si arrastra el último dato para fines de semana.
+ */
+export async function getFxDailySeries(
+  base: Currency,
+  quote: Currency,
+  startDate: string,
+  endDate: string,
+): Promise<FxSeriesPoint[]> {
+  if (base === quote) return [{ date: startDate, rate: 1 }]
+  const data = await fetchJson<FrankfurterSeriesResponse>(
+    `${BASE}/${startDate}..${endDate}?base=${base}&symbols=${quote}`,
+  )
+  return Object.entries(data.rates)
+    .flatMap(([date, rates]) => {
+      const rate = rates[quote]
+      return rate === undefined ? [] : [{ date, rate }]
+    })
+    .sort((a, b) => a.date.localeCompare(b.date))
+}
+
 export const ecbFxProvider: FxProvider = {
   id: 'ecb-frankfurter',
   label: 'BCE (tipos de referencia diarios, vía Frankfurter)',

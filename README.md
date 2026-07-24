@@ -24,19 +24,23 @@ La aplicación distingue siempre dos objetivos que no deben confundirse:
 - **Portfolio local**: cuentas/brókeres, activos (acciones, ETF, cripto,
   materias primas, efectivo, manuales), múltiples compras y ventas (coste
   medio), posiciones siempre derivadas de las operaciones, EUR/USD con
-  conversión FX real (tipo, fecha y fuente visibles).
+  conversión FX real (tipo, fecha y fuente visibles), comisiones configurables
+  por bróker y distribución real por cuenta, sector, país y divisa.
 - **Datos de mercado**: Twelve Data (vía proxy seguro), CoinGecko (cripto,
   sin clave), BCE para FX EUR/USD, precios manuales y datos demo etiquetados.
-- **Importar con IA**: prompt listo para copiar en un LLM externo, validación
-  Zod estricta del JSON devuelto, previsualización y confirmación explícita.
+- **Importar y actualizar con IA**: dos prompts listos para copiar en un LLM
+  externo —crear una cartera desde capturas o convertir texto/capturas nuevos
+  en compras y ventas—, validación Zod estricta, previsualización y
+  confirmación explícita.
 - **Analítica**: distribución, concentración (HHI, nº efectivo), rentabilidad
-  simple y XIRR, volatilidad/drawdown/Sharpe/Sortino/correlaciones/beta con
-  mínimos de muestra declarados, escenarios de estrés deterministas y
-  simulador antes/después de aportaciones.
+  total (realizado + no realizado), XIRR y TWR, volatilidad de cartera,
+  correlaciones, covarianzas, contribución al riesgo, drawdown, Sharpe,
+  Sortino, beta/alpha y detección de solapamientos ETF/acciones. Los mínimos
+  de muestra y la cobertura se declaran en pantalla.
 - **Perfil de riesgo** (5 preguntas, orientativo), exportación y borrado de
   datos.
-- **Cuenta opcional** con Supabase (enlace mágico) y guardado en la nube con
-  Row Level Security.
+- **Cuenta opcional** con email/contraseña de Supabase y guardado espejo en la
+  nube con Row Level Security.
 
 ## Arranque rápido
 
@@ -47,8 +51,10 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-La aplicación funciona completa sin configurar nada (modo local + datos demo
-+ CoinGecko/BCE sin clave). Pulsa «Cargar datos de demostración» en Resumen.
+Sin configurar servicios externos funcionan la calculadora, el modo local,
+los datos demo, CoinGecko y los cambios EUR/USD. Pulsa «Cargar datos de
+demostración» en Resumen. Acciones y ETF en vivo requieren Supabase + Twelve
+Data porque la clave privada nunca se incluye en el navegador.
 
 ### Acceso de prueba
 
@@ -60,8 +66,9 @@ La app abre con una pantalla de login. Credenciales de demo:
 > ⚠️ Esta puerta de acceso **no es seguridad real**: la app es de
 > solo-navegador (GitHub Pages), así que cualquier credencial embebida es
 > visible en el bundle. Sirve como pantalla de acceso del piloto. La
-> autenticación real es el enlace mágico de Supabase (dentro, en Perfil), que
-> protege los datos con RLS. Puedes cambiar el usuario/contraseña de demo con
+> autenticación real es Supabase (email/contraseña en el acceso o enlace
+> mágico desde Perfil), que protege los datos con RLS. Puedes cambiar las
+> credenciales de demo con
 > `VITE_DEMO_USER` / `VITE_DEMO_PASSWORD`.
 
 ### Comandos
@@ -70,6 +77,7 @@ La app abre con una pantalla de login. Credenciales de demo:
 |---|---|
 | `npm run dev` | Servidor de desarrollo |
 | `npm test` | Tests (Vitest): motor financiero, importador, componentes |
+| `npm run test:e2e` | Flujos completos en escritorio y móvil (Playwright) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript estricto |
 | `npm run build` | Build de producción (`dist/`) |
@@ -84,6 +92,7 @@ Copia `.env.example` a `.env` (nunca se commitea):
 | `VITE_SUPABASE_URL` | Frontend (pública) | URL del proyecto Supabase |
 | `VITE_SUPABASE_ANON_KEY` | Frontend (pública) | Anon key (los datos se protegen con RLS) |
 | `TWELVE_DATA_API_KEY` | **Solo servidor** | Clave de Twelve Data para la Edge Function; jamás con prefijo `VITE_` |
+| `ALLOWED_ORIGINS` | **Solo servidor** | Orígenes admitidos por el proxy, separados por comas |
 
 ## Supabase (opcional: cuentas y nube)
 
@@ -93,12 +102,16 @@ Copia `.env.example` a `.env` (nunca se commitea):
 3. Despliega el proxy de mercado con la clave en secretos:
 
 ```bash
-supabase secrets set TWELVE_DATA_API_KEY=tu_clave
+supabase secrets set TWELVE_DATA_API_KEY=tu_clave \
+  ALLOWED_ORIGINS=https://ignacior04.github.io,http://localhost:5173
 supabase functions deploy market-proxy
 ```
 
 4. Verifica las políticas RLS con `supabase/tests/rls_verification.sql`
    (dos usuarios de prueba; resultados esperados anotados en el fichero).
+5. En GitHub → Settings → Secrets and variables → Actions, crea
+   `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. El workflow de Pages los
+   incorpora al build como valores públicos.
 
 ## Despliegue
 
@@ -119,7 +132,7 @@ Funciona en modo local (datos demo + CoinGecko/BCE sin clave). Para cuentas y
 nube, define los secretos de Supabase (abajo). No pongas nunca
 `TWELVE_DATA_API_KEY` en Pages: es un sitio estático público.
 
-### Vercel (recomendado si se usa Supabase)
+### Vercel (alternativa)
 
 Importa el repositorio en Vercel (framework: Vite). `vercel.json` ya incluye
 la rewrite de SPA. Define `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en el
@@ -135,11 +148,14 @@ Edge Function de Supabase.
 
 ## Estado del piloto
 
-Hecho y verificado: motor financiero (73 tests, con los casos de aceptación
-numéricos), calculadora, portfolio local, importador JSON, proveedores
-CoinGecko/BCE en vivo, analítica histórica y de estrés, migraciones con RLS.
+Hecho y verificado localmente: motor financiero (93 tests), calculadora,
+portfolio multicuenta, importador/actualizador JSON, proveedores
+CoinGecko/BCE, analítica histórica multimoneda, comisiones, solapamientos,
+migraciones con RLS, build dividido por páginas y suite E2E definida para
+escritorio y móvil.
 
 Pendiente (requiere credenciales/decisión del propietario): aplicar
 migraciones a un proyecto Supabase real y ejecutar la verificación RLS,
-desplegar la Edge Function con la clave de Twelve Data, conectar Vercel,
-y pruebas end-to-end con Playwright.
+desplegar la Edge Function con la clave de Twelve Data y añadir los dos
+secretos públicos de Supabase a GitHub Pages. La suite Playwright se ejecuta
+en CI; en el entorno local hace falta que Chromium esté instalado.

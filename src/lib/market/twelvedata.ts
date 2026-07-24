@@ -6,6 +6,7 @@
  * la cadena cae a CoinGecko / manual.
  */
 import type { AssetType, Currency } from '../domain'
+import { getSupabase } from '../supabase'
 import { fetchJson } from './http'
 import {
   ProviderError,
@@ -21,9 +22,17 @@ function proxyBase(): string | null {
   return `${url.replace(/\/$/, '')}/functions/v1/market-proxy`
 }
 
-function authHeaders(): Record<string, string> {
-  const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-  return anon !== undefined && anon !== '' ? { Authorization: `Bearer ${anon}` } : {}
+async function authHeaders(): Promise<Record<string, string>> {
+  const supabase = getSupabase()
+  if (supabase === null) {
+    throw new ProviderError('Inicia sesión para consultar acciones y ETF', 'not_configured')
+  }
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (token === undefined) {
+    throw new ProviderError('Inicia sesión para consultar acciones y ETF', 'not_configured')
+  }
+  return { Authorization: `Bearer ${token}` }
 }
 
 const TYPE_MAP: Record<string, AssetType> = {
@@ -78,7 +87,7 @@ export const twelveDataProvider: MarketDataProvider = {
     if (base === null) throw new ProviderError('Twelve Data no está configurado', 'not_configured')
     const data = await fetchJson<TdSymbolSearch>(
       `${base}?endpoint=symbol_search&symbol=${encodeURIComponent(query)}`,
-      { headers: authHeaders() },
+      { headers: await authHeaders() },
     )
     return (data.data ?? []).slice(0, 10).map((r) => ({
       symbol: r.symbol,
@@ -96,7 +105,7 @@ export const twelveDataProvider: MarketDataProvider = {
     if (base === null) throw new ProviderError('Twelve Data no está configurado', 'not_configured')
     const data = ensureOk(
       await fetchJson<TdQuote>(`${base}?endpoint=quote&symbol=${encodeURIComponent(providerId)}`, {
-        headers: authHeaders(),
+        headers: await authHeaders(),
       }),
     )
     if (data.close === undefined || data.currency === undefined) {
@@ -127,7 +136,7 @@ export const twelveDataProvider: MarketDataProvider = {
     const data = ensureOk(
       await fetchJson<TdTimeSeries>(
         `${base}?endpoint=time_series&symbol=${encodeURIComponent(providerId)}&interval=1day&outputsize=${days}`,
-        { headers: authHeaders() },
+        { headers: await authHeaders() },
       ),
     )
     return (data.values ?? [])

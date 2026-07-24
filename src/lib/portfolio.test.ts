@@ -8,6 +8,12 @@ const account: BrokerAccount = {
   accountLabel: 'Cuenta',
   defaultCurrency: 'EUR',
 }
+const account2: BrokerAccount = {
+  id: 'acc2',
+  brokerName: 'Otro',
+  accountLabel: 'Segunda',
+  defaultCurrency: 'EUR',
+}
 
 function tx(partial: Partial<Transaction> & Pick<Transaction, 'id' | 'type' | 'quantity' | 'investedAmount'>): Transaction {
   return {
@@ -81,5 +87,109 @@ describe('buildPortfolioView — resiliencia ante datos incoherentes', () => {
       displayCurrency: 'EUR',
     })
     expect(view.positions[0]!.inconsistent).toBeUndefined()
+  })
+
+  it('no asume FX 1:1: deja costes y rentabilidad no disponibles', () => {
+    const view = buildPortfolioView({
+      assets: [{ ...asset, quoteCurrency: 'USD' }],
+      accounts: [account],
+      transactions: [
+        tx({
+          id: 'usd',
+          type: 'buy',
+          quantity: '1',
+          investedAmount: '100',
+          investedCurrency: 'USD',
+          quoteCurrency: 'USD',
+        }),
+      ],
+      quotes: {
+        a1: {
+          assetId: 'a1',
+          price: '110',
+          currency: 'USD',
+          timestamp: '2026-01-02T00:00:00Z',
+          provider: 'manual',
+          quality: 'manual',
+          fetchedAt: '2026-01-02T00:00:00Z',
+        },
+      },
+      fxRates: [],
+      displayCurrency: 'EUR',
+    })
+    expect(view.positions[0]!.cost).toBeNull()
+    expect(view.totalPnl).toBeNull()
+    expect(view.moneyWeighted).toEqual({ ok: false, reason: 'missing_data' })
+    expect(view.warnings.some((warning) => warning.includes('Sin cambio USD→EUR'))).toBe(true)
+  })
+
+  it('reparte el mismo activo entre cuentas según sus unidades reales', () => {
+    const view = buildPortfolioView({
+      assets: [asset],
+      accounts: [account, account2],
+      transactions: [
+        tx({ id: 'one', type: 'buy', quantity: '1', investedAmount: '8' }),
+        tx({
+          id: 'two',
+          accountId: 'acc2',
+          type: 'buy',
+          quantity: '3',
+          investedAmount: '24',
+        }),
+      ],
+      quotes: {
+        a1: {
+          assetId: 'a1',
+          price: '10',
+          currency: 'EUR',
+          timestamp: '2026-01-02T00:00:00Z',
+          provider: 'manual',
+          quality: 'manual',
+          fetchedAt: '2026-01-02T00:00:00Z',
+        },
+      },
+      fxRates: [],
+      displayCurrency: 'EUR',
+    })
+    expect(view.byAccount).toHaveLength(2)
+    expect(view.byAccount.find((slice) => slice.key === 'acc1')!.value.toString()).toBe('10')
+    expect(view.byAccount.find((slice) => slice.key === 'acc2')!.value.toString()).toBe('30')
+  })
+
+  it('incluye ventas y comisiones en el resultado total', () => {
+    const view = buildPortfolioView({
+      assets: [asset],
+      accounts: [account],
+      transactions: [
+        tx({ id: 'buy', type: 'buy', quantity: '10', investedAmount: '100', fee: '1', feeCurrency: 'EUR' }),
+        tx({
+          id: 'sell',
+          type: 'sell',
+          quantity: '5',
+          investedAmount: '70',
+          fee: '1',
+          feeCurrency: 'EUR',
+          datetime: '2026-02-01T00:00:00Z',
+        }),
+      ],
+      quotes: {
+        a1: {
+          assetId: 'a1',
+          price: '12',
+          currency: 'EUR',
+          timestamp: '2026-03-01T00:00:00Z',
+          provider: 'manual',
+          quality: 'manual',
+          fetchedAt: '2026-03-01T00:00:00Z',
+        },
+      },
+      fxRates: [],
+      displayCurrency: 'EUR',
+    })
+    expect(view.totalInvested!.toString()).toBe('101')
+    expect(view.totalProceeds!.toString()).toBe('69')
+    expect(view.totalFees!.toString()).toBe('2')
+    expect(view.totalPnl!.toFixed(2)).toBe('28.00')
+    expect(view.totalRealizedPnl!.toFixed(2)).toBe('18.50')
   })
 })

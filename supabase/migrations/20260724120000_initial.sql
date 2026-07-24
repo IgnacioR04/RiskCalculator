@@ -162,7 +162,7 @@ create table public.transactions (
   quantity numeric not null check (quantity > 0),
   execution_price numeric check (execution_price > 0),
   quote_currency text not null check (quote_currency in ('EUR', 'USD')),
-  -- Comisiones: columnas presentes para el futuro; el MVP las ignora.
+  -- Comisión real o estimada; el origen/regla vive en la cuenta.
   fee numeric check (fee >= 0),
   fee_currency text check (fee_currency in ('EUR', 'USD')),
   source_type text not null default 'exact' check (

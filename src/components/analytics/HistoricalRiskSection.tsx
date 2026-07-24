@@ -1,11 +1,5 @@
-/**
- * Métricas históricas bajo demanda: descarga series diarias de los
- * proveedores disponibles y calcula volatilidad, drawdown, Sharpe/Sortino,
- * correlaciones y beta contra un benchmark elegido. Los activos sin serie se
- * declaran «sin datos»; nunca se muestran números con muestra insuficiente.
- */
 import { useMemo, useState } from 'react'
-import type { Asset } from '../../lib/domain'
+import type { Asset, Currency, FxRate, Transaction } from '../../lib/domain'
 import {
   alignReturns,
   annualizedVolatility,
@@ -18,12 +12,27 @@ import {
   sortinoRatio,
   type SeriesPoint,
 } from '../../lib/finance/historical'
+import {
+  alignManyReturns,
+  covarianceMatrix,
+  portfolioRisk,
+  timeWeightedReturn,
+  tradingDaysForAsset,
+  tradingDaysForPortfolio,
+  type TwrPeriod,
+} from '../../lib/finance/portfolioRisk'
+import { dec } from '../../lib/finance/decimal'
+import { convertAmount } from '../../lib/fx'
 import { formatPct } from '../../lib/format'
-import { CorrelationHeatmap } from '../charts/CorrelationHeatmap'
+import { buildPortfolioView } from '../../lib/portfolio'
 import { coingeckoProvider } from '../../lib/market/coingecko'
+import { historicalFxSeries } from '../../lib/market/service'
 import { twelveDataProvider } from '../../lib/market/twelvedata'
 import { useAppStore } from '../../state/store'
-import { Card, Note, Segmented } from '../ui'
+import { CorrelationHeatmap } from '../charts/CorrelationHeatmap'
+import { CovarianceHeatmap } from '../charts/CovarianceHeatmap'
+import { RiskContributionChart } from '../charts/RiskContributionChart'
+import { Card, Note, Segmented, Stat } from '../ui'
 
 type Period = '90' | '180' | '365'
 
@@ -34,52 +43,251 @@ interface AssetSeries {
   provider: string
 }
 
-async function fetchSeries(asset: Asset, days: number): Promise<AssetSeries | null> {
-  const tdId = asset.providerIds?.['twelvedata']
-  if (tdId !== undefined && twelveDataProvider.isConfigured()) {
+function rateAt(
+  rates: readonly { date: string; rate: number }[],
+  date: string,
+): number | null {
+  const candidate = [...rates].reverse().find((rate) => rate.date <= date)
+  return candidate?.rate ?? null
+}
+
+function convertPriceSeries(
+  series: readonly SeriesPoint[],
+  rates: readonly { date: string; rate: number }[],
+): SeriesPoint[] {
+  return series.flatMap((point) => {
+    const rate = rateAt(rates, point.date)
+    return rate === null ? [] : [{ date: point.date, close: point.close * rate }]
+  })
+}
+
+async function fetchSeries(
+  asset: Asset,
+  days: number,
+  displayCurrency: Currency,
+  fxSeries: readonly { date: string; rate: number }[],
+): Promise<AssetSeries | null> {
+  const twelveDataId = asset.providerIds?.['twelvedata']
+  if (twelveDataId !== undefined && twelveDataProvider.isConfigured()) {
     try {
-      const candles = await twelveDataProvider.getDailyOHLC(tdId, days, asset.quoteCurrency)
+      const candles = await twelveDataProvider.getDailyOHLC(
+        twelveDataId,
+        days,
+        asset.quoteCurrency,
+      )
       if (candles.length > 0) {
-        const series = candles.map((c) => ({ date: c.time, close: Number(c.close) }))
-        return { asset, series, returns: dailyReturns(series), provider: 'twelvedata' }
+        let series = candles.map((candle) => ({
+          date: candle.time,
+          close: Number(candle.close),
+        }))
+        if (asset.quoteCurrency !== displayCurrency) {
+          series = convertPriceSeries(series, fxSeries)
+        }
+        return {
+          asset,
+          series,
+          returns: dailyReturns(series),
+          provider:
+            asset.quoteCurrency === displayCurrency
+              ? 'Twelve Data'
+              : 'Twelve Data + BCE FX',
+        }
       }
     } catch {
-      // cae al siguiente proveedor
+      // Continúa con el siguiente proveedor.
     }
   }
-  const cgId = asset.providerIds?.['coingecko']
-  if (cgId !== undefined && asset.assetType === 'crypto') {
+
+  const coinGeckoId = asset.providerIds?.['coingecko']
+  if (coinGeckoId !== undefined && asset.assetType === 'crypto') {
     try {
-      const candles = await coingeckoProvider.getDailyOHLC(cgId, days, asset.quoteCurrency)
+      // CoinGecko puede devolver directamente la divisa de presentación.
+      const candles = await coingeckoProvider.getDailyOHLC(
+        coinGeckoId,
+        days,
+        displayCurrency,
+      )
       if (candles.length > 0) {
-        const series = candles.map((c) => ({ date: c.time, close: Number(c.close) }))
-        return { asset, series, returns: dailyReturns(series), provider: 'coingecko' }
+        const series = candles.map((candle) => ({
+          date: candle.time,
+          close: Number(candle.close),
+        }))
+        return { asset, series, returns: dailyReturns(series), provider: 'CoinGecko' }
       }
     } catch {
-      // sin datos
+      // Sin datos.
     }
   }
   return null
 }
 
-export function HistoricalRiskSection() {
-  const assets = useAppStore((s) => s.assets)
-  const transactions = useAppStore((s) => s.transactions)
-  const riskFreeRate = useAppStore((s) => s.settings.riskFreeRate)
+function transactionCashFlow(
+  transaction: Transaction,
+  displayCurrency: Currency,
+  fxRates: readonly FxRate[],
+  downloadedFx: readonly { date: string; rate: number }[],
+): { contribution: number; withdrawal: number } | null {
+  const date = transaction.datetime.slice(0, 10)
+  let amount = convertAmount(
+    transaction.investedAmount,
+    transaction.investedCurrency,
+    displayCurrency,
+    fxRates,
+    date,
+  )?.amount
+  if (amount === undefined && transaction.investedCurrency !== displayCurrency) {
+    const rate = rateAt(downloadedFx, date)
+    if (rate !== null) amount = dec(transaction.investedAmount).times(rate)
+  }
+  if (amount === undefined) return null
 
+  let fee = dec(0)
+  if (transaction.fee !== null) {
+    const feeCurrency = transaction.feeCurrency ?? transaction.investedCurrency
+    const convertedFee = convertAmount(
+      transaction.fee,
+      feeCurrency,
+      displayCurrency,
+      fxRates,
+      date,
+    )?.amount
+    if (convertedFee !== undefined) fee = convertedFee
+    else if (feeCurrency !== displayCurrency) {
+      const rate = rateAt(downloadedFx, date)
+      if (rate === null) return null
+      fee = dec(transaction.fee).times(rate)
+    } else fee = dec(transaction.fee)
+  }
+
+  if (transaction.type === 'buy') {
+    return { contribution: Number(amount.plus(fee).toString()), withdrawal: 0 }
+  }
+  const net = dec(amount).minus(fee)
+  return {
+    contribution: 0,
+    withdrawal: Number((net.gt(0) ? net : dec(0)).toString()),
+  }
+}
+
+function quantityOn(
+  transactions: readonly Transaction[],
+  assetId: string,
+  date: string,
+): number {
+  return transactions
+    .filter(
+      (transaction) =>
+        transaction.assetId === assetId && transaction.datetime.slice(0, 10) <= date,
+    )
+    .reduce(
+      (quantity, transaction) =>
+        quantity +
+        Number(transaction.quantity) * (transaction.type === 'buy' ? 1 : -1),
+      0,
+    )
+}
+
+function calculatePortfolioTwr(input: {
+  loaded: AssetSeries[]
+  transactions: Transaction[]
+  displayCurrency: Currency
+  fxRates: FxRate[]
+  downloadedFx: { date: string; rate: number }[]
+  requiredAssetIds: Set<string>
+}): number | null {
+  const relevantLoaded = input.loaded.filter((item) =>
+    input.requiredAssetIds.has(item.asset.id),
+  )
+  const relevantTransactions = input.transactions.filter((transaction) =>
+    input.requiredAssetIds.has(transaction.assetId),
+  )
+  if (
+    relevantLoaded.length === 0 ||
+    relevantLoaded.length !== input.requiredAssetIds.size ||
+    relevantTransactions.some((transaction) => transaction.costKnown === false)
+  ) {
+    return null
+  }
+  const aligned = alignManyReturns(
+    relevantLoaded.map((item) =>
+      item.series.map((point) => ({ date: point.date, value: point.close })),
+    ),
+  )
+  if (aligned.dates.length < 2) return null
+  const priceMaps = new Map(
+    relevantLoaded.map((item) => [
+      item.asset.id,
+      new Map(item.series.map((point) => [point.date, point.close])),
+    ]),
+  )
+  const periods: TwrPeriod[] = []
+  for (let index = 1; index < aligned.dates.length; index++) {
+    const previousDate = aligned.dates[index - 1]!
+    const date = aligned.dates[index]!
+    let openingValue = 0
+    let closingValue = 0
+    for (const item of relevantLoaded) {
+      const prices = priceMaps.get(item.asset.id)!
+      openingValue += quantityOn(relevantTransactions, item.asset.id, previousDate) * prices.get(previousDate)!
+      closingValue += quantityOn(relevantTransactions, item.asset.id, date) * prices.get(date)!
+    }
+    let contributions = 0
+    let withdrawals = 0
+    for (const transaction of relevantTransactions.filter(
+      (item) => item.datetime.slice(0, 10) === date,
+    )) {
+      const flow = transactionCashFlow(
+        transaction,
+        input.displayCurrency,
+        input.fxRates,
+        input.downloadedFx,
+      )
+      if (flow === null) return null
+      contributions += flow.contribution
+      withdrawals += flow.withdrawal
+    }
+    periods.push({ openingValue, closingValue, contributions, withdrawals })
+  }
+  return timeWeightedReturn(periods)
+}
+
+export function HistoricalRiskSection() {
+  const store = useAppStore()
+  const view = useMemo(
+    () =>
+      buildPortfolioView({
+        assets: store.assets,
+        accounts: store.accounts,
+        transactions: store.transactions,
+        quotes: store.quotes,
+        fxRates: store.fxRates,
+        displayCurrency: store.settings.displayCurrency,
+      }),
+    [
+      store.assets,
+      store.accounts,
+      store.transactions,
+      store.quotes,
+      store.fxRates,
+      store.settings.displayCurrency,
+    ],
+  )
   const candidates = useMemo(
     () =>
-      assets.filter(
-        (a) =>
-          transactions.some((t) => t.assetId === a.id) &&
-          (a.providerIds?.['coingecko'] !== undefined || a.providerIds?.['twelvedata'] !== undefined),
-      ),
-    [assets, transactions],
+      view.positions
+        .filter((position) => position.quantity.gt(0))
+        .map((position) => position.asset)
+        .filter(
+          (asset) =>
+          (asset.providerIds?.['coingecko'] !== undefined ||
+            asset.providerIds?.['twelvedata'] !== undefined),
+        ),
+    [view.positions],
   )
-
-  const [period, setPeriod] = useState<Period>('90')
+  const [period, setPeriod] = useState<Period>('365')
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState<AssetSeries[] | null>(null)
+  const [downloadedFx, setDownloadedFx] = useState<{ date: string; rate: number }[]>([])
   const [missing, setMissing] = useState<string[]>([])
   const [benchmarkId, setBenchmarkId] = useState('')
 
@@ -88,187 +296,285 @@ export function HistoricalRiskSection() {
     setLoaded(null)
     setMissing([])
     try {
-      const results: AssetSeries[] = []
-      const failed: string[] = []
-      for (const asset of candidates) {
-        const s = await fetchSeries(asset, Number(period))
-        if (s !== null) results.push(s)
-        else failed.push(asset.symbol)
+      const days = Number(period)
+      const end = new Date()
+      const start = new Date(end.getTime() - (days + 10) * 86_400_000)
+      let fx: { date: string; rate: number }[] = []
+      try {
+        fx = await historicalFxSeries(
+          store.settings.displayCurrency === 'EUR' ? 'USD' : 'EUR',
+          store.settings.displayCurrency,
+          start.toISOString().slice(0, 10),
+          end.toISOString().slice(0, 10),
+        )
+      } catch {
+        // Solo será bloqueante para activos en la otra divisa.
       }
-      setLoaded(results)
-      setMissing(failed)
-      const first = results[0]
-      if (first !== undefined) setBenchmarkId(first.asset.id)
+      setDownloadedFx(fx)
+      const results = await Promise.all(
+        candidates.map((asset) =>
+          fetchSeries(asset, days, store.settings.displayCurrency, fx),
+        ),
+      )
+      const available = results.filter((result): result is AssetSeries => result !== null)
+      setLoaded(available)
+      setMissing(
+        candidates
+          .filter((asset) => !available.some((item) => item.asset.id === asset.id))
+          .map((asset) => asset.symbol),
+      )
+      if (available[0] !== undefined) setBenchmarkId(available[0].asset.id)
     } finally {
       setBusy(false)
     }
   }
 
-  const rf = Number(riskFreeRate) || 0
-  const benchmark = loaded?.find((s) => s.asset.id === benchmarkId) ?? null
+  const analytics = useMemo(() => {
+    if (loaded === null || loaded.length === 0) return null
+    const aligned = alignManyReturns(loaded.map((item) => item.returns))
+    const periodsPerYear = tradingDaysForPortfolio(
+      loaded.map((item) => item.asset.assetType),
+    )
+    const covariance = covarianceMatrix(aligned.columns, periodsPerYear)
+    const valuedLoaded = loaded.flatMap((item) => {
+      const position = view.positions.find((candidate) => candidate.asset.id === item.asset.id)
+      return position?.value === null || position?.value === undefined
+        ? []
+        : [{ item, value: Number(position.value.toString()) }]
+    })
+    const loadedTotal = valuedLoaded.reduce((sum, item) => sum + item.value, 0)
+    const weights = loaded.map((item) => {
+      const match = valuedLoaded.find((candidate) => candidate.item.asset.id === item.asset.id)
+      return loadedTotal > 0 ? (match?.value ?? 0) / loadedTotal : 0
+    })
+    const risk = covariance.ok ? portfolioRisk(weights, covariance.value) : null
+    const requiredAssetIds = new Set(
+      view.positions
+        .filter((position) => position.quantity.gt(0))
+        .map((position) => position.asset.id),
+    )
+    const twr = calculatePortfolioTwr({
+      loaded,
+      transactions: store.transactions,
+      displayCurrency: store.settings.displayCurrency,
+      fxRates: store.fxRates,
+      downloadedFx,
+      requiredAssetIds,
+    })
+    return {
+      aligned,
+      covariance,
+      risk,
+      weights,
+      coverage:
+        Number(view.totalValue.toString()) > 0
+          ? loadedTotal / Number(view.totalValue.toString())
+          : 0,
+      twr,
+      complete: requiredAssetIds.size === loaded.length && missing.length === 0,
+    }
+  }, [
+    loaded,
+    view,
+    store.transactions,
+    store.settings.displayCurrency,
+    store.fxRates,
+    downloadedFx,
+    missing.length,
+  ])
 
   if (candidates.length === 0) {
     return (
-      <Card title="Riesgo histórico">
+      <Card title="Riesgo y diversificación">
         <Note kind="info">
-          El análisis histórico necesita activos con proveedor de datos (búscalos al crear el
-          activo). Los activos manuales o sin proveedor no tienen serie histórica: el análisis no
-          está disponible para ellos y no se muestran números inventados.
+          Añade proveedores a tus activos para calcular volatilidad, covarianzas y contribución al
+          riesgo. No se generan números a partir de activos manuales sin histórico.
         </Note>
       </Card>
     )
   }
 
+  const riskFreeRate = Number(store.settings.riskFreeRate) || 0
+  const benchmark = loaded?.find((item) => item.asset.id === benchmarkId) ?? null
+
   return (
-    <Card title="Riesgo histórico">
-      <p className="muted">
-        Series diarias de los proveedores disponibles. Tasa libre de riesgo usada en Sharpe/Sortino:{' '}
-        <strong>{formatPct(rf)}</strong> anual (configurable en Perfil). Las métricas describen el
-        pasado del periodo elegido; no predicen el futuro.
-      </p>
-      <div className="row">
-        <Segmented<Period>
-          label="Periodo"
-          value={period}
-          onChange={setPeriod}
-          options={[
-            { value: '90', label: '90 días' },
-            { value: '180', label: '180 días' },
-            { value: '365', label: '1 año' },
-          ]}
-        />
-        <button type="button" className="btn primary" onClick={() => void run()} disabled={busy}>
-          {busy ? 'Descargando series…' : 'Calcular métricas'}
-        </button>
+    <Card title="Riesgo y diversificación">
+      <div className="analytics-toolbar">
+        <div>
+          <span className="eyebrow">Histórico en {store.settings.displayCurrency}</span>
+          <p className="muted mb-0">
+            Precios y cambios FX alineados por fecha. El pasado describe riesgo; no predice retornos.
+          </p>
+        </div>
+        <div className="row">
+          <Segmented<Period>
+            label="Ventana"
+            value={period}
+            onChange={setPeriod}
+            options={[
+              { value: '90', label: '90 d' },
+              { value: '180', label: '6 m' },
+              { value: '365', label: '1 a' },
+            ]}
+          />
+          <button type="button" className="btn primary" onClick={() => void run()} disabled={busy}>
+            {busy ? 'Analizando…' : loaded === null ? 'Analizar cartera' : 'Actualizar análisis'}
+          </button>
+        </div>
       </div>
 
       {missing.length > 0 && (
         <Note kind="warning">
-          Sin serie histórica disponible para: {missing.join(', ')}. Sus métricas no se calculan.
+          Sin histórico convertible para {missing.join(', ')}. Las métricas de cartera muestran
+          cobertura parcial y no se presentan como completas.
         </Note>
       )}
 
-      {loaded !== null && loaded.length > 0 && (
+      {loaded !== null && analytics !== null && (
         <>
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th scope="col">Activo</th>
-                  <th scope="col">Obs.</th>
-                  <th scope="col">Volatilidad anual</th>
-                  <th scope="col">Vol. bajista</th>
-                  <th scope="col">Drawdown máx.</th>
-                  <th scope="col">Sharpe</th>
-                  <th scope="col">Sortino</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loaded.map((s) => {
-                  const returns = s.returns.map((r) => r.value)
-                  const vol = annualizedVolatility(returns)
-                  const dvol = downsideVolatility(returns)
-                  const dd = maxDrawdown(s.series)
-                  const sharpe = sharpeRatio(returns, rf)
-                  const sortino = sortinoRatio(returns, rf)
-                  return (
-                    <tr key={s.asset.id}>
-                      <td>
-                        {s.asset.symbol}
-                        <div className="muted" style={{ fontSize: '0.72rem' }}>
-                          {s.provider}
-                        </div>
-                      </td>
-                      <td>{s.returns.length}</td>
-                      <td>{vol.ok ? formatPct(vol.value, 1) : 'Datos insuf.'}</td>
-                      <td>{dvol.ok ? formatPct(dvol.value, 1) : 'Datos insuf.'}</td>
-                      <td>{dd.ok ? formatPct(dd.value.maxDrawdown, 1) : 'Datos insuf.'}</td>
-                      <td>{sharpe.ok ? sharpe.value.toFixed(2) : 'Datos insuf.'}</td>
-                      <td>{sortino.ok ? sortino.value.toFixed(2) : 'Datos insuf.'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div className="stat-grid analytics-kpis">
+            <Stat label={analytics.complete ? 'Volatilidad de cartera' : 'Volatilidad del segmento'}>
+              {analytics.risk === null ? 'Datos insuficientes' : formatPct(analytics.risk.volatility, 1)}
+            </Stat>
+            <Stat label="Cobertura analizada">{formatPct(analytics.coverage, 0)}</Stat>
+            <Stat label="TWR del periodo">
+              {analytics.twr === null ? 'No disponible' : formatPct(analytics.twr, 1)}
+            </Stat>
+            <Stat label="Muestra común">{analytics.aligned.dates.length} días</Stat>
           </div>
-          <p className="muted">
-            La volatilidad mide la variabilidad histórica de los retornos diarios, no la calidad
-            del activo. El drawdown máximo es la mayor caída pico-valle del periodo.
-          </p>
+
+          <div className="metric-cards">
+            {loaded.map((item) => {
+              const returns = item.returns.map((point) => point.value)
+              const annualization = tradingDaysForAsset(item.asset.assetType)
+              const volatility = annualizedVolatility(returns, annualization)
+              const downside = downsideVolatility(returns, annualization)
+              const drawdown = maxDrawdown(item.series)
+              const sharpe = sharpeRatio(returns, riskFreeRate, annualization)
+              const sortino = sortinoRatio(returns, riskFreeRate, annualization)
+              return (
+                <article className="metric-card" key={item.asset.id}>
+                  <div className="row spread">
+                    <strong>{item.asset.symbol}</strong>
+                    <span className="chip delayed">{item.provider}</span>
+                  </div>
+                  <div className="mini-metrics">
+                    <span><small>Volatilidad</small>{volatility.ok ? formatPct(volatility.value, 1) : '—'}</span>
+                    <span><small>Drawdown</small>{drawdown.ok ? formatPct(drawdown.value.maxDrawdown, 1) : '—'}</span>
+                    <span><small>Sharpe</small>{sharpe.ok ? sharpe.value.toFixed(2) : '—'}</span>
+                    <span><small>Sortino</small>{sortino.ok ? sortino.value.toFixed(2) : '—'}</span>
+                    <span><small>Vol. bajista</small>{downside.ok ? formatPct(downside.value, 1) : '—'}</span>
+                    <span><small>Sesiones/año</small>{annualization}</span>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
 
           {loaded.length > 1 && (
             <>
-              <h3>Matriz de correlación (relaciones entre tus activos)</h3>
-              <p className="muted">
-                Mide cómo se han movido juntos tus activos en el periodo. Activos muy
-                correlacionados (naranja) diversifican poco entre sí; correlación baja o negativa
-                (azul) reparte mejor el riesgo. Es historia, no una garantía futura.
-              </p>
-              <CorrelationHeatmap
-                matrix={{
-                  labels: loaded.map((s) => s.asset.symbol),
-                  cells: loaded.map((row) =>
-                    loaded.map((col) => {
-                      if (row.asset.id === col.asset.id) return { value: 1 }
-                      const aligned = alignReturns(row.returns, col.returns)
-                      const corr = correlation(aligned.a, aligned.b)
-                      return { value: corr.ok ? corr.value : null }
-                    }),
-                  ),
-                }}
-              />
-
-              <h3>Beta contra un benchmark</h3>
-              <div className="field">
-                <label htmlFor="benchmark-select">Benchmark</label>
-                <span className="hint">
-                  Elige contra qué activo medir beta/alpha/R². Un índice no siempre es invertible
-                  directamente; aquí se usa como referencia.
-                </span>
-                <select
-                  id="benchmark-select"
-                  value={benchmarkId}
-                  onChange={(e) => setBenchmarkId(e.target.value)}
-                >
-                  {loaded.map((s) => (
-                    <option key={s.asset.id} value={s.asset.id}>
-                      {s.asset.symbol}
-                    </option>
-                  ))}
-                </select>
+              <div className="analytics-grid">
+                <section>
+                  <h3>Correlación</h3>
+                  <p className="muted tiny">
+                    Cercana a +1: se mueven juntos. Cercana a −1: puede diversificar.
+                  </p>
+                  <CorrelationHeatmap
+                    matrix={{
+                      labels: loaded.map((item) => item.asset.symbol),
+                      cells: loaded.map((row) =>
+                        loaded.map((column) => {
+                          if (row.asset.id === column.asset.id) return { value: 1 }
+                          const aligned = alignReturns(row.returns, column.returns)
+                          const result = correlation(aligned.a, aligned.b)
+                          return { value: result.ok ? result.value : null }
+                        }),
+                      ),
+                    }}
+                  />
+                </section>
+                <section>
+                  <h3>Covarianza anualizada</h3>
+                  <p className="muted tiny">
+                    Añade magnitud de riesgo a la relación y alimenta la volatilidad de cartera.
+                  </p>
+                  {analytics.covariance.ok ? (
+                    <CovarianceHeatmap
+                      labels={loaded.map((item) => item.asset.symbol)}
+                      matrix={analytics.covariance.value}
+                    />
+                  ) : (
+                    <Note kind="info">Se necesitan al menos 30 retornos comunes.</Note>
+                  )}
+                </section>
               </div>
-              {benchmark !== null && (
-                <div className="table-wrap">
-                  <table className="data">
-                    <thead>
-                      <tr>
-                        <th scope="col">Activo</th>
-                        <th scope="col">Beta</th>
-                        <th scope="col">Alpha anual</th>
-                        <th scope="col">R²</th>
-                        <th scope="col">Obs. comunes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loaded
-                        .filter((s) => s.asset.id !== benchmark.asset.id)
-                        .map((s) => {
-                          const aligned = alignReturns(s.returns, benchmark.returns)
-                          const reg = betaAlpha(aligned.a, aligned.b)
-                          return (
-                            <tr key={s.asset.id}>
-                              <td>{s.asset.symbol}</td>
-                              <td>{reg.ok ? reg.value.beta.toFixed(2) : 'Datos insuf.'}</td>
-                              <td>{reg.ok ? formatPct(reg.value.alpha, 1) : '—'}</td>
-                              <td>{reg.ok ? reg.value.r2.toFixed(2) : '—'}</td>
-                              <td>{aligned.a.length}</td>
-                            </tr>
-                          )
-                        })}
-                    </tbody>
-                  </table>
-                </div>
+
+              {analytics.risk !== null && (
+                <section>
+                  <h3>Quién aporta el riesgo</h3>
+                  <p className="muted">
+                    Un activo puede pesar poco en euros y dominar el riesgo. Las barras negativas
+                    indican efecto diversificador en esta muestra.
+                  </p>
+                  <RiskContributionChart
+                    data={loaded.map((item, index) => ({
+                      label: item.asset.symbol,
+                      contribution: analytics.risk!.percentageContributions[index] ?? 0,
+                    }))}
+                  />
+                </section>
               )}
+
+              <section>
+                <h3>Beta y alpha</h3>
+                <div className="field compact-field">
+                  <label htmlFor="benchmark-select">Benchmark de comparación</label>
+                  <select
+                    id="benchmark-select"
+                    value={benchmarkId}
+                    onChange={(event) => setBenchmarkId(event.target.value)}
+                  >
+                    {loaded.map((item) => (
+                      <option key={item.asset.id} value={item.asset.id}>
+                        {item.asset.symbol}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {benchmark !== null && (
+                  <div className="table-wrap">
+                    <table className="data">
+                      <thead>
+                        <tr><th>Activo</th><th>Beta</th><th>Alpha anual</th><th>R²</th><th>Obs.</th></tr>
+                      </thead>
+                      <tbody>
+                        {loaded
+                          .filter((item) => item.asset.id !== benchmark.asset.id)
+                          .map((item) => {
+                            const aligned = alignReturns(item.returns, benchmark.returns)
+                            const regression = betaAlpha(
+                              aligned.a,
+                              aligned.b,
+                              tradingDaysForPortfolio([
+                                item.asset.assetType,
+                                benchmark.asset.assetType,
+                              ]),
+                            )
+                            return (
+                              <tr key={item.asset.id}>
+                                <td>{item.asset.symbol}</td>
+                                <td>{regression.ok ? regression.value.beta.toFixed(2) : '—'}</td>
+                                <td>{regression.ok ? formatPct(regression.value.alpha, 1) : '—'}</td>
+                                <td>{regression.ok ? regression.value.r2.toFixed(2) : '—'}</td>
+                                <td>{aligned.a.length}</td>
+                              </tr>
+                            )
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
             </>
           )}
         </>
@@ -276,8 +582,7 @@ export function HistoricalRiskSection() {
 
       {loaded !== null && loaded.length === 0 && (
         <Note kind="warning">
-          Ningún activo tiene serie histórica disponible con los proveedores actuales. El análisis
-          no está disponible; no se muestran números inventados.
+          Los proveedores no devolvieron series utilizables. No se muestran métricas estimadas.
         </Note>
       )}
     </Card>

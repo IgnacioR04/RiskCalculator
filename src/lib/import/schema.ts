@@ -30,6 +30,19 @@ const importAssetSchema = z.object({
   type: z.enum(['stock', 'etf', 'crypto', 'commodity', 'index', 'cash', 'other']).nullable(),
   quote_currency: currencySchema.nullable(),
   isin: z.string().trim().max(12).nullable(),
+  exchange: z.string().trim().max(40).nullable().default(null),
+  sector: z.string().trim().max(80).nullable().default(null),
+  country: z.string().trim().max(80).nullable().default(null),
+  holdings: z
+    .array(
+      z.object({
+        symbol: z.string().trim().min(1).max(20),
+        name: z.string().trim().max(120).nullable().default(null),
+        weight: numericSchema.nullable().default(null),
+      }),
+    )
+    .max(100)
+    .default([]),
 })
 
 const importAccountSchema = z.object({
@@ -47,6 +60,8 @@ const importTransactionSchema = z.object({
   invested_currency: currencySchema.nullable(),
   quantity: numericSchema.nullable(),
   execution_price: numericSchema.nullable(),
+  fee: numericSchema.nullable().default(null),
+  fee_currency: currencySchema.nullable().default(null),
   evidence: z.string().trim().max(300).nullable(),
   confidence: confidenceSchema,
 })
@@ -56,6 +71,9 @@ const importPositionSchema = z.object({
   asset: importAssetSchema,
   quantity: numericSchema.nullable(),
   current_value: numericSchema.nullable(),
+  total_invested: numericSchema.nullable().default(null),
+  average_buy_price: numericSchema.nullable().default(null),
+  acquisition_date: z.string().trim().max(40).nullable().default(null),
   currency: currencySchema.nullable(),
   evidence: z.string().trim().max(300).nullable(),
   confidence: confidenceSchema,
@@ -102,14 +120,24 @@ function scanKeys(value: unknown, path: string, warnings: string[], errors: stri
     'type',
     'quote_currency',
     'isin',
+    'exchange',
+    'sector',
+    'country',
+    'holdings',
+    'weight',
     'datetime',
     'invested_amount',
     'invested_currency',
     'quantity',
     'execution_price',
+    'fee',
+    'fee_currency',
     'evidence',
     'confidence',
     'current_value',
+    'total_invested',
+    'average_buy_price',
+    'acquisition_date',
   ])
   for (const [key, v] of Object.entries(value)) {
     if (FORBIDDEN_KEYS.includes(key.toLowerCase())) {
@@ -241,6 +269,11 @@ export function validateImportJson(rawInput: string): ImportValidation {
     if (p.current_value === null && p.quantity === null) {
       warnings.push(`positions[${i}]: sin valor ni cantidad; no se puede importar.`)
     }
+    if (p.quantity !== null && p.total_invested === null && p.average_buy_price === null) {
+      warnings.push(
+        `positions[${i}]: se conocen las unidades pero no el coste histórico; la rentabilidad quedará sin calcular hasta completarlo.`,
+      )
+    }
   })
 
   return { ok: true, payload, errors, warnings }
@@ -257,7 +290,8 @@ INSTRUCCIONES ESTRICTAS:
 5. Números SIEMPRE con punto decimal y sin separador de miles (ej. 1234.56).
 6. Fechas en formato ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:mm) solo si son visibles.
 7. Divisas: solo "EUR" o "USD"; si es otra o no se ve, usa null.
-8. Devuelve EXCLUSIVAMENTE un JSON válido conforme a este esquema, sin texto adicional, sin markdown:
+8. En holdings, weight es la fracción entre 0 y 1 (6,5 % = 0.065), nunca el porcentaje 6.5.
+9. Devuelve EXCLUSIVAMENTE un JSON válido conforme a este esquema, sin texto adicional, sin markdown:
 
 {
   "schema_version": 1,
@@ -267,9 +301,12 @@ INSTRUCCIONES ESTRICTAS:
   "positions": [
     {
       "account_broker": "string|null",
-      "asset": { "symbol": "string|null", "name": "string|null", "type": "stock|etf|crypto|commodity|index|cash|other|null", "quote_currency": "EUR|USD|null", "isin": "string|null" },
+      "asset": { "symbol": "string|null", "name": "string|null", "type": "stock|etf|crypto|commodity|index|cash|other|null", "quote_currency": "EUR|USD|null", "isin": "string|null", "exchange": "string|null", "sector": "string|null", "country": "string|null", "holdings": [{"symbol":"string","name":"string|null","weight":"number|null"}] },
       "quantity": "number|null",
       "current_value": "number|null",
+      "total_invested": "number|null",
+      "average_buy_price": "number|null",
+      "acquisition_date": "ISO 8601|null",
       "currency": "EUR|USD|null",
       "evidence": "string|null",
       "confidence": "high|medium|low"
@@ -278,18 +315,67 @@ INSTRUCCIONES ESTRICTAS:
   "transactions": [
     {
       "account_broker": "string|null",
-      "asset": { "symbol": "string|null", "name": "string|null", "type": "stock|etf|crypto|commodity|index|cash|other|null", "quote_currency": "EUR|USD|null", "isin": "string|null" },
+      "asset": { "symbol": "string|null", "name": "string|null", "type": "stock|etf|crypto|commodity|index|cash|other|null", "quote_currency": "EUR|USD|null", "isin": "string|null", "exchange": "string|null", "sector": "string|null", "country": "string|null", "holdings": [] },
       "type": "buy|sell",
       "datetime": "string|null",
       "invested_amount": "number|null",
       "invested_currency": "EUR|USD|null",
       "quantity": "number|null",
       "execution_price": "number|null",
+      "fee": "number|null",
+      "fee_currency": "EUR|USD|null",
       "evidence": "string|null",
       "confidence": "high|medium|low"
     }
   ]
 }`
+
+export function buildPortfolioUpdatePrompt(context: {
+  accounts: { broker: string; label: string }[]
+  assets: { symbol: string; name: string; exchange?: string; accounts: string[] }[]
+}): string {
+  return `Eres un actualizador estricto de una cartera de inversión. Recibirás:
+1) El contexto actual de la cartera.
+2) Un texto libre del usuario (por ejemplo: "vendí 100 € de BTC a 65000") y, opcionalmente, capturas nuevas.
+
+CONTEXTO ACTUAL (solo para identificar cuentas y activos; no inventes operaciones):
+${JSON.stringify(context, null, 2)}
+
+REGLAS:
+- Convierte únicamente cambios explícitos: compras y ventas. No vuelvas a importar las posiciones existentes.
+- Resuelve el activo contra el contexto por ISIN o por símbolo + mercado/divisa. Si hay ambigüedad, usa null y explícalo en evidence; no elijas por tu cuenta.
+- Si el usuario no indica cuenta y el activo aparece en varias, deja account_broker en null.
+- Puedes derivar cantidad = importe / precio o importe = cantidad × precio. No derives ambos si solo hay un dato.
+- Si hay imágenes, extrae solo datos visibles y oculta/ignora datos personales.
+- Fechas ISO 8601. Si no se indica fecha, usa null.
+- Números con punto decimal, sin separadores de miles.
+- Devuelve exclusivamente JSON válido, sin markdown, con schema_version 1, accounts: [], positions: [] y transactions conforme a este formato:
+{
+  "schema_version": 1,
+  "accounts": [],
+  "positions": [],
+  "transactions": [{
+    "account_broker": "string|null",
+    "asset": {
+      "symbol": "string|null", "name": "string|null",
+      "type": "stock|etf|crypto|commodity|index|cash|other|null",
+      "quote_currency": "EUR|USD|null", "isin": "string|null",
+      "exchange": "string|null", "sector": "string|null", "country": "string|null",
+      "holdings": []
+    },
+    "type": "buy|sell",
+    "datetime": "ISO 8601|null",
+    "invested_amount": "number|null",
+    "invested_currency": "EUR|USD|null",
+    "quantity": "number|null",
+    "execution_price": "number|null",
+    "fee": "number|null",
+    "fee_currency": "EUR|USD|null",
+    "evidence": "frase breve que justifica cada inferencia",
+    "confidence": "high|medium|low"
+  }]
+}`
+}
 
 /** Ejemplo válido (para la UI y las pruebas del importador). */
 export const EXAMPLE_VALID_JSON = `{

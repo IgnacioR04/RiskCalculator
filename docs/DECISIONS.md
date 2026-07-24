@@ -5,18 +5,18 @@ se marcan como `[SUPOSICIÓN]` y pueden revertirse sin coste alto.
 
 ## Decisiones del propietario (2026-07-24)
 
-- **Comisiones: se ignoran en el MVP.** El propietario eligió la opción (a)
-  entre ignorar / manual / estimación opcional por bróker. El modelo de datos
-  de `transactions` conserva los campos `fee`/`fee_currency` (nullable) para
-  poder añadirlas después sin migración destructiva, pero ningún cálculo las
-  usa y la UI no las muestra.
+- **Comisiones opcionales y configurables por bróker.** La decisión anterior
+  de ignorarlas quedó sustituida por la petición del propietario del mismo
+  día. La app ofrece catálogo orientativo, regla personalizada o comisión
+  manual; cada estimación debe poder revisarse. Las comisiones forman parte
+  del coste, de las ventas netas y de las métricas de rentabilidad.
 - **Arquitectura confirmada:** React + TypeScript + Vite, Supabase
   (Auth/PostgreSQL/Edge Functions), Vercel.
 - **Proveedor de mercado:** Twelve Data como principal (clave gratuita
   aportada por el propietario), CoinGecko de respaldo cripto sin clave, BCE
   para cambios EUR diarios, entrada manual como último recurso.
-- **Accesos:** autorizado push a GitHub (IgnacioR04/RiskCalculator),
-  proyecto Supabase y despliegue en Vercel («acceso a lo que precises»).
+- **Repositorio:** `IgnacioR04/RiskCalculator`. Los despliegues o cambios en
+  servicios externos requieren las credenciales correspondientes.
 - **Interpretación principal de «recuperar»:** restaurar el valor inicial de
   referencia (experiencia principal), siempre diferenciada del punto de
   equilibrio económico real. Definida en la especificación original.
@@ -40,8 +40,8 @@ se marcan como `[SUPOSICIÓN]` y pueden revertirse sin coste alto.
   decimal.js con 28 dígitos significativos, sin redondeos intermedios.
 - `[SUPOSICIÓN]` 2026-07-24 — Tasa libre de riesgo por defecto 0 % (declarada
   en la UI de métricas); configurable en ajustes.
-- `[SUPOSICIÓN]` 2026-07-24 — Magic link por email como único método de login
-  (indicado como preferencia en la especificación salvo instrucción contraria).
+- `[SUPOSICIÓN]` 2026-07-24 — Email y contraseña de Supabase como acceso real;
+  el login `admin1 / 1234` se mantiene únicamente como puerta de demo pública.
 - `[SUPOSICIÓN]` 2026-07-24 — Los datos demo usan símbolos reales (BTC, ETF
   UCITS del S&P 500, oro) con precios ficticios claramente etiquetados como
   demo, para que la app funcione sin claves.
@@ -60,6 +60,12 @@ se marcan como `[SUPOSICIÓN]` y pueden revertirse sin coste alto.
   serializa como string.
 - 2026-07-24 — Las posiciones se **derivan** siempre del registro de
   transacciones; no existe tabla editable de holdings como fuente de verdad.
+- 2026-07-24 — Una posición importada sin coste conocido conserva unidades y
+  valor mediante `cost_known=false`; las métricas financieras dependientes se
+  bloquean hasta completar el coste.
+- 2026-07-24 — Las métricas históricas convierten cada serie a la divisa de
+  presentación antes de calcular retornos. Nunca se compara silenciosamente
+  una serie USD con otra EUR.
 - 2026-07-24 — El importador JSON valida con Zod, ignora y reporta campos
   desconocidos, nunca acepta `user_id`, SQL ni nada ejecutable, y no persiste
   hasta confirmación explícita.

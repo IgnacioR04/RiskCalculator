@@ -58,12 +58,16 @@ export function CalculadoraPage() {
 
   return (
     <>
-      <h1>Calculadora</h1>
-      <p className="muted">
-        Dos preguntas distintas que no conviene mezclar: volver a <em>ver</em> una cantidad en tu
-        posición no es lo mismo que recuperar todo el dinero aportado.
-      </p>
-      <Card>
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">Planifica antes de aportar</span>
+          <h1>Calculadora de recuperación</h1>
+          <p className="muted">
+            Mueve el objetivo y compara cuánto capital necesitas y dónde quedaría tu equilibrio.
+          </p>
+        </div>
+      </div>
+      <Card highlight>
         <Segmented<Mode>
           label="¿Qué quieres calcular?"
           value={mode}
@@ -82,6 +86,22 @@ export function CalculadoraPage() {
             { value: 'USD', label: 'USD $' },
           ]}
         />
+        <div className="mode-explainer">
+          <div className={mode === 'restore' ? 'active' : ''}>
+            <span aria-hidden="true">◎</span>
+            <div>
+              <strong>Restaurar valor</strong>
+              <small>Volver a ver una cifra en pantalla</small>
+            </div>
+          </div>
+          <div className={mode === 'breakeven' ? 'active' : ''}>
+            <span aria-hidden="true">◇</span>
+            <div>
+              <strong>Equilibrio real</strong>
+              <small>Recuperar todo lo aportado</small>
+            </div>
+          </div>
+        </div>
       </Card>
       {mode === 'restore' ? (
         <RestoreCalculator currency={currency} />
@@ -226,6 +246,31 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
                 </p>
               </>
             )}
+            <div className="recovery-visual" aria-label="Camino desde el valor actual al objetivo">
+              <div>
+                <span>Hoy</span>
+                <strong>{formatMoney(vNow.value!, currency)}</strong>
+              </div>
+              <div className="recovery-line">
+                <span
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Number(
+                        vNow.value!
+                          .div(Decimal.max(cRef.value!, 1))
+                          .times(100)
+                          .toString(),
+                      ),
+                    )}%`,
+                  }}
+                />
+              </div>
+              <div>
+                <span>Objetivo</span>
+                <strong>{formatMoney(cRef.value!, currency)}</strong>
+              </div>
+            </div>
             <Note kind="warning">
               <strong>Ojo:</strong> volver a ver {formatMoney(cRef.value!, currency)} en tu posición{' '}
               <em>no</em> significa recuperar todo tu dinero. Habrías aportado en total{' '}
@@ -261,7 +306,7 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
               </p>
               <p className="muted">
                 C_ref = cantidad de referencia · V_actual = valor actual · g = subida esperada. Sin
-                comisiones ni efecto divisa (fuera del alcance del MVP).
+                comisiones ni efecto divisa en esta calculadora independiente.
               </p>
             </MathDetails>
             <div className="row">
@@ -638,6 +683,22 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
 
       {derived && targetPrice !== null && (
         <>
+          <div className="price-journey" aria-label="Trayectoria de precios del escenario">
+            <div>
+              <span>Compra media</span>
+              <strong>{formatMoney(avgPrice.value!, currency)}</strong>
+            </div>
+            <span className="journey-arrow" aria-hidden="true">→</span>
+            <div>
+              <span>Precio actual</span>
+              <strong>{formatMoney(currentPrice.value!, currency)}</strong>
+            </div>
+            <span className="journey-arrow" aria-hidden="true">→</span>
+            <div>
+              <span>Tu objetivo</span>
+              <strong>{formatMoney(targetPrice, currency)}</strong>
+            </div>
+          </div>
           <Card highlight title="Dos números distintos para tu objetivo">
             <div className="grid-2">
               <div>
@@ -705,8 +766,8 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
                 q = {formatQty(derived.quantity)} unidades · C ={' '}
                 {formatMoney(invested.value!, currency)} · P_actual ={' '}
                 {formatMoney(currentPrice.value!, currency)} · P_obj ={' '}
-                {formatMoney(targetPrice, currency)}. Sin comisiones ni efecto divisa (fuera del
-                alcance del MVP).
+                {formatMoney(targetPrice, currency)}. Sin comisiones ni conversión de divisa en
+                esta calculadora independiente.
               </p>
             </MathDetails>
             <div className="row">

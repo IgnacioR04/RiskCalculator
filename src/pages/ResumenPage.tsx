@@ -52,13 +52,19 @@ export function ResumenPage() {
 
   return (
     <>
-      <h1>Resumen</h1>
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">Visión rápida</span>
+          <h1>Resumen</h1>
+          <p className="muted">Lo importante de tu cartera, sin ruido.</p>
+        </div>
+      </div>
       {view.hasDemoData && (
         <Note kind="demo">
           Estás viendo datos de demostración ficticios. Puedes quitarlos en Perfil y ajustes.
         </Note>
       )}
-      <Card>
+      <Card highlight>
         <div className="row spread">
           <div>
             <span className="muted">Valor total</span>
@@ -70,24 +76,30 @@ export function ResumenPage() {
           />
         </div>
         <div className="stat-grid mt-4">
-          <Stat label="Capital aportado">{formatMoney(view.totalCost, displayCurrency)}</Stat>
-          <Stat label="Resultado no realizado">
-            <SignedValue
-              formatted={formatMoney(view.totalUnrealizedPnl, displayCurrency)}
-              sign={view.totalUnrealizedPnl.gt(0) ? 1 : view.totalUnrealizedPnl.lt(0) ? -1 : 0}
-            />
+          <Stat label="Aportación neta">
+            {view.netContributed === null ? '—' : formatMoney(view.netContributed, displayCurrency)}
           </Stat>
-          <Stat label="Rentabilidad simple">
-            {view.simpleReturnPct !== null ? (
+          <Stat label="Resultado total">
+            {view.totalPnl === null ? '—' : (
               <SignedValue
-                formatted={formatPct(view.simpleReturnPct)}
-                sign={view.simpleReturnPct.gt(0) ? 1 : view.simpleReturnPct.lt(0) ? -1 : 0}
+                formatted={formatMoney(view.totalPnl, displayCurrency)}
+                sign={view.totalPnl.gt(0) ? 1 : view.totalPnl.lt(0) ? -1 : 0}
+              />
+            )}
+          </Stat>
+          <Stat label="Rentabilidad total">
+            {view.totalReturnPct !== null ? (
+              <SignedValue
+                formatted={formatPct(view.totalReturnPct)}
+                sign={view.totalReturnPct.gt(0) ? 1 : view.totalReturnPct.lt(0) ? -1 : 0}
               />
             ) : (
               '—'
             )}
           </Stat>
-          <Stat label="Posiciones">{view.positions.length}</Stat>
+          <Stat label="Comisiones">
+            {view.totalFees === null ? '—' : formatMoney(view.totalFees, displayCurrency)}
+          </Stat>
         </div>
         {lastQuote !== null && (
           <p className="muted mt-2 mb-0">Precios actualizados: {formatDateTime(lastQuote)}</p>

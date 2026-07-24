@@ -4,23 +4,32 @@
  * - La clave TWELVE_DATA_API_KEY vive SOLO en los secretos de la función
  *   (supabase secrets set TWELVE_DATA_API_KEY=...); jamás en el navegador.
  * - Lista blanca de endpoints y parámetros: nada más se reenvía.
- * - Rate limiting simple por IP (memoria de la instancia; suficiente para el
- *   piloto — para producción usar una tabla o KV compartido).
+ * - Supabase verifica el JWT antes de ejecutar la función.
+ * - Rate limiting simple por usuario y, como respaldo, IP.
  * - Caché HTTP corta para abaratar el plan gratuito.
  *
- * Despliegue: supabase functions deploy market-proxy --no-verify-jwt
- * (la anon key sigue siendo necesaria si el proyecto exige Authorization).
+ * Despliegue: supabase functions deploy market-proxy
  */
 // @ts-nocheck — código Deno; el tsconfig del frontend no lo compila.
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('origin') ?? ''
+  const configuredOrigins = (Deno.env.get('ALLOWED_ORIGINS') ??
+    'https://ignacior04.github.io,http://localhost:5173')
+    .split(',')
+    .map((value) => value.trim())
+  const allowedOrigin = configuredOrigins.includes(origin) ? origin : configuredOrigins[0]!
   const cors = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Vary': 'Origin',
     'Access-Control-Allow-Headers': 'authorization, content-type',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
   }
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
   if (req.method !== 'GET') {
     return json({ error: 'Método no permitido' }, 405, cors)
+  }
+  if (!req.headers.get('authorization')?.startsWith('Bearer ')) {
+    return json({ error: 'Sesión requerida' }, 401, cors)
   }
 
   const apiKey = Deno.env.get('TWELVE_DATA_API_KEY')
@@ -96,11 +105,19 @@ const buckets = new Map<string, { count: number; resetAt: number }>()
 const LIMIT_PER_MINUTE = 30
 
 function allowRequest(req: Request): boolean {
+  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
+  let subject = ''
+  try {
+    subject = JSON.parse(atob(bearer.split('.')[1] ?? '')).sub ?? ''
+  } catch {
+    // La plataforma ya verifica el JWT; aquí solo se extrae la clave del cupo.
+  }
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const key = subject || ip
   const now = Date.now()
-  const bucket = buckets.get(ip)
+  const bucket = buckets.get(key)
   if (!bucket || now > bucket.resetAt) {
-    buckets.set(ip, { count: 1, resetAt: now + 60_000 })
+    buckets.set(key, { count: 1, resetAt: now + 60_000 })
     return true
   }
   bucket.count += 1

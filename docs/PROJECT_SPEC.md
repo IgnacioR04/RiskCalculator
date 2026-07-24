@@ -41,7 +41,10 @@ Incluido:
 - Una o múltiples compras por activo; múltiples cuentas/brókeres.
 - EUR y USD (divisa de operación y divisa global de presentación).
 - Entrada exacta, estimada y por importación JSON asistida por LLM externo.
+- Actualización de cartera desde texto libre o capturas mediante un LLM
+  externo, siempre con JSON validado y previsualización.
 - Portfolio con métricas generales y análisis de riesgo.
+- Comisiones manuales o estimadas mediante reglas configurables por bróker.
 - Responsive escritorio y móvil. Interfaz en español.
 
 Excluido del MVP (el modelo de datos permite ampliarlo, pero no se implementa):
@@ -50,7 +53,6 @@ Excluido del MVP (el modelo de datos permite ampliarlo, pero no se implementa):
 - Conexión con brókeres o ejecución de órdenes.
 - Asesoramiento financiero personalizado.
 - Impuestos, spread, deslizamiento.
-- **Comisiones** (decisión del propietario, 2026-07-24: se ignoran en el MVP).
 - Predicciones de precios mediante IA.
 
 ## Arquitectura
@@ -58,10 +60,10 @@ Excluido del MVP (el modelo de datos permite ampliarlo, pero no se implementa):
 - **Frontend**: React 19 + TypeScript estricto + Vite. Zod para validación,
   decimal.js para cálculo financiero, Recharts para gráficas, Zustand para
   estado con persistencia local.
-- **Backend**: Supabase (Auth con magic link, PostgreSQL con RLS, Edge
+- **Backend**: Supabase (Auth por email/contraseña o magic link, PostgreSQL con RLS, Edge
   Functions para proveedores de mercado y secretos).
-- **Despliegue**: GitHub + Vercel (previews por rama). GitHub Actions para
-  lint, typecheck, tests y build.
+- **Despliegue**: GitHub Pages como piloto estático; Vercel queda como
+  alternativa. GitHub Actions ejecuta lint, typecheck, unitarias, E2E y build.
 - **Datos de mercado**: abstracción `MarketDataProvider`; Twelve Data como
   proveedor principal, CoinGecko de respaldo cripto, BCE para FX EUR,
   entrada manual y datos demo sin claves. Ver `DATA_SOURCES.md`.
@@ -115,3 +117,9 @@ están implementados como tests en `src/lib/finance/*.test.ts`:
 12. Funciona en móvil y escritorio.
 13. Instala, prueba y compila con comandos documentados.
 14. Demo navegable con datos ficticios.
+15. Si falta un FX necesario, la métrica se marca no disponible; nunca 1:1.
+16. Una posición importada sin coste no fabrica rentabilidad cero.
+17. Distribución por cuenta conserva correctamente el mismo activo en varios
+    brókeres.
+18. TWR, covarianzas, volatilidad ponderada y contribuciones al riesgo usan
+    series comunes convertidas a la divisa de presentación.

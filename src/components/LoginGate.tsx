@@ -1,33 +1,92 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import {
   checkDemoCredentials,
   DEMO_HINT,
   getDemoSession,
   startDemoSession,
 } from '../lib/demoAuth'
-import { isSupabaseConfigured } from '../lib/supabase'
+import { authRedirectUrl, getSupabase, isSupabaseConfigured } from '../lib/supabase'
 
-/**
- * Puerta de acceso: exige usuario/contraseña de demo antes de entrar a la app.
- * Es una pantalla de acceso del piloto, NO seguridad real (ver demoAuth.ts).
- * La sesión vive en sessionStorage (se cierra al cerrar la pestaña).
- */
+type AccessMode = 'login' | 'signup' | 'demo'
+
 export function LoginGate(props: { children: ReactNode }) {
-  const [authed, setAuthed] = useState<boolean>(() => getDemoSession() !== null)
-  const [user, setUser] = useState('')
+  const configured = isSupabaseConfigured()
+  const [allowed, setAllowed] = useState(() => getDemoSession() !== null)
+  const [checking, setChecking] = useState(configured && !allowed)
+  const [mode, setMode] = useState<AccessMode>(configured ? 'login' : 'demo')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [demoUser, setDemoUser] = useState('')
+  const [demoPassword, setDemoPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
 
-  if (authed) return <>{props.children}</>
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault()
-    if (checkDemoCredentials(user, password)) {
-      startDemoSession(user)
-      setAuthed(true)
-    } else {
-      setError('Usuario o contraseña incorrectos.')
+  useEffect(() => {
+    const supabase = getSupabase()
+    if (supabase === null) {
+      setChecking(false)
+      return
     }
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session !== null) setAllowed(true)
+      setChecking(false)
+    })
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session !== null) setAllowed(true)
+    })
+    return () => data.subscription.unsubscribe()
+  }, [])
+
+  if (checking) {
+    return (
+      <div className="login-screen">
+        <div className="login-card card">
+          <div className="login-brand">
+            Risk<span>Calculator</span>
+          </div>
+          <p className="muted center">Comprobando tu sesión…</p>
+        </div>
+      </div>
+    )
+  }
+  if (allowed) return <>{props.children}</>
+
+  async function submitAccount(event: FormEvent) {
+    event.preventDefault()
+    const supabase = getSupabase()
+    if (supabase === null) return
+    setBusy(true)
+    setMessage(null)
+    try {
+      if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: authRedirectUrl() },
+        })
+        if (error !== null) setMessage(error.message)
+        else if (data.session !== null) setAllowed(true)
+        else setMessage('Cuenta creada. Confirma el enlace que hemos enviado a tu email.')
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        })
+        if (error !== null) setMessage(error.message)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function submitDemo(event: FormEvent) {
+    event.preventDefault()
+    if (checkDemoCredentials(demoUser, demoPassword)) {
+      startDemoSession(demoUser)
+      setAllowed(true)
+      return
+    }
+    setMessage('Usuario o contraseña de demostración incorrectos.')
   }
 
   return (
@@ -36,56 +95,119 @@ export function LoginGate(props: { children: ReactNode }) {
         <div className="login-brand">
           Risk<span>Calculator</span>
         </div>
-        <p className="muted" style={{ textAlign: 'center' }}>
-          Calculadora y gestor de inversiones. Accede para continuar.
+        <p className="muted center">
+          Entiende tu cartera y toma decisiones con números, no con intuiciones.
         </p>
-        <form onSubmit={submit}>
-          <div className="field">
-            <label htmlFor="login-user">Usuario</label>
-            <input
-              id="login-user"
-              autoComplete="username"
-              value={user}
-              onChange={(e) => {
-                setUser(e.target.value)
-                setError(null)
+
+        {configured && (
+          <div className="segmented auth-tabs" role="tablist" aria-label="Tipo de acceso">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'login'}
+              aria-checked={mode === 'login'}
+              onClick={() => {
+                setMode('login')
+                setMessage(null)
               }}
-              placeholder="admin1"
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="login-pass">Contraseña</label>
-            <input
-              id="login-pass"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                setError(null)
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'signup'}
+              aria-checked={mode === 'signup'}
+              onClick={() => {
+                setMode('signup')
+                setMessage(null)
               }}
-              placeholder="••••"
-            />
+            >
+              Crear cuenta
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'demo'}
+              aria-checked={mode === 'demo'}
+              onClick={() => {
+                setMode('demo')
+                setMessage(null)
+              }}
+            >
+              Demo
+            </button>
           </div>
-          {error !== null && (
-            <div className="note negative" role="alert">
-              {error}
+        )}
+
+        {mode !== 'demo' && configured ? (
+          <form onSubmit={(event) => void submitAccount(event)}>
+            <div className="field">
+              <label htmlFor="login-email">Email</label>
+              <input
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="tu@email.com"
+                required
+              />
             </div>
-          )}
-          <button type="submit" className="btn primary" style={{ width: '100%' }}>
-            Entrar
-          </button>
-        </form>
-        <div className="note info" style={{ marginTop: 'var(--space-4)' }}>
-          <strong>Acceso de prueba:</strong> usuario <code className="mono">{DEMO_HINT.user}</code>,
-          contraseña <code className="mono">{DEMO_HINT.password}</code>.
-        </div>
-        <p className="muted" style={{ fontSize: '0.75rem', textAlign: 'center' }}>
-          Esta es una puerta de acceso de demo, no seguridad real (app de solo-navegador).
-          {isSupabaseConfigured()
-            ? ' La autenticación real por email está disponible dentro, en Perfil.'
-            : ' La autenticación real (enlace mágico de Supabase) se activa al configurar el backend.'}
-        </p>
+            <div className="field">
+              <label htmlFor="login-password">Contraseña</label>
+              <input
+                id="login-password"
+                type="password"
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                required
+              />
+            </div>
+            <button type="submit" className="btn primary wide" disabled={busy}>
+              {busy ? 'Un momento…' : mode === 'signup' ? 'Crear mi cuenta' : 'Entrar de forma segura'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={submitDemo}>
+            <div className="field">
+              <label htmlFor="demo-user">Usuario de prueba</label>
+              <input
+                id="demo-user"
+                autoComplete="username"
+                value={demoUser}
+                onChange={(event) => setDemoUser(event.target.value)}
+                placeholder="admin1"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="demo-password">Contraseña</label>
+              <input
+                id="demo-password"
+                type="password"
+                autoComplete="current-password"
+                value={demoPassword}
+                onChange={(event) => setDemoPassword(event.target.value)}
+                placeholder="••••"
+              />
+            </div>
+            <button type="submit" className="btn primary wide">
+              Probar la aplicación
+            </button>
+            <p className="muted tiny center">
+              Acceso demo: {DEMO_HINT.user} / {DEMO_HINT.password}. Solo simula una sesión y no
+              protege datos.
+            </p>
+          </form>
+        )}
+        {message !== null && (
+          <div className="note info" role="status">
+            {message}
+          </div>
+        )}
       </div>
     </div>
   )

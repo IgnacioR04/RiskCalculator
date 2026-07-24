@@ -21,7 +21,8 @@ export type MetricResult<T> =
   | { ok: true; value: T; observations: number }
   | { ok: false; reason: 'insufficient_data'; observations: number; required: number }
 
-const TRADING_DAYS = 365 // series diarias continuas (cripto); para acciones ~252
+/** Por defecto se usan sesiones bursátiles; cripto pasa 365 explícitamente. */
+const TRADING_DAYS = 252
 
 /** Mínimo de observaciones para publicar una métrica de riesgo. */
 export const MIN_OBSERVATIONS = 30
@@ -73,7 +74,7 @@ function sampleStd(xs: readonly number[]): number {
   return Math.sqrt(variance)
 }
 
-/** Volatilidad anualizada (desviación típica muestral de retornos diarios · √365). */
+/** Volatilidad anualizada (desviación típica muestral · √periodos/año). */
 export function annualizedVolatility(
   returns: readonly number[],
   tradingDays: number = TRADING_DAYS,

@@ -321,7 +321,12 @@ function SimulatorSection({ positions }: { positions: StressPosition[] }) {
   const avgPriceChange = useMemo(() => {
     if (assetId === '' || amount === null) return null
     const position = view.positions.find((p) => p.asset.id === assetId)
-    if (position === undefined || position.quantity.lte(0) || position.value === null) return null
+    if (
+      position === undefined ||
+      position.quantity.lte(0) ||
+      position.value === null ||
+      position.cost === null
+    ) return null
     const currentPrice = position.value.div(position.quantity)
     const r = targetPriceWithBudget({
       quantity: position.quantity,

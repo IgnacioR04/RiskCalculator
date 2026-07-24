@@ -79,4 +79,16 @@ describe('aggregatePosition — varias compras (criterio de aceptación 3)', () 
     expect(pos.cost.isZero()).toBe(true)
     expect(pos.realizedPnl.toFixed(2)).toBe('20.00')
   })
+
+  it('incorpora comisiones al coste de compra y a la venta neta', () => {
+    const pos = aggregatePosition([
+      { type: 'buy', datetime: '2026-01-01', quantity: 2, amount: 100, fee: 2 },
+      { type: 'sell', datetime: '2026-02-01', quantity: 1, amount: 70, fee: 1 },
+    ])
+    expect(pos.totalInvested.toString()).toBe('102')
+    expect(pos.totalProceeds.toString()).toBe('69')
+    expect(pos.totalFees.toString()).toBe('3')
+    expect(pos.realizedPnl.toString()).toBe('18')
+    expect(pos.cost.toString()).toBe('51')
+  })
 })

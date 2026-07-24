@@ -28,6 +28,12 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: Instalar Chromium para pruebas E2E
+        run: npx playwright install --with-deps chromium
+
+      - name: Pruebas end-to-end
+        run: npm run test:e2e
+
       - name: Build de producción
         run: npm run build
 

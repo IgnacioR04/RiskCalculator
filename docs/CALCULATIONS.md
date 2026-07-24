@@ -112,13 +112,16 @@ Se presentan por separado (función `outcomeAtPrice()`).
 Las posiciones se derivan del registro de transacciones, en orden temporal,
 con **método de coste medio**:
 
-- Compra: `q += q_i`; `C += importe_i`.
-- Venta: `P&L realizado += q_venta · (precio_venta − coste_medio)`;
+- Compra: `q += q_i`; `C += importe_i + comisión_i`.
+- Venta: `P&L realizado += ingreso_neto − q_venta · coste_medio`;
   `C −= q_venta · coste_medio`; `q −= q_venta`.
 - Coste medio = `C / q` (si q > 0).
 - P&L no realizado = `q · P_actual − C`.
+- P&L total = `valor actual + ventas netas − compras − comisiones`.
 
 Ventas por encima de la cantidad disponible se rechazan con error explícito.
+El capital aportado neto y la base de coste pendiente se muestran por
+separado: no son la misma magnitud después de una venta.
 
 ## 6. Divisas
 
@@ -130,21 +133,40 @@ Ventas por encima de la cantidad disponible se rechazan con error explícito.
 - Cuando es posible se separa: rendimiento del activo, efecto divisa y
   rendimiento total en divisa del usuario:
   `(1 + r_total) = (1 + r_activo) · (1 + r_fx)`.
+- Si falta un cambio necesario no se usa 1:1: la métrica dependiente se marca
+  «No disponible» y se explica qué tipo falta.
 
 ## 7. Métricas de portfolio
 
 - Concentración: HHI = Σ w_i²; número efectivo de posiciones = 1/HHI.
-- Rentabilidad simple = (valor − capital aportado neto) / capital aportado.
+- Rentabilidad total = `(valor actual + ventas netas − compras y comisiones)
+  / compras y comisiones`.
 - XIRR: TIR de los flujos con fechas reales (Newton con bisección de respaldo);
   requiere al menos un flujo negativo y uno positivo; si no converge se
   informa, no se muestra un número.
-- Volatilidad anualizada, drawdown máximo, Sharpe/Sortino, beta/alpha/R²,
-  correlación: solo con muestra suficiente (mínimo declarado en la UI, no se
-  rellenan huecos silenciosamente; se muestra nº de observaciones).
+- TWR: encadenamiento diario neutralizado por aportaciones y retiradas:
+  `(cierre + retiradas) / (apertura + aportaciones) − 1`.
+- Matriz de covarianzas anualizada: `Σ = cov(retornos) · sesiones/año`.
+- Volatilidad de cartera: `σp = √(w'Σw)`.
+- Contribución al riesgo por activo (Euler):
+  `RC_i = w_i · (Σw)_i / σp`; su suma es `σp`.
+- Volatilidad, drawdown, Sharpe/Sortino, beta/alpha/R², correlación y
+  covarianza: solo con muestra suficiente y fechas comunes. Se usan 365 días
+  para cripto puro y 252 sesiones cuando intervienen activos bursátiles.
+- Las series se convierten primero a la divisa de presentación con el cambio
+  histórico; así se incorpora el riesgo EUR/USD visto por el usuario.
 - Tasa libre de riesgo usada: declarada junto a Sharpe/Sortino (0 % por
   defecto, configurable).
 
-## 8. Escenarios de estrés
+## 8. Posiciones importadas sin coste
+
+Una captura puede mostrar unidades y valor actual sin enseñar cuánto se pagó.
+En ese caso se registra un `position_snapshot` con `cost_known=false`: sirve
+para valoración y distribución, pero P&L, rentabilidad, XIRR y TWR quedan no
+disponibles. Nunca se fabrica una compra al valor actual ni una rentabilidad
+inicial del 0 %.
+
+## 9. Escenarios de estrés
 
 Shocks deterministas (no predicciones): caída porcentual general, shocks por
 clase, caída de un activo concreto, movimiento EUR/USD, combinaciones.

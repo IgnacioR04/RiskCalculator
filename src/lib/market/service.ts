@@ -9,7 +9,7 @@
 import type { Asset, Currency, Quote } from '../domain'
 import { useAppStore } from '../../state/store'
 import { coingeckoProvider } from './coingecko'
-import { ecbFxProvider } from './ecb'
+import { ecbFxProvider, getFxDailySeries, type FxSeriesPoint } from './ecb'
 import { ProviderError, type AssetMatch, type MarketQuote } from './provider'
 import { twelveDataProvider } from './twelvedata'
 
@@ -233,4 +233,13 @@ export function providerStatus(): { id: string; label: string; configured: boole
     { id: ecbFxProvider.id, label: ecbFxProvider.label, configured: true },
     { id: 'manual', label: 'Entrada manual (respaldo universal)', configured: true },
   ]
+}
+
+export async function historicalFxSeries(
+  from: Currency,
+  to: Currency,
+  startDate: string,
+  endDate: string,
+): Promise<FxSeriesPoint[]> {
+  return getFxDailySeries(from, to, startDate, endDate)
 }

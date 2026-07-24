@@ -3,7 +3,7 @@ import { Card, Note, Segmented } from '../components/ui'
 import type { Currency, RiskCategory } from '../lib/domain'
 import { formatDateTime } from '../lib/format'
 import { providerStatus } from '../lib/market/service'
-import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
+import { authRedirectUrl, getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { pullFromCloud, pushToCloud } from '../lib/sync'
 import { useAppStore } from '../state/store'
 
@@ -260,8 +260,8 @@ export function PerfilPage() {
 
       <Note kind="info">
         RiskCalculator ofrece cálculos y análisis educativos; no es asesoramiento financiero ni
-        realiza predicciones. Sin comisiones, impuestos ni spread en este piloto (ver
-        docs/DECISIONS.md).
+        realiza predicciones. Las comisiones son estimaciones configurables; impuestos y spread no
+        se incluyen.
       </Note>
     </>
   )
@@ -310,7 +310,7 @@ function AccountCard() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: authRedirectUrl() },
       })
       setMessage(
         error !== null

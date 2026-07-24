@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Card, Note, QualityChip } from '../components/ui'
+import { Card, Note, QualityChip, Segmented } from '../components/ui'
 import { buildImportProposal, type ImportProposal } from '../lib/import/convert'
 import {
+  buildPortfolioUpdatePrompt,
   EXAMPLE_VALID_JSON,
   EXTRACTION_PROMPT,
   validateImportJson,
@@ -11,45 +12,69 @@ import { formatDateTime, formatMoney, formatQty } from '../lib/format'
 import { dec } from '../lib/finance/decimal'
 import { useAppStore } from '../state/store'
 
+type ImportMode = 'create' | 'update'
+
 export function ImportarPage() {
   const store = useAppStore()
+  const [mode, setMode] = useState<ImportMode>('create')
   const [raw, setRaw] = useState('')
   const [validation, setValidation] = useState<ImportValidation | null>(null)
   const [proposal, setProposal] = useState<ImportProposal | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const accounts = store.accounts
-  const assets = store.assets
+  const updatePrompt = useMemo(
+    () =>
+      buildPortfolioUpdatePrompt({
+        accounts: store.accounts.map((account) => ({
+          broker: account.brokerName,
+          label: account.accountLabel,
+        })),
+        assets: store.assets.map((asset) => ({
+          symbol: asset.symbol,
+          name: asset.name,
+          ...(asset.exchange !== undefined ? { exchange: asset.exchange } : {}),
+          accounts: store.transactions
+            .filter((transaction) => transaction.assetId === asset.id)
+            .map(
+              (transaction) =>
+                store.accounts.find((account) => account.id === transaction.accountId)?.brokerName ??
+                'Cuenta desconocida',
+            )
+            .filter((value, index, all) => all.indexOf(value) === index),
+        })),
+      }),
+    [store.accounts, store.assets, store.transactions],
+  )
+  const prompt = mode === 'create' ? EXTRACTION_PROMPT : updatePrompt
 
-  const preview = useMemo(() => {
-    if (proposal === null) return null
-    return {
-      accountsCount: proposal.newAccounts.length,
-      assetsCount: proposal.newAssets.length,
-      txCount: proposal.transactions.length,
-    }
-  }, [proposal])
+  function resetResult() {
+    setValidation(null)
+    setProposal(null)
+    setConfirmed(false)
+  }
 
   function validate() {
-    setConfirmed(false)
-    setProposal(null)
+    resetResult()
     try {
-      const v = validateImportJson(raw)
-      setValidation(v)
-      if (v.ok && v.payload !== null) {
-        // La construcción de la propuesta puede toparse con datos raros del
-        // JSON; si algo falla, se muestra como error en vez de dejar el botón
-        // sin respuesta.
-        setProposal(buildImportProposal(v.payload, accounts, assets))
+      const result = validateImportJson(raw)
+      setValidation(result)
+      if (result.ok && result.payload !== null) {
+        setProposal(
+          buildImportProposal(
+            result.payload,
+            store.accounts,
+            store.assets,
+            store.transactions,
+          ),
+        )
       }
-    } catch (e) {
-      setProposal(null)
+    } catch (error) {
       setValidation({
         ok: false,
         payload: null,
         errors: [
-          `No se pudo procesar el JSON (${e instanceof Error ? e.message : String(e)}). Revisa que los importes, cantidades y precios sean números válidos.`,
+          `No se pudo procesar el JSON (${error instanceof Error ? error.message : String(error)}).`,
         ],
         warnings: [],
       })
@@ -60,6 +85,7 @@ export function ImportarPage() {
     if (proposal === null) return
     for (const account of proposal.newAccounts) store.addAccount(account)
     for (const asset of proposal.newAssets) store.addAsset(asset)
+    for (const update of proposal.assetUpdates) store.updateAsset(update.id, update.patch)
     store.addTransactions(proposal.transactions)
     setConfirmed(true)
     setProposal(null)
@@ -69,23 +95,68 @@ export function ImportarPage() {
 
   return (
     <>
-      <h1>Importar con IA</h1>
-      <p className="muted">
-        Usa un asistente de IA externo para convertir capturas de tus aplicaciones de inversión en
-        un JSON que esta página valida e importa. Nada se guarda hasta que confirmes la
-        previsualización.
-      </p>
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">Asistente de cartera</span>
+          <h1>Importar y actualizar con IA</h1>
+          <p className="muted">
+            Las imágenes se procesan en el asistente que elijas; aquí solo entra el JSON que tú
+            revisas y confirmas.
+          </p>
+        </div>
+      </div>
 
-      <Card title="1 · Copia este prompt en tu asistente de IA">
+      <Segmented<ImportMode>
+        label="¿Qué quieres hacer?"
+        value={mode}
+        onChange={(next) => {
+          setMode(next)
+          setCopied(false)
+          resetResult()
+        }}
+        options={[
+          { value: 'create', label: 'Crear cartera desde capturas' },
+          { value: 'update', label: 'Actualizar una cartera existente' },
+        ]}
+      />
+
+      <div className="workflow-steps" aria-label="Proceso de importación">
+        <div className="workflow-step active"><span>1</span> Copia el prompt</div>
+        <div className="workflow-step"><span>2</span> Pide el JSON a una IA</div>
+        <div className="workflow-step"><span>3</span> Revisa y confirma</div>
+      </div>
+
+      <Card
+        title={
+          mode === 'create'
+            ? 'Prompt para leer tus capturas'
+            : 'Prompt para convertir cambios en operaciones'
+        }
+      >
+        <div className="feature-callout">
+          <div className="feature-callout-icon" aria-hidden="true">
+            {mode === 'create' ? '▧' : '↻'}
+          </div>
+          <div>
+            <strong>
+              {mode === 'create'
+                ? 'Adjunta capturas de Revolut, Bitget u otras apps'
+                : 'Escribe “vendí 100 € de BTC a 65.000” o adjunta una captura nueva'}
+            </strong>
+            <p className="muted mb-0">
+              El prompt obliga a la IA a dejar en blanco lo que no vea y a no duplicar tu cartera
+              actual.
+            </p>
+          </div>
+        </div>
         <Note kind="warning">
-          <strong>Antes de adjuntar capturas:</strong> oculta o recorta nombres, emails, números de
-          cuenta, documentos, códigos QR y cualquier dato personal innecesario. Solo se necesitan
-          los datos de las posiciones y operaciones.
+          Oculta nombres, emails, números de cuenta, documentos y códigos QR antes de enviar
+          imágenes a cualquier IA.
         </Note>
         <details className="math">
           <summary>Ver el prompt completo</summary>
           <div className="math-body">
-            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.78rem' }}>{EXTRACTION_PROMPT}</pre>
+            <pre className="prompt-preview">{prompt}</pre>
           </div>
         </details>
         <div className="row">
@@ -93,31 +164,36 @@ export function ImportarPage() {
             type="button"
             className="btn primary"
             onClick={() => {
-              void navigator.clipboard.writeText(EXTRACTION_PROMPT).then(() => setCopied(true))
+              void navigator.clipboard.writeText(prompt).then(() => setCopied(true))
             }}
           >
-            Copiar prompt
+            {copied ? '✓ Prompt copiado' : 'Copiar prompt'}
           </button>
-          {copied && <span className="muted">Copiado.</span>}
-          <button type="button" className="btn small" onClick={() => setRaw(EXAMPLE_VALID_JSON)}>
-            Probar con un JSON de ejemplo
-          </button>
+          {mode === 'create' && (
+            <button type="button" className="btn small" onClick={() => setRaw(EXAMPLE_VALID_JSON)}>
+              Cargar un ejemplo
+            </button>
+          )}
         </div>
       </Card>
 
-      <Card title="2 · Pega aquí el JSON que te devuelva">
+      <Card title="Pega el JSON">
         <div className="field">
-          <label htmlFor="import-json">JSON de importación</label>
+          <label htmlFor="import-json">Respuesta de la IA</label>
           <span className="hint">
-            El asistente debe devolver solo JSON (esquema v1). Límite: 200 kB / 500 operaciones.
+            Se aceptan vallas de código y texto alrededor; el validador extrae el objeto JSON.
           </span>
           <textarea
             id="import-json"
-            rows={10}
+            rows={11}
             value={raw}
-            onChange={(e) => setRaw(e.target.value)}
+            onChange={(event) => {
+              setRaw(event.target.value)
+              resetResult()
+            }}
             spellCheck={false}
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}
+            className="json-input"
+            placeholder='{"schema_version": 1, ...}'
           />
         </div>
         <button type="button" className="btn primary" onClick={validate} disabled={raw.trim() === ''}>
@@ -126,77 +202,84 @@ export function ImportarPage() {
       </Card>
 
       {validation !== null && !validation.ok && (
-        <Card title="El JSON no es válido">
+        <Card title="Necesita correcciones">
           <Note kind="negative">
-            <strong>No se ha importado nada.</strong> Corrige estos errores y vuelve a validar:
-            <ul style={{ margin: '4px 0 0 18px' }}>
-              {validation.errors.map((e) => (
-                <li key={e}>{e}</li>
-              ))}
+            <strong>No se ha guardado nada.</strong>
+            <ul>
+              {validation.errors.map((error) => <li key={error}>{error}</li>)}
             </ul>
           </Note>
         </Card>
       )}
 
-      {validation !== null && validation.ok && proposal !== null && preview !== null && (
-        <Card highlight title="3 · Previsualización — nada se ha guardado todavía">
-          {validation.warnings.length > 0 && (
+      {validation?.ok === true && proposal !== null && (
+        <Card highlight title="Previsualización">
+          <div className="preview-kpis">
+            <div><strong>{proposal.newAccounts.length}</strong><span>Cuentas nuevas</span></div>
+            <div><strong>{proposal.newAssets.length}</strong><span>Activos nuevos</span></div>
+            <div><strong>{proposal.assetUpdates.length}</strong><span>Activos actualizados</span></div>
+            <div><strong>{proposal.transactions.length}</strong><span>Operaciones</span></div>
+          </div>
+
+          {proposal.incompletePositions.length > 0 && (
             <Note kind="warning">
-              <strong>Revisa estos avisos del validador:</strong>
-              <ul style={{ margin: '4px 0 0 18px' }}>
-                {validation.warnings.map((w) => (
-                  <li key={w}>{w}</li>
+              <strong>Datos que necesitan completarse:</strong>
+              <ul>
+                {proposal.incompletePositions.map((item) => (
+                  <li key={`${item.label}-${item.reason}`}>
+                    <strong>{item.label}:</strong> {item.reason}
+                  </li>
                 ))}
               </ul>
+            </Note>
+          )}
+          {validation.warnings.length > 0 && (
+            <Note kind="warning">
+              <strong>Avisos del validador:</strong>
+              <ul>{validation.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
             </Note>
           )}
           {proposal.notes.length > 0 && (
-            <Note kind="info">
-              <strong>Datos inferidos o descartados:</strong>
-              <ul style={{ margin: '4px 0 0 18px' }}>
-                {proposal.notes.map((n) => (
-                  <li key={n}>{n}</li>
-                ))}
-              </ul>
-            </Note>
+            <details className="math">
+              <summary>Ver decisiones e inferencias ({proposal.notes.length})</summary>
+              <div className="math-body">
+                <ul>{proposal.notes.map((note) => <li key={note}>{note}</li>)}</ul>
+              </div>
+            </details>
           )}
-          <p>
-            Se crearán <strong>{preview.accountsCount}</strong> cuentas nuevas,{' '}
-            <strong>{preview.assetsCount}</strong> activos nuevos y{' '}
-            <strong>{preview.txCount}</strong> operaciones (todas marcadas como «importadas»):
-          </p>
+
           {proposal.transactions.length > 0 && (
             <div className="table-wrap">
               <table className="data">
                 <thead>
                   <tr>
-                    <th scope="col">Fecha</th>
-                    <th scope="col">Activo</th>
-                    <th scope="col">Tipo</th>
-                    <th scope="col">Importe</th>
-                    <th scope="col">Unidades</th>
-                    <th scope="col">Confianza</th>
-                    <th scope="col">Evidencia</th>
+                    <th>Fecha</th>
+                    <th>Activo</th>
+                    <th>Movimiento</th>
+                    <th>Importe</th>
+                    <th>Unidades</th>
+                    <th>Coste conocido</th>
+                    <th>Confianza</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {proposal.transactions.map((t) => {
+                  {proposal.transactions.map((transaction) => {
                     const asset =
-                      proposal.newAssets.find((a) => a.id === t.assetId) ??
-                      assets.find((a) => a.id === t.assetId)
+                      proposal.newAssets.find((item) => item.id === transaction.assetId) ??
+                      store.assets.find((item) => item.id === transaction.assetId)
                     return (
-                      <tr key={t.id}>
-                        <td>{formatDateTime(t.datetime)}</td>
-                        <td>{asset?.symbol ?? '?'}</td>
-                        <td>{t.type === 'buy' ? 'Compra' : 'Venta'}</td>
-                        <td>{formatMoney(dec(t.investedAmount), t.investedCurrency)}</td>
-                        <td>{formatQty(dec(t.quantity))}</td>
+                      <tr key={transaction.id}>
+                        <td>{formatDateTime(transaction.datetime)}</td>
+                        <td><strong>{asset?.symbol ?? '?'}</strong></td>
+                        <td>{transaction.type === 'buy' ? 'Compra' : 'Venta'}</td>
+                        <td>{formatMoney(dec(transaction.investedAmount), transaction.investedCurrency)}</td>
+                        <td>{formatQty(dec(transaction.quantity))}</td>
+                        <td>{transaction.costKnown === false ? 'No — P&L bloqueado' : 'Sí'}</td>
                         <td>
-                          <QualityChip quality="estimated" detail={`Confianza ${t.confidence}`} />{' '}
-                          {t.confidence}
-                        </td>
-                        <td style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: '0.75rem' }}>
-                          {t.estimationNotes}
+                          <QualityChip
+                            quality="estimated"
+                            detail={`Confianza ${transaction.confidence}`}
+                          />
                         </td>
                       </tr>
                     )
@@ -205,18 +288,22 @@ export function ImportarPage() {
               </table>
             </div>
           )}
+
           <div className="row">
-            <button type="button" className="btn primary" onClick={confirm}>
-              Confirmar importación
-            </button>
             <button
               type="button"
-              className="btn"
-              onClick={() => {
-                setProposal(null)
-                setValidation(null)
-              }}
+              className="btn primary"
+              onClick={confirm}
+              disabled={
+                proposal.newAccounts.length === 0 &&
+                proposal.newAssets.length === 0 &&
+                proposal.assetUpdates.length === 0 &&
+                proposal.transactions.length === 0
+              }
             >
+              Confirmar cambios
+            </button>
+            <button type="button" className="btn" onClick={resetResult}>
               Descartar
             </button>
           </div>
@@ -225,8 +312,8 @@ export function ImportarPage() {
 
       {confirmed && (
         <Note kind="info">
-          Importación confirmada. Revisa las posiciones en <strong>Portfolio</strong>; las
-          operaciones importadas quedan marcadas como estimadas con su evidencia.
+          Cambios aplicados. Las posiciones con coste desconocido se muestran sin rentabilidad
+          hasta que completes ese dato; nunca se asume una ganancia del 0 %.
         </Note>
       )}
     </>

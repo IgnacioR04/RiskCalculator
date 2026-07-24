@@ -14,9 +14,11 @@ export interface FinTransaction {
   quantity: DecimalValue
   /**
    * Dinero movido en la divisa de la operación: invertido en compras,
-   * obtenido en ventas (> 0). Las comisiones se ignoran en el MVP.
+   * obtenido en ventas (> 0).
    */
   amount: DecimalValue
+  /** Comisión ya convertida a la misma divisa que `amount`. */
+  fee?: DecimalValue
 }
 
 export interface AggregatedPosition {
@@ -32,6 +34,8 @@ export interface AggregatedPosition {
   totalInvested: Decimal
   /** Total bruto obtenido en ventas. */
   totalProceeds: Decimal
+  /** Comisiones acumuladas de compras y ventas. */
+  totalFees: Decimal
 }
 
 export class PositionError extends Error {
@@ -58,10 +62,12 @@ export function aggregatePosition(transactions: readonly FinTransaction[]): Aggr
   let realizedPnl = new Decimal(0)
   let totalInvested = new Decimal(0)
   let totalProceeds = new Decimal(0)
+  let totalFees = new Decimal(0)
 
   for (const { tx, originalIndex } of sorted) {
     const q = dec(tx.quantity)
     const amount = dec(tx.amount)
+    const fee = dec(tx.fee ?? 0)
     if (q.lte(0)) {
       throw new PositionError(
         `La transacción ${originalIndex + 1} tiene una cantidad no positiva`,
@@ -74,11 +80,19 @@ export function aggregatePosition(transactions: readonly FinTransaction[]): Aggr
         originalIndex,
       )
     }
+    if (fee.lt(0)) {
+      throw new PositionError(
+        `La transacción ${originalIndex + 1} tiene una comisión negativa`,
+        originalIndex,
+      )
+    }
+    totalFees = totalFees.plus(fee)
 
     if (tx.type === 'buy') {
+      const totalBuyCost = amount.plus(fee)
       quantity = quantity.plus(q)
-      cost = cost.plus(amount)
-      totalInvested = totalInvested.plus(amount)
+      cost = cost.plus(totalBuyCost)
+      totalInvested = totalInvested.plus(totalBuyCost)
     } else {
       if (q.gt(quantity)) {
         throw new PositionError(
@@ -88,10 +102,11 @@ export function aggregatePosition(transactions: readonly FinTransaction[]): Aggr
       }
       const avgCost = cost.div(quantity) // quantity > 0 garantizado por q ≤ quantity y q > 0
       const costOfSold = q.times(avgCost)
-      realizedPnl = realizedPnl.plus(amount.minus(costOfSold))
+      const netProceeds = Decimal.max(amount.minus(fee), 0)
+      realizedPnl = realizedPnl.plus(netProceeds.minus(costOfSold))
       cost = cost.minus(costOfSold)
       quantity = quantity.minus(q)
-      totalProceeds = totalProceeds.plus(amount)
+      totalProceeds = totalProceeds.plus(netProceeds)
       if (quantity.isZero()) cost = new Decimal(0) // evita residuos de redondeo
     }
   }
@@ -103,6 +118,7 @@ export function aggregatePosition(transactions: readonly FinTransaction[]): Aggr
     realizedPnl,
     totalInvested,
     totalProceeds,
+    totalFees,
   }
 }
 

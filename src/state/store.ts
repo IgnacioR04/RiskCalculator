@@ -41,6 +41,7 @@ interface AppState {
   setRiskFreeRate: (rate: string) => void
 
   addAccount: (account: BrokerAccount) => void
+  updateAccount: (id: string, patch: Partial<BrokerAccount>) => void
   removeAccount: (id: string) => void
 
   addAsset: (asset: Asset) => void
@@ -57,6 +58,14 @@ interface AppState {
   removeScenario: (id: string) => void
 
   setRiskProfile: (profile: RiskProfile) => void
+  replaceFromCloud: (snapshot: {
+    settings: Settings
+    accounts: BrokerAccount[]
+    assets: Asset[]
+    transactions: Transaction[]
+    scenarios: SavedScenario[]
+    riskProfile: RiskProfile | null
+  }) => void
 
   loadDemoData: () => void
   removeDemoData: () => void
@@ -88,6 +97,10 @@ export const useAppStore = create<AppState>()(
       setRiskFreeRate: (rate) => set((s) => ({ settings: { ...s.settings, riskFreeRate: rate } })),
 
       addAccount: (account) => set((s) => ({ accounts: [...s.accounts, account] })),
+      updateAccount: (id, patch) =>
+        set((s) => ({
+          accounts: s.accounts.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+        })),
       removeAccount: (id) =>
         set((s) => ({
           accounts: s.accounts.filter((a) => a.id !== id),
@@ -120,6 +133,19 @@ export const useAppStore = create<AppState>()(
       removeScenario: (id) => set((s) => ({ scenarios: s.scenarios.filter((x) => x.id !== id) })),
 
       setRiskProfile: (profile) => set({ riskProfile: profile }),
+      replaceFromCloud: (snapshot) =>
+        set((s) => ({
+          ...snapshot,
+          // Las cotizaciones y FX son cachés locales. Se conservan solo si
+          // todavía apuntan a activos descargados.
+          quotes: Object.fromEntries(
+            Object.entries(s.quotes).filter(([assetId]) =>
+              snapshot.assets.some((asset) => asset.id === assetId),
+            ),
+          ),
+          fxRates: s.fxRates,
+          demoLoaded: false,
+        })),
 
       loadDemoData: () =>
         set((s) => {
