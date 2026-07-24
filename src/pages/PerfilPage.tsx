@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, Note, Segmented } from '../components/ui'
 import type { Currency, RiskCategory } from '../lib/domain'
 import { formatDateTime } from '../lib/format'
 import { providerStatus } from '../lib/market/service'
+import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
+import { pullFromCloud, pushToCloud } from '../lib/sync'
 import { useAppStore } from '../state/store'
 
 /** Cuestionario de perfil: exactamente cinco preguntas (especificación). */
@@ -104,6 +106,8 @@ export function PerfilPage() {
   return (
     <>
       <h1>Perfil y ajustes</h1>
+
+      <AccountCard />
 
       <Card title="Divisa de presentación">
         <p className="muted">
@@ -260,5 +264,137 @@ export function PerfilPage() {
         docs/DECISIONS.md).
       </Note>
     </>
+  )
+}
+
+/* ── Cuenta (Supabase Auth con enlace mágico) ── */
+
+function AccountCard() {
+  const [email, setEmail] = useState('')
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const configured = isSupabaseConfigured()
+
+  useEffect(() => {
+    const supabase = getSupabase()
+    if (supabase === null) return
+    void supabase.auth.getSession().then(({ data }) => {
+      setSessionEmail(data.session?.user.email ?? null)
+    })
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSessionEmail(session?.user.email ?? null)
+    })
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  if (!configured) {
+    return (
+      <Card title="Cuenta">
+        <Note kind="info">
+          La aplicación funciona ahora en <strong>modo local</strong>: tus datos viven solo en este
+          navegador. Para activar cuentas con enlace mágico y guardado en la nube, configura{' '}
+          <code className="mono">VITE_SUPABASE_URL</code> y{' '}
+          <code className="mono">VITE_SUPABASE_ANON_KEY</code> (ver README) y aplica las migraciones
+          de <code className="mono">supabase/migrations</code>.
+        </Note>
+      </Card>
+    )
+  }
+
+  async function sendMagicLink() {
+    const supabase = getSupabase()
+    if (supabase === null) return
+    setBusy(true)
+    setMessage(null)
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: window.location.origin },
+      })
+      setMessage(
+        error !== null
+          ? `No se pudo enviar el enlace: ${error.message}`
+          : 'Enlace enviado: revisa tu correo y ábrelo en este dispositivo.',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function doSync(direction: 'push' | 'pull') {
+    setBusy(true)
+    setMessage(null)
+    try {
+      if (direction === 'pull') {
+        const confirmed = window.confirm(
+          'Descargar de la nube REEMPLAZA los datos locales actuales. ¿Continuar?',
+        )
+        if (!confirmed) return
+      }
+      const r = direction === 'push' ? await pushToCloud() : await pullFromCloud()
+      setMessage(r.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card title="Cuenta">
+      {sessionEmail === null ? (
+        <>
+          <p className="muted">
+            Inicia sesión con un enlace mágico por email (sin contraseñas). Tus datos en la nube se
+            protegen con Row Level Security: solo tu usuario puede leerlos.
+          </p>
+          <div className="field">
+            <label htmlFor="auth-email">Email</label>
+            <input
+              id="auth-email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tu@email.com"
+            />
+          </div>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy || !email.includes('@')}
+            onClick={() => void sendMagicLink()}
+          >
+            {busy ? 'Enviando…' : 'Enviarme el enlace mágico'}
+          </button>
+        </>
+      ) : (
+        <>
+          <p>
+            Sesión iniciada como <strong>{sessionEmail}</strong>.
+          </p>
+          <div className="row">
+            <button type="button" className="btn" disabled={busy} onClick={() => void doSync('push')}>
+              Subir datos locales a la nube
+            </button>
+            <button type="button" className="btn" disabled={busy} onClick={() => void doSync('pull')}>
+              Descargar de la nube (reemplaza lo local)
+            </button>
+            <button
+              type="button"
+              className="btn danger"
+              disabled={busy}
+              onClick={() => {
+                const supabase = getSupabase()
+                if (supabase !== null) void supabase.auth.signOut()
+              }}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+          <p className="muted mt-2 mb-0">Los datos de demostración nunca se suben a la nube.</p>
+        </>
+      )}
+      {message !== null && <Note kind="info">{message}</Note>}
+    </Card>
   )
 }

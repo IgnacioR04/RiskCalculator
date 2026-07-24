@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Comprobación de tipos
+        run: npx tsc -b
+
+      - name: Tests
+        run: npm test
+
+      - name: Build de producción
+        run: npm run build
+
+      - name: Auditoría de secretos en el bundle
+        run: |
+          # Ninguna clave privada debe aparecer en el bundle. Las variables
+          # VITE_* son públicas por diseño; TWELVE_DATA nunca debe filtrarse.
+          if grep -ri "TWELVE_DATA_API_KEY" dist/assets/ 2>/dev/null; then
+            echo "::error::Se encontró una referencia a la clave privada en el bundle"
+            exit 1
+          fi
+          echo "OK: sin referencias a claves privadas en dist/"
