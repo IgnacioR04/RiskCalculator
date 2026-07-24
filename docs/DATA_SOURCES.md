@@ -11,7 +11,7 @@ hacen desde Supabase Edge Functions (proxy) — ver «Seguridad».
 |---|---|---|---|---|
 | 1 | Twelve Data | Acciones, ETF, forex, cripto, índices | Sí (env `TWELVE_DATA_API_KEY`, solo servidor) | Cotización, OHLC diario e intradía, búsqueda |
 | 2 | CoinGecko (API pública) | Criptoactivos | No (rate limit bajo) | Respaldo cripto: precio actual y OHLC diario |
-| 3 | BCE (exchange rates, feed diario) | EUR ↔ USD y otras | No | Cambios EUR de referencia, diarios (~16:00 CET) |
+| 3 | BCE vía Frankfurter (`api.frankfurter.dev`) | EUR ↔ USD | No | Cambios EUR de referencia del BCE, diarios (~16:00 CET) |
 | 4 | Datos demo (`demoProvider`) | Conjunto fijo ficticio | No | Funcionamiento sin claves; siempre etiquetado «demo» |
 | 5 | Entrada manual | Todo | No | Respaldo universal; el usuario teclea el precio |
 
@@ -25,7 +25,13 @@ Notas y limitaciones conocidas:
   solo respaldo. Datos diarios; sin precisión horaria garantizada.
 - **BCE**: un cambio por día hábil; es el cambio de referencia, no un precio
   ejecutable. Para valoración intradía se etiqueta como «estimado (BCE
-  diario)».
+  diario)». **Mecanismo de acceso:** el feed XML oficial del BCE no envía
+  cabeceras CORS y no puede consultarse desde el navegador; se usa
+  Frankfurter (`api.frankfurter.dev`), API abierta y mantenida que republica
+  exactamente los tipos de referencia del BCE. No es scraping ni un endpoint
+  no oficial encubierto: es un servicio público documentado. Si se despliega
+  el proxy de servidor, puede sustituirse por el feed oficial del BCE
+  directamente (decisión reversible, registrada en DECISIONS.md).
 - **Índices**: se pueden consultar como referencia/benchmark; la UI aclara
   que un índice no es directamente invertible y ofrece elegir el instrumento
   real (ETF/fondo) al registrar posiciones.

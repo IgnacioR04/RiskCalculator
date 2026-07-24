@@ -4,6 +4,9 @@ import type { Asset, AssetType, Confidence, Currency, Transaction, TransactionSo
 import { uid } from '../lib/domain'
 import { dec } from '../lib/finance/decimal'
 import { formatDateTime, formatMoney, formatPct, formatQty, parseUserNumber } from '../lib/format'
+import { HistoricalRiskSection } from '../components/analytics/HistoricalRiskSection'
+import type { AssetMatch } from '../lib/market/provider'
+import { refreshAllQuotes, refreshFx, searchAssets } from '../lib/market/service'
 import { buildPortfolioView } from '../lib/portfolio'
 import { useAppStore } from '../state/store'
 
@@ -132,10 +135,60 @@ export function PortfolioPage() {
         )}
       </Card>
 
+      <MarketRefreshSection />
+      <HistoricalRiskSection />
       <AccountsSection />
       <AddTransactionSection />
       <TransactionsSection />
     </>
+  )
+}
+
+/* ── Actualización de precios ── */
+
+function MarketRefreshSection() {
+  const [busy, setBusy] = useState(false)
+  const [messages, setMessages] = useState<string[]>([])
+  const transactions = useAppStore((s) => s.transactions)
+  if (transactions.length === 0) return null
+
+  async function refresh() {
+    setBusy(true)
+    setMessages([])
+    try {
+      const fx = await refreshFx()
+      const results = await refreshAllQuotes(true)
+      const notes: string[] = []
+      if (!fx.ok && fx.message !== undefined) notes.push(fx.message)
+      for (const r of results) {
+        if (r.message !== undefined) notes.push(r.message)
+      }
+      const okCount = results.filter((r) => r.ok).length
+      notes.unshift(`Actualizadas ${okCount} de ${results.length} cotizaciones no demo.`)
+      setMessages(notes)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card title="Datos de mercado">
+      <p className="muted">
+        Actualiza cotizaciones (Twelve Data si está configurado, CoinGecko para cripto) y el cambio
+        EUR/USD del BCE. Si un proveedor falla, la aplicación sigue funcionando con precios
+        manuales.
+      </p>
+      <button type="button" className="btn primary" onClick={() => void refresh()} disabled={busy}>
+        {busy ? 'Actualizando…' : 'Actualizar precios y FX'}
+      </button>
+      {messages.length > 0 && (
+        <Note kind="info">
+          {messages.map((m) => (
+            <div key={m}>{m}</div>
+          ))}
+        </Note>
+      )}
+    </Card>
   )
 }
 
@@ -273,6 +326,7 @@ function AddTransactionSection() {
   const [newType, setNewType] = useState<AssetType>('stock')
   const [newQuoteCurrency, setNewQuoteCurrency] = useState<Currency>('EUR')
   const [newManualPrice, setNewManualPrice] = useState('')
+  const [pickedProviderIds, setPickedProviderIds] = useState<Record<string, string> | null>(null)
 
   const [txType, setTxType] = useState<'buy' | 'sell'>('buy')
   const [datetime, setDatetime] = useState(() => new Date().toISOString().slice(0, 16))
@@ -327,6 +381,7 @@ function AddTransactionSection() {
         name: newName.trim() === '' ? newSymbol.trim() : newName.trim(),
         assetType: newType,
         quoteCurrency: newQuoteCurrency,
+        ...(pickedProviderIds !== null ? { providerIds: pickedProviderIds } : {}),
         ...(manualPriceNorm !== null
           ? {
               manualPrice: {
@@ -420,6 +475,17 @@ function AddTransactionSection() {
 
           {assetChoice === '_new' && (
             <div className="grid-2">
+              <div style={{ gridColumn: '1 / -1' }}>
+                <AssetSearch
+                  onPick={(m) => {
+                    setNewSymbol(m.symbol)
+                    setNewName(m.name)
+                    setNewType(m.assetType)
+                    if (m.quoteCurrency !== null) setNewQuoteCurrency(m.quoteCurrency)
+                    setPickedProviderIds(m.providerIds)
+                  }}
+                />
+              </div>
               <div className="field">
                 <label htmlFor="new-symbol">Símbolo</label>
                 <span className="hint">Ej.: AAPL, BTC, SXR8… Si es un producto del S&amp;P 500, usa el ETF o fondo concreto, no el índice.</span>
@@ -593,6 +659,96 @@ function AddTransactionSection() {
         </>
       )}
     </Card>
+  )
+}
+
+/* ── Búsqueda de instrumentos ── */
+
+function AssetSearch(props: { onPick: (match: AssetMatch) => void }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<AssetMatch[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function run() {
+    setBusy(true)
+    setError(null)
+    setResults(null)
+    try {
+      setResults(await searchAssets(query.trim()))
+    } catch (e) {
+      setError(
+        `La búsqueda no está disponible ahora (${e instanceof Error ? e.message : 'error'}). Puedes rellenar el activo a mano.`,
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="field">
+        <label htmlFor="asset-search">Buscar instrumento (opcional)</label>
+        <span className="hint">
+          Busca en los proveedores configurados y rellena los campos automáticamente. Si no hay
+          resultados, rellena a mano.
+        </span>
+        <div className="row">
+          <input
+            id="asset-search"
+            style={{ flex: 1 }}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && query.trim() !== '') void run()
+            }}
+            placeholder="Ej.: bitcoin, apple, S&P 500…"
+          />
+          <button
+            type="button"
+            className="btn"
+            disabled={busy || query.trim() === ''}
+            onClick={() => void run()}
+          >
+            {busy ? 'Buscando…' : 'Buscar'}
+          </button>
+        </div>
+      </div>
+      {error !== null && <Note kind="warning">{error}</Note>}
+      {results !== null && results.length === 0 && (
+        <Note kind="info">Sin resultados. Rellena los campos a mano.</Note>
+      )}
+      {results !== null && results.length > 0 && (
+        <div className="table-wrap">
+          <table className="data">
+            <thead>
+              <tr>
+                <th scope="col">Símbolo</th>
+                <th scope="col">Nombre</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Fuente</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((m) => (
+                <tr key={`${m.provider}-${m.providerIds[m.provider] ?? m.symbol}`}>
+                  <td>{m.symbol}</td>
+                  <td style={{ whiteSpace: 'normal' }}>{m.name}</td>
+                  <td>{m.assetType}</td>
+                  <td>{m.provider}</td>
+                  <td>
+                    <button type="button" className="btn small" onClick={() => props.onPick(m)}>
+                      Usar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, Note, Segmented } from '../components/ui'
 import type { Currency, RiskCategory } from '../lib/domain'
 import { formatDateTime } from '../lib/format'
+import { providerStatus } from '../lib/market/service'
 import { useAppStore } from '../state/store'
 
 /** Cuestionario de perfil: exactamente cinco preguntas (especificación). */
@@ -177,6 +178,31 @@ export function PerfilPage() {
             </div>
           </>
         )}
+      </Card>
+
+      <Card title="Proveedores de datos de mercado">
+        <div className="table-wrap">
+          <table className="data">
+            <thead>
+              <tr>
+                <th scope="col">Proveedor</th>
+                <th scope="col">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {providerStatus().map((p) => (
+                <tr key={p.id}>
+                  <td style={{ whiteSpace: 'normal' }}>{p.label}</td>
+                  <td>{p.configured ? 'Disponible' : 'No configurado'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted mb-0">
+          Twelve Data requiere desplegar el proxy seguro (Supabase Edge Function) con la clave en el
+          servidor; nunca se pone la clave en el navegador. Ver docs/DATA_SOURCES.md.
+        </p>
       </Card>
 
       <Card title="Datos de demostración">

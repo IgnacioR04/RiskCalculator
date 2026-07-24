@@ -46,6 +46,11 @@ se marcan como `[SUPOSICIÓN]` y pueden revertirse sin coste alto.
   UCITS del S&P 500, oro) con precios ficticios claramente etiquetados como
   demo, para que la app funcione sin claves.
 
+- `[SUPOSICIÓN]` 2026-07-24 — **Frankfurter como mecanismo de acceso a los
+  tipos BCE** desde el navegador (el XML oficial del BCE no permite CORS).
+  Reversible: con el proxy de servidor desplegado puede pasarse al feed
+  oficial. Ver DATA_SOURCES.md.
+
 ## Decisiones técnicas
 
 - 2026-07-24 — Toda la lógica financiera vive en `src/lib/finance/` como
