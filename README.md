@@ -86,12 +86,31 @@ supabase functions deploy market-proxy
 4. Verifica las políticas RLS con `supabase/tests/rls_verification.sql`
    (dos usuarios de prueba; resultados esperados anotados en el fichero).
 
-## Despliegue (Vercel)
+## Despliegue
 
-Importa el repositorio en Vercel (framework: Vite). `vercel.json` ya
-incluye la rewrite de SPA. Define las variables `VITE_SUPABASE_URL` y
-`VITE_SUPABASE_ANON_KEY` en el proyecto. La clave de Twelve Data NO va en
-Vercel: vive en los secretos de la Edge Function de Supabase.
+### GitHub Pages (sin backend, más rápido)
+
+Ya configurado. La app usa `HashRouter` y, en el build de Pages, `base`
+`/RiskCalculator/` (workflow `.github/workflows/deploy-pages.yml`).
+
+Para activarlo, **una sola vez**: en el repo → **Settings → Pages →
+Build and deployment → Source: GitHub Actions**. A partir de ahí, cada push
+a `main` publica en:
+
+```
+https://ignacior04.github.io/RiskCalculator/
+```
+
+Funciona en modo local (datos demo + CoinGecko/BCE sin clave). Para cuentas y
+nube, define los secretos de Supabase (abajo). No pongas nunca
+`TWELVE_DATA_API_KEY` en Pages: es un sitio estático público.
+
+### Vercel (recomendado si se usa Supabase)
+
+Importa el repositorio en Vercel (framework: Vite). `vercel.json` ya incluye
+la rewrite de SPA. Define `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en el
+proyecto. La clave de Twelve Data NO va en Vercel: vive en los secretos de la
+Edge Function de Supabase.
 
 ## Documentación
 
