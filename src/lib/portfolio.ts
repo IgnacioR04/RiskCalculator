@@ -6,7 +6,7 @@
 import type { Asset, BrokerAccount, Currency, DataQuality, Quote, Transaction } from './domain'
 import { Decimal } from './finance/decimal'
 import { concentration, simpleReturn } from './finance/metrics'
-import { aggregatePosition, type FinTransaction } from './finance/position'
+import { aggregatePosition, type AggregatedPosition, type FinTransaction } from './finance/position'
 import type { FxRate } from './domain'
 import { convertAmount } from './fx'
 import { xirr, type XirrResult } from './finance/xirr'
@@ -32,6 +32,8 @@ export interface PositionView {
   hasEstimatedTransactions: boolean
   /** Avisos de datos (sin precio, sin FX…). */
   warnings: string[]
+  /** true si sus operaciones son incoherentes y no pudieron agregarse. */
+  inconsistent?: boolean
 }
 
 export interface AllocationSlice {
@@ -132,7 +134,36 @@ export function buildPortfolioView(input: {
       if (tx.isDemo === true) quality = worstQuality(quality, 'demo')
     }
 
-    const agg = aggregatePosition(finTxs)
+    // Una operación incoherente (p. ej. una venta de más unidades de las
+    // disponibles, típico de una importación imperfecta) NO debe tumbar todo
+    // el portfolio: se marca el activo con un aviso y se sigue con el resto.
+    let agg: AggregatedPosition
+    try {
+      agg = aggregatePosition(finTxs)
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e)
+      positionWarnings.push(
+        `${asset.symbol}: operaciones incoherentes (${detail}). Revisa o elimina la operación problemática en la sección «Operaciones».`,
+      )
+      warnings.push(...positionWarnings)
+      positions.push({
+        asset,
+        accountIds: [...new Set(assetTxs.map((t) => t.accountId))],
+        quantity: new Decimal(0),
+        cost: new Decimal(0),
+        averagePrice: null,
+        value: null,
+        unrealizedPnl: null,
+        unrealizedPnlPct: null,
+        realizedPnl: new Decimal(0),
+        quote: null,
+        quality: 'estimated',
+        hasEstimatedTransactions,
+        warnings: positionWarnings,
+        inconsistent: true,
+      })
+      continue
+    }
     costConverted = agg.cost
 
     // Cotización: proveedor → precio manual → nada.

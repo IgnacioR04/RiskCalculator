@@ -85,9 +85,17 @@ export function PortfolioPage() {
                         {p.asset.assetType === 'index' && ' (índice: referencia, no invertible directamente)'}
                       </div>
                     </td>
-                    <td>{formatQty(p.quantity)}</td>
+                    <td>{p.inconsistent === true ? '—' : formatQty(p.quantity)}</td>
                     <td>{p.averagePrice !== null ? formatMoney(p.averagePrice, currency, 4) : '—'}</td>
-                    <td>{p.value !== null ? formatMoney(p.value, currency) : 'Sin precio'}</td>
+                    <td>
+                      {p.inconsistent === true ? (
+                        <span className="negative">⚠ Datos incoherentes</span>
+                      ) : p.value !== null ? (
+                        formatMoney(p.value, currency)
+                      ) : (
+                        'Sin precio'
+                      )}
+                    </td>
                     <td>
                       {p.unrealizedPnl !== null ? (
                         <>
