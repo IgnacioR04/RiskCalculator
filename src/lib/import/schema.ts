@@ -123,17 +123,66 @@ function scanKeys(value: unknown, path: string, warnings: string[], errors: stri
   }
 }
 
-export function validateImportJson(raw: string): ImportValidation {
+/**
+ * Limpia lo que suele acompañar al JSON de un asistente de IA:
+ * - vallas de código markdown ```json … ``` (o ``` … ```),
+ * - texto anterior/posterior: se queda con el primer bloque {...} equilibrado,
+ * - espacios sobrantes.
+ * Nunca lanza: si no encuentra un bloque, devuelve el texto original recortado.
+ */
+export function stripToJson(raw: string): string {
+  let s = raw.trim()
+
+  // Quita una valla de código que envuelva todo el contenido.
+  const fenced = s.match(/^```(?:json|javascript|js)?\s*\n?([\s\S]*?)\n?```$/i)
+  if (fenced?.[1] !== undefined) s = fenced[1].trim()
+
+  // Si aún hay ruido alrededor, recorta al primer objeto {...} equilibrado.
+  if (!s.startsWith('{')) {
+    const start = s.indexOf('{')
+    if (start >= 0) {
+      let depth = 0
+      let inString = false
+      let escaped = false
+      for (let i = start; i < s.length; i++) {
+        const ch = s[i]!
+        if (inString) {
+          if (escaped) escaped = false
+          else if (ch === '\\') escaped = true
+          else if (ch === '"') inString = false
+        } else if (ch === '"') inString = true
+        else if (ch === '{') depth++
+        else if (ch === '}') {
+          depth--
+          if (depth === 0) {
+            s = s.slice(start, i + 1)
+            break
+          }
+        }
+      }
+    }
+  }
+  return s.trim()
+}
+
+export function validateImportJson(rawInput: string): ImportValidation {
   const errors: string[] = []
   const warnings: string[] = []
 
-  if (new Blob([raw]).size > MAX_IMPORT_BYTES) {
+  if (new Blob([rawInput]).size > MAX_IMPORT_BYTES) {
     return {
       ok: false,
       payload: null,
       errors: [`El JSON supera el límite de ${Math.round(MAX_IMPORT_BYTES / 1000)} kB.`],
       warnings,
     }
+  }
+
+  const raw = stripToJson(rawInput)
+  if (raw !== rawInput.trim()) {
+    warnings.push(
+      'Se ignoró el texto que rodeaba al JSON (vallas ``` o comentarios del asistente).',
+    )
   }
 
   let parsed: unknown
@@ -143,7 +192,9 @@ export function validateImportJson(raw: string): ImportValidation {
     return {
       ok: false,
       payload: null,
-      errors: [`No es JSON válido: ${e instanceof Error ? e.message : String(e)}`],
+      errors: [
+        `No es JSON válido: ${e instanceof Error ? e.message : String(e)}. Pega solo el JSON que te dio el asistente (puedes incluir las vallas \`\`\`; se quitan solas).`,
+      ],
       warnings,
     }
   }

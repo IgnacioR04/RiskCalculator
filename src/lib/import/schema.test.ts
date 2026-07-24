@@ -3,6 +3,7 @@ import {
   EXAMPLE_INVALID_JSON,
   EXAMPLE_VALID_JSON,
   MAX_IMPORT_BYTES,
+  stripToJson,
   validateImportJson,
 } from './schema'
 
@@ -83,5 +84,36 @@ describe('validateImportJson', () => {
   it('rechaza una versión de esquema distinta', () => {
     const r = validateImportJson('{"schema_version":2,"transactions":[]}')
     expect(r.ok).toBe(false)
+  })
+
+  it('acepta el JSON envuelto en vallas markdown ```json (caso típico de un LLM)', () => {
+    const fenced = '```json\n' + EXAMPLE_VALID_JSON + '\n```'
+    const r = validateImportJson(fenced)
+    expect(r.ok).toBe(true)
+    expect(r.payload!.transactions).toHaveLength(1)
+    expect(r.warnings.some((w) => w.includes('vallas'))).toBe(true)
+  })
+
+  it('acepta el JSON con texto explicativo del asistente alrededor', () => {
+    const noisy = `Claro, aquí tienes el JSON con tus datos:\n\n${EXAMPLE_VALID_JSON}\n\n¿Necesitas algo más?`
+    const r = validateImportJson(noisy)
+    expect(r.ok).toBe(true)
+    expect(r.payload!.transactions).toHaveLength(1)
+  })
+})
+
+describe('stripToJson', () => {
+  it('quita vallas ```json y ```', () => {
+    expect(stripToJson('```json\n{"a":1}\n```')).toBe('{"a":1}')
+    expect(stripToJson('```\n{"a":1}\n```')).toBe('{"a":1}')
+  })
+  it('recorta al primer objeto equilibrado ignorando texto alrededor', () => {
+    expect(stripToJson('texto {"a":{"b":2}} más texto')).toBe('{"a":{"b":2}}')
+  })
+  it('respeta llaves dentro de cadenas', () => {
+    expect(stripToJson('{"a":"}x{"}')).toBe('{"a":"}x{"}')
+  })
+  it('sin objeto devuelve el texto recortado, sin lanzar', () => {
+    expect(stripToJson('  hola  ')).toBe('hola')
   })
 })

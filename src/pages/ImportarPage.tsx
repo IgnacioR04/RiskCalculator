@@ -34,10 +34,25 @@ export function ImportarPage() {
   function validate() {
     setConfirmed(false)
     setProposal(null)
-    const v = validateImportJson(raw)
-    setValidation(v)
-    if (v.ok && v.payload !== null) {
-      setProposal(buildImportProposal(v.payload, accounts, assets))
+    try {
+      const v = validateImportJson(raw)
+      setValidation(v)
+      if (v.ok && v.payload !== null) {
+        // La construcción de la propuesta puede toparse con datos raros del
+        // JSON; si algo falla, se muestra como error en vez de dejar el botón
+        // sin respuesta.
+        setProposal(buildImportProposal(v.payload, accounts, assets))
+      }
+    } catch (e) {
+      setProposal(null)
+      setValidation({
+        ok: false,
+        payload: null,
+        errors: [
+          `No se pudo procesar el JSON (${e instanceof Error ? e.message : String(e)}). Revisa que los importes, cantidades y precios sean números válidos.`,
+        ],
+        warnings: [],
+      })
     }
   }
 
