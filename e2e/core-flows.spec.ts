@@ -10,7 +10,7 @@ async function enterDemo(page: Page) {
 
 test('calcula recuperación y equilibrio real', async ({ page }) => {
   await enterDemo(page)
-  await page.getByRole('link', { name: 'Calculadora' }).click()
+  await page.getByRole('link', { name: 'Calculadora', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Calculadora de recuperación' })).toBeVisible()
   await expect(page.getByText('Capital para restaurar el valor inicial')).toBeVisible()
   await page.getByRole('radio', { name: 'Punto de equilibrio real' }).click()
@@ -21,7 +21,7 @@ test('calcula recuperación y equilibrio real', async ({ page }) => {
 test('carga demo y muestra el panel visual de portfolio', async ({ page }) => {
   await enterDemo(page)
   await page.getByRole('button', { name: 'Cargar datos de demostración' }).click()
-  await page.getByRole('link', { name: 'Portfolio' }).click()
+  await page.getByRole('link', { name: 'Portfolio', exact: true }).click()
   await expect(page.getByText('Resultado total')).toBeVisible()
   await expect(page.getByText('Dónde está tu dinero')).toBeVisible()
   await expect(page.getByText('posiciones efectivas')).toBeVisible()
@@ -64,5 +64,5 @@ test('previsualiza una actualización de cartera generada por IA', async ({ page
   )
   await page.getByRole('button', { name: 'Validar y previsualizar' }).click()
   await expect(page.getByRole('heading', { name: 'Previsualización' })).toBeVisible()
-  await expect(page.getByText('Venta')).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'Venta' })).toBeVisible()
 })
