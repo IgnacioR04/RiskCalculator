@@ -90,7 +90,9 @@ async function fetchSeries(
         series,
         returns: dailyReturns(series),
         provider:
-          asset.quoteCurrency === displayCurrency ? 'Demo sintetico' : 'Demo sintetico + FX demo',
+          asset.quoteCurrency === displayCurrency
+            ? 'Demostración sintética'
+            : 'Demostración sintética + FX demo',
       }
     }
   }
@@ -359,7 +361,9 @@ export function HistoricalRiskSection() {
           .filter((asset) => !available.some((item) => item.asset.id === asset.id))
           .map((asset) => asset.symbol),
       )
-      if (available[0] !== undefined) setBenchmarkId(available[0].asset.id)
+      const defaultBenchmark =
+        available.find((item) => item.asset.symbol === 'SXR8') ?? available[0]
+      if (defaultBenchmark !== undefined) setBenchmarkId(defaultBenchmark.asset.id)
     } finally {
       setBusy(false)
     }
@@ -458,6 +462,13 @@ export function HistoricalRiskSection() {
           </button>
         </div>
       </div>
+
+      {loaded?.some((item) => item.asset.isDemo === true) && (
+        <Note kind="info">
+          Las series de Demostración sintética son ficticias y reproducibles: sirven para probar
+          la analítica sin claves externas. No son cotizaciones reales ni predicciones.
+        </Note>
+      )}
 
       {missing.length > 0 && (
         <Note kind="warning">

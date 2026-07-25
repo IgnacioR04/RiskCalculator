@@ -1126,7 +1126,7 @@ function AssetSearch(props: { onPick: (match: AssetMatch) => void }) {
           onKeyDown={(event) => {
             if (event.key === 'Enter' && query.trim()) void run()
           }}
-          placeholder="Apple, bitcoin, VWCE…"
+          placeholder="Apple, bitcoin, IWDA…"
         />
         <button type="button" className="btn small" onClick={() => void run()} disabled={busy || !query.trim()}>
           {busy ? '…' : 'Buscar'}

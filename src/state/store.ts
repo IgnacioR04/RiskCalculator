@@ -123,13 +123,18 @@ function withFreshDemoCollections<T extends Partial<DemoCollections>>(state: T):
 
 export function migratePersistedState(persistedState: unknown, version: number): unknown {
   if (
-    version >= STORE_VERSION ||
+    version > STORE_VERSION ||
     persistedState === null ||
     typeof persistedState !== 'object'
   ) {
     return persistedState
   }
 
+  return normalizePersistedState(persistedState)
+}
+
+function normalizePersistedState(persistedState: unknown): unknown {
+  if (persistedState === null || typeof persistedState !== 'object') return persistedState
   const state = persistedState as PersistedAppState
   if (state.demoLoaded !== true) return state
   return withFreshDemoCollections(state)
@@ -205,7 +210,7 @@ export const useAppStore = create<AppState>()(
 
       loadDemoData: () =>
         set((s) => {
-          if (s.demoLoaded) return s
+          if (s.demoLoaded) return withFreshDemoCollections(s)
           return withFreshDemoCollections(s)
         }),
 
@@ -225,6 +230,14 @@ export const useAppStore = create<AppState>()(
           demoLoaded: false,
         }),
     }),
-    { name: 'riskcalculator-v1', version: STORE_VERSION, migrate: migratePersistedState },
+    {
+      name: 'riskcalculator-v1',
+      version: STORE_VERSION,
+      migrate: migratePersistedState,
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(normalizePersistedState(persistedState) as Partial<AppState>),
+      }),
+    },
   ),
 )

@@ -54,7 +54,7 @@ npm run dev        # http://localhost:5173
 Sin configurar servicios externos funcionan la calculadora, el modo local,
 los datos demo, CoinGecko y los cambios EUR/USD. Pulsa «Cargar datos de
 demostración» en Resumen para cargar una cartera ficticia de **23.049,26 €**
-con BTC, ETF globales, oro y liquidez. El demo incluye históricos sintéticos
+con BTC, IWDA, SXR8, Apple, Tesla y efectivo EUR. El demo incluye históricos sintéticos
 para que la analítica de riesgo pueda calcular volatilidad, covarianzas,
 correlaciones, drawdown y contribución al riesgo sin claves externas. Acciones
 y ETF en vivo requieren Supabase + Twelve Data porque la clave privada nunca se

@@ -42,8 +42,8 @@ se marcan como `[SUPOSICIÓN]` y pueden revertirse sin coste alto.
   en la UI de métricas); configurable en ajustes.
 - `[SUPOSICIÓN]` 2026-07-24 — Email y contraseña de Supabase como acceso real;
   el login `admin1 / 1234` se mantiene únicamente como puerta de demo pública.
-- `[SUPOSICIÓN]` 2026-07-24 — Los datos demo usan símbolos reales (BTC, ETF
-  UCITS del S&P 500, oro) con precios ficticios claramente etiquetados como
+- `[SUPOSICIÓN]` 2026-07-24 — Los datos demo usan símbolos reales (BTC, IWDA,
+  SXR8, AAPL, TSLA y EUR) con precios ficticios claramente etiquetados como
   demo, para que la app funcione sin claves.
 
 - `[SUPOSICIÓN]` 2026-07-24 — **Frankfurter como mecanismo de acceso a los

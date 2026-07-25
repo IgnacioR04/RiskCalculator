@@ -86,8 +86,8 @@ describe('useAppStore demo data', () => {
     })
 
     expect(state.demoLoaded).toBe(true)
-    expect(state.accounts.filter((account) => account.id.startsWith('demo-'))).toHaveLength(3)
-    expect(state.assets.filter((asset) => asset.isDemo === true)).toHaveLength(5)
+    expect(state.accounts.filter((account) => account.id.startsWith('demo-'))).toHaveLength(4)
+    expect(state.assets.filter((asset) => asset.isDemo === true)).toHaveLength(6)
     expect(view.totalValue.toFixed(2)).toBe(DEMO_PORTFOLIO_TARGET_EUR)
   })
 
@@ -115,21 +115,27 @@ describe('useAppStore demo data', () => {
       {
         settings: { displayCurrency: 'EUR', locale: 'es-ES', riskFreeRate: '0' },
         accounts: [userAccount, { ...userAccount, id: 'demo-old-account' }],
-        assets: [userAsset, { ...userAsset, id: 'demo-old-asset', isDemo: true }],
+        assets: [
+          userAsset,
+          { ...userAsset, id: 'demo-world-etf', symbol: 'VWCE', isDemo: true },
+          { ...userAsset, id: 'demo-gold', symbol: 'ORO', isDemo: true },
+        ],
         transactions: [
           userTransaction,
-          { ...userTransaction, id: 'demo-old-transaction', assetId: 'demo-old-asset', isDemo: true },
+          { ...userTransaction, id: 'demo-old-world', assetId: 'demo-world-etf', isDemo: true },
+          { ...userTransaction, id: 'demo-old-gold', assetId: 'demo-gold', isDemo: true },
         ],
         quotes: {
           [userQuote.assetId]: userQuote,
-          'demo-old-asset': { ...userQuote, assetId: 'demo-old-asset', quality: 'demo' },
+          'demo-world-etf': { ...userQuote, assetId: 'demo-world-etf', quality: 'demo' },
+          'demo-gold': { ...userQuote, assetId: 'demo-gold', quality: 'demo' },
         },
         fxRates: [],
         scenarios: [],
         riskProfile: null,
         demoLoaded: true,
       },
-      1,
+      2,
     ) as ReturnType<typeof useAppStore.getState>
 
     const view = buildPortfolioView({
@@ -142,7 +148,11 @@ describe('useAppStore demo data', () => {
     })
 
     expect(migrated.accounts.some((account) => account.id === userAccount.id)).toBe(true)
-    expect(migrated.assets.some((asset) => asset.id === 'demo-old-asset')).toBe(false)
+    expect(migrated.assets.some((asset) => asset.id === 'demo-world-etf')).toBe(false)
+    expect(migrated.assets.some((asset) => asset.id === 'demo-gold')).toBe(false)
+    expect(migrated.assets.find((asset) => asset.symbol === 'IWDA')).toBeDefined()
+    expect(migrated.assets.find((asset) => asset.symbol === 'AAPL')).toBeDefined()
+    expect(migrated.assets.find((asset) => asset.symbol === 'TSLA')).toBeDefined()
     expect(migrated.demoLoaded).toBe(true)
     expect(view.totalValue.minus(110).toFixed(2)).toBe(DEMO_PORTFOLIO_TARGET_EUR)
   })
