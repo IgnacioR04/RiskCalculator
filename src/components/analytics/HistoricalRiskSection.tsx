@@ -28,6 +28,8 @@ import { buildPortfolioView } from '../../lib/portfolio'
 import { coingeckoProvider } from '../../lib/market/coingecko'
 import { historicalFxSeries } from '../../lib/market/service'
 import { twelveDataProvider } from '../../lib/market/twelvedata'
+import { DEMO_FX_EURUSD } from '../../state/demoData'
+import { getDemoHistoricalSeries, hasDemoHistoricalSeries } from '../../state/demoHistory'
 import { useAppStore } from '../../state/store'
 import { CorrelationHeatmap } from '../charts/CorrelationHeatmap'
 import { CovarianceHeatmap } from '../charts/CovarianceHeatmap'
@@ -61,12 +63,38 @@ function convertPriceSeries(
   })
 }
 
+function convertDemoPriceSeries(
+  series: readonly SeriesPoint[],
+  from: Currency,
+  to: Currency,
+): SeriesPoint[] {
+  if (from === to) return series.map((point) => ({ ...point }))
+  const eurUsd = Number(DEMO_FX_EURUSD.rate)
+  if (!Number.isFinite(eurUsd) || eurUsd <= 0) return []
+  const rate = from === 'USD' && to === 'EUR' ? 1 / eurUsd : eurUsd
+  return series.map((point) => ({ date: point.date, close: point.close * rate }))
+}
+
 async function fetchSeries(
   asset: Asset,
   days: number,
   displayCurrency: Currency,
   fxSeries: readonly { date: string; rate: number }[],
 ): Promise<AssetSeries | null> {
+  if (asset.isDemo === true && hasDemoHistoricalSeries(asset.id)) {
+    const demoSeries = getDemoHistoricalSeries(asset.id, days)
+    const series = convertDemoPriceSeries(demoSeries, asset.quoteCurrency, displayCurrency)
+    if (series.length > 0) {
+      return {
+        asset,
+        series,
+        returns: dailyReturns(series),
+        provider:
+          asset.quoteCurrency === displayCurrency ? 'Demo sintetico' : 'Demo sintetico + FX demo',
+      }
+    }
+  }
+
   const twelveDataId = asset.providerIds?.['twelvedata']
   if (twelveDataId !== undefined && twelveDataProvider.isConfigured()) {
     try {
@@ -279,8 +307,9 @@ export function HistoricalRiskSection() {
         .map((position) => position.asset)
         .filter(
           (asset) =>
-          (asset.providerIds?.['coingecko'] !== undefined ||
-            asset.providerIds?.['twelvedata'] !== undefined),
+            hasDemoHistoricalSeries(asset.id) ||
+            asset.providerIds?.['coingecko'] !== undefined ||
+            asset.providerIds?.['twelvedata'] !== undefined,
         ),
     [view.positions],
   )
@@ -300,15 +329,22 @@ export function HistoricalRiskSection() {
       const end = new Date()
       const start = new Date(end.getTime() - (days + 10) * 86_400_000)
       let fx: { date: string; rate: number }[] = []
-      try {
-        fx = await historicalFxSeries(
-          store.settings.displayCurrency === 'EUR' ? 'USD' : 'EUR',
-          store.settings.displayCurrency,
-          start.toISOString().slice(0, 10),
-          end.toISOString().slice(0, 10),
-        )
-      } catch {
-        // Solo será bloqueante para activos en la otra divisa.
+      const needsDownloadedFx = candidates.some(
+        (asset) =>
+          asset.quoteCurrency !== store.settings.displayCurrency &&
+          !(asset.isDemo === true && hasDemoHistoricalSeries(asset.id)),
+      )
+      if (needsDownloadedFx) {
+        try {
+          fx = await historicalFxSeries(
+            store.settings.displayCurrency === 'EUR' ? 'USD' : 'EUR',
+            store.settings.displayCurrency,
+            start.toISOString().slice(0, 10),
+            end.toISOString().slice(0, 10),
+          )
+        } catch {
+          // Solo sera bloqueante para activos en la otra divisa.
+        }
       }
       setDownloadedFx(fx)
       const results = await Promise.all(

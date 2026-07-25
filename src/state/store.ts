@@ -26,6 +26,8 @@ import {
   DEMO_TRANSACTIONS,
 } from './demoData'
 
+const STORE_VERSION = 2
+
 interface AppState {
   settings: Settings
   accounts: BrokerAccount[]
@@ -77,6 +79,60 @@ const initialSettings: Settings = {
   displayCurrency: 'EUR',
   locale: 'es-ES',
   riskFreeRate: '0',
+}
+
+type DemoCollections = Pick<
+  AppState,
+  'accounts' | 'assets' | 'transactions' | 'quotes' | 'fxRates' | 'demoLoaded'
+>
+
+type PersistedAppState = Partial<AppState>
+
+function demoQuotesByAssetId(): Record<string, Quote> {
+  return Object.fromEntries(DEMO_QUOTES.map((quote) => [quote.assetId, quote]))
+}
+
+function withoutDemoCollections<T extends Partial<DemoCollections>>(state: T): T {
+  return {
+    ...state,
+    accounts: state.accounts?.filter((account) => !account.id.startsWith('demo-')),
+    assets: state.assets?.filter((asset) => asset.isDemo !== true),
+    transactions: state.transactions?.filter((transaction) => transaction.isDemo !== true),
+    quotes:
+      state.quotes === undefined
+        ? undefined
+        : Object.fromEntries(
+            Object.entries(state.quotes).filter(([, quote]) => quote.quality !== 'demo'),
+          ),
+    fxRates: state.fxRates?.filter((rate) => rate.quality !== 'demo'),
+  }
+}
+
+function withFreshDemoCollections<T extends Partial<DemoCollections>>(state: T): T {
+  const clean = withoutDemoCollections(state)
+  return {
+    ...clean,
+    accounts: [...(clean.accounts ?? []), ...DEMO_ACCOUNTS],
+    assets: [...(clean.assets ?? []), ...DEMO_ASSETS],
+    transactions: [...(clean.transactions ?? []), ...DEMO_TRANSACTIONS],
+    quotes: { ...(clean.quotes ?? {}), ...demoQuotesByAssetId() },
+    fxRates: [...(clean.fxRates ?? []), DEMO_FX_EURUSD],
+    demoLoaded: true,
+  }
+}
+
+export function migratePersistedState(persistedState: unknown, version: number): unknown {
+  if (
+    version >= STORE_VERSION ||
+    persistedState === null ||
+    typeof persistedState !== 'object'
+  ) {
+    return persistedState
+  }
+
+  const state = persistedState as PersistedAppState
+  if (state.demoLoaded !== true) return state
+  return withFreshDemoCollections(state)
 }
 
 export const useAppStore = create<AppState>()(
@@ -150,29 +206,11 @@ export const useAppStore = create<AppState>()(
       loadDemoData: () =>
         set((s) => {
           if (s.demoLoaded) return s
-          const quotes = { ...s.quotes }
-          for (const q of DEMO_QUOTES) quotes[q.assetId] = q
-          return {
-            demoLoaded: true,
-            accounts: [...s.accounts, ...DEMO_ACCOUNTS],
-            assets: [...s.assets, ...DEMO_ASSETS],
-            transactions: [...s.transactions, ...DEMO_TRANSACTIONS],
-            quotes,
-            fxRates: [...s.fxRates, DEMO_FX_EURUSD],
-          }
+          return withFreshDemoCollections(s)
         }),
 
       removeDemoData: () =>
-        set((s) => ({
-          demoLoaded: false,
-          accounts: s.accounts.filter((a) => !a.id.startsWith('demo-')),
-          assets: s.assets.filter((a) => !a.isDemo),
-          transactions: s.transactions.filter((t) => !t.isDemo),
-          quotes: Object.fromEntries(
-            Object.entries(s.quotes).filter(([, q]) => q.quality !== 'demo'),
-          ),
-          fxRates: s.fxRates.filter((r) => r.quality !== 'demo'),
-        })),
+        set((s) => ({ ...withoutDemoCollections(s), demoLoaded: false })),
 
       clearAll: () =>
         set({
@@ -187,6 +225,6 @@ export const useAppStore = create<AppState>()(
           demoLoaded: false,
         }),
     }),
-    { name: 'riskcalculator-v1' },
+    { name: 'riskcalculator-v1', version: STORE_VERSION, migrate: migratePersistedState },
   ),
 )

@@ -36,6 +36,16 @@ Notas y limitaciones conocidas:
 - **Índices**: se pueden consultar como referencia/benchmark; la UI aclara
   que un índice no es directamente invertible y ofrece elegir el instrumento
   real (ETF/fondo) al registrar posiciones.
+- **Datos demo**: la cartera de demostración es completamente ficticia y
+  reproducible. Su valoración actual redondea a 23.049,26 € y se compone de
+  BTC, SXR8, VWCE, oro y efectivo EUR. Las cotizaciones y el cambio EUR/USD
+  están fijados en `src/state/demoData.ts`.
+- **Históricos sintéticos demo**: `src/state/demoHistory.ts` genera series
+  deterministas para BTC, SXR8, VWCE y oro. Se usan solo cuando `isDemo` es
+  `true`, se etiquetan como «Demo sintetico» en la UI y permiten probar
+  volatilidad, covarianza, correlación, drawdown, Sharpe/Sortino, beta/alpha y
+  contribución al riesgo sin red ni claves. No se mezclan con proveedores
+  reales ni se presentan como datos de mercado observados.
 - Sin scraping ni endpoints no oficiales.
 - GitHub Pages no puede guardar una clave privada. Por eso las acciones y ETF
   en vivo se activan al desplegar `market-proxy`; hasta entonces la entrada

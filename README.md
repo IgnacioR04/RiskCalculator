@@ -53,8 +53,12 @@ npm run dev        # http://localhost:5173
 
 Sin configurar servicios externos funcionan la calculadora, el modo local,
 los datos demo, CoinGecko y los cambios EUR/USD. Pulsa «Cargar datos de
-demostración» en Resumen. Acciones y ETF en vivo requieren Supabase + Twelve
-Data porque la clave privada nunca se incluye en el navegador.
+demostración» en Resumen para cargar una cartera ficticia de **23.049,26 €**
+con BTC, ETF globales, oro y liquidez. El demo incluye históricos sintéticos
+para que la analítica de riesgo pueda calcular volatilidad, covarianzas,
+correlaciones, drawdown y contribución al riesgo sin claves externas. Acciones
+y ETF en vivo requieren Supabase + Twelve Data porque la clave privada nunca se
+incluye en el navegador.
 
 ### Acceso de prueba
 
@@ -148,11 +152,11 @@ Edge Function de Supabase.
 
 ## Estado del piloto
 
-Hecho y verificado localmente: motor financiero (93 tests), calculadora,
-portfolio multicuenta, importador/actualizador JSON, proveedores
-CoinGecko/BCE, analítica histórica multimoneda, comisiones, solapamientos,
-migraciones con RLS, build dividido por páginas y suite E2E definida para
-escritorio y móvil.
+Hecho y verificado localmente: motor financiero, calculadora, portfolio
+multicuenta, demo realista de 23.049,26 €, importador/actualizador JSON,
+proveedores CoinGecko/BCE, analítica histórica multimoneda, históricos demo
+sintéticos, comisiones, solapamientos, migraciones con RLS, build dividido por
+páginas y suite E2E definida para escritorio y móvil.
 
 Pendiente (requiere credenciales/decisión del propietario): aplicar
 migraciones a un proyecto Supabase real y ejecutar la verificación RLS,
