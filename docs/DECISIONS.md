@@ -51,6 +51,46 @@ se marcan como `[SUPOSICIÓN]` y pueden revertirse sin coste alto.
   Reversible: con el proxy de servidor desplegado puede pasarse al feed
   oficial. Ver DATA_SOURCES.md.
 
+## Rediseño visual (handoff «banca privada oscura», 2026-07-25)
+
+Origen: `design_handoff_riskcalculator/` (README.md, SCREENS.md,
+IMPLEMENTATION.md, tokens.css y los prototipos `.dc.html`). Rama
+`feat/rediseno-visual`. **La lógica financiera no cambia**: es un rediseño de
+presentación (tokens, componentes, layout, estados, copy y jerarquía).
+
+- **`tokens.css` es la única fuente de verdad del color.** Se pegó tal cual del
+  handoff y `global.css` se reescribió entero para consumir `var(--…)`. Se
+  verifica que no queda ningún hexadecimal fuera de ese fichero, gráficas
+  incluidas.
+- **Tipografía**: cifras en `Source Serif 4` 600 con `tabular-nums`, interfaz
+  en `Archivo`, `IBM Plex Mono` para unidades y números de sección. Se cargan
+  de Google Fonts desde `index.html`; autoalojarlas queda pendiente.
+- **Ocho secciones numeradas** (01–08) con rail de 58 px en escritorio y
+  navegación inferior de 5 iconos en móvil. Las rutas antiguas
+  (`/portfolio`, `/escenarios`) redirigen a las nuevas (`/cartera`,
+  `/simular`) para no romper enlaces guardados.
+- `[DISCREPANCIA]` **`github.md` del paquete contradice a `tokens.css`**: menciona
+  `Instrument Serif` y otra paleta (#c9a862 / #6f9ac0 / #b05264). Corresponde a
+  una sincronización anterior (historial del 24–25 de julio). Se ha implementado
+  lo que dicen `tokens.css` + `README.md`, que el propio handoff marca como
+  «alta fidelidad» y «tokens listos para pegar». Si la referencia buena fuera la
+  otra, basta cambiar `src/styles/tokens.css`.
+- `[SUPOSICIÓN]` **No se dibuja el valor de mercado histórico de la cartera.**
+  El prototipo muestra una curva de 12 meses con datos demo; reconstruirla de
+  verdad exige series históricas de precios de todos los activos, que el piloto
+  no descarga. En su lugar se grafica el **capital aportado acumulado** (dato
+  real derivado de las operaciones) con los puntos de cada aportación, y se
+  explica la diferencia bajo la gráfica. Regla aplicada: antes «no disponible»
+  que un número inventado.
+- `[SUPOSICIÓN]` Las pantallas que el handoff describe pero cuyo cálculo no
+  existe se entregan con **estado vacío explicativo**, no simuladas:
+  Rebalanceo (06), Solapamientos ETF/acción (05) y la contribución al riesgo
+  por volatilidad (04). Cada una dice qué falta para poder calcularla.
+- Las métricas que dependen de series históricas (volatilidad, drawdown,
+  Sharpe, Sortino, beta, correlaciones) siguen viviendo tras una descarga
+  explícita en «Riesgo → Histórico y correlaciones»; en el resumen aparecen
+  como «No disponible» hasta entonces.
+
 ## Decisiones técnicas
 
 - 2026-07-24 — Toda la lógica financiera vive en `src/lib/finance/` como

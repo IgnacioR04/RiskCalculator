@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Card, Note, QualityChip } from '../components/ui'
+import { Card, Note, QualityChip, SectionHeader } from '../components/ui'
 import { buildImportProposal, type ImportProposal } from '../lib/import/convert'
 import {
   EXAMPLE_VALID_JSON,
@@ -69,7 +69,7 @@ export function ImportarPage() {
 
   return (
     <>
-      <h1>Importar con IA</h1>
+      <SectionHeader num="07" title="Importar" />
       <p className="muted">
         Usa un asistente de IA externo para convertir capturas de tus aplicaciones de inversión en
         un JSON que esta página valida e importa. Nada se guarda hasta que confirmes la
@@ -82,9 +82,9 @@ export function ImportarPage() {
           cuenta, documentos, códigos QR y cualquier dato personal innecesario. Solo se necesitan
           los datos de las posiciones y operaciones.
         </Note>
-        <details className="math">
+        <details className="disclose">
           <summary>Ver el prompt completo</summary>
-          <div className="math-body">
+          <div className="disclose-body">
             <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.78rem' }}>{EXTRACTION_PROMPT}</pre>
           </div>
         </details>

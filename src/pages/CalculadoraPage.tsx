@@ -5,7 +5,7 @@ import {
   type PriceMarker,
   type PricePoint,
 } from '../components/charts/PriceOutcomeChart'
-import { Card, MathDetails, Note, NumberField, Segmented, SignedValue, Stat } from '../components/ui'
+import { Card, Kpi, MathDetails, Note, NumberField, SectionHeader, Segmented, SignedValue } from '../components/ui'
 import { TickerSearch } from '../components/TickerSearch'
 import { Decimal, dec } from '../lib/finance/decimal'
 import {
@@ -58,8 +58,8 @@ export function CalculadoraPage() {
 
   return (
     <>
-      <h1>Calculadora</h1>
-      <p className="muted">
+      <SectionHeader num="02" title="Calculadora" />
+      <p className="muted mb-0">
         Dos preguntas distintas que no conviene mezclar: volver a <em>ver</em> una cantidad en tu
         posición no es lo mismo que recuperar todo el dinero aportado.
       </p>
@@ -208,7 +208,7 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
           <Card highlight title="Capital para restaurar el valor inicial">
             {result.alreadyRestored ? (
               <>
-                <p className="big-figure">{formatMoney(0, currency)}</p>
+                <p className="figure figure-result">{formatMoney(0, currency)}</p>
                 <p>
                   No necesitas aportar nada: si tu posición sube un{' '}
                   {formatPct(growthPct.value!.div(100))}, pasaría a valer{' '}
@@ -218,7 +218,7 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
               </>
             ) : (
               <>
-                <p className="big-figure">{formatMoney(result.contribution, currency)}</p>
+                <p className="figure figure-result">{formatMoney(result.contribution, currency)}</p>
                 <p>
                   Si aportas <strong>{formatMoney(result.contribution, currency)}</strong> hoy y tu
                   posición sube un <strong>{formatPct(growthPct.value!.div(100))}</strong>, volverá
@@ -238,15 +238,15 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
               . Para saber cuánto necesitas para no perder dinero, usa la pestaña «Punto de
               equilibrio real».
             </Note>
-            <div className="stat-grid">
-              <Stat label="Valor en el objetivo">{formatMoney(result.valueAtTarget, currency)}</Stat>
-              <Stat label="Capital total aportado">{formatMoney(result.totalCapital, currency)}</Stat>
-              <Stat label="Resultado neto en el objetivo">
+            <div className="kpi-row">
+              <Kpi label="Valor en el objetivo">{formatMoney(result.valueAtTarget, currency)}</Kpi>
+              <Kpi label="Capital total aportado">{formatMoney(result.totalCapital, currency)}</Kpi>
+              <Kpi label="Resultado neto en el objetivo">
                 <SignedValue
                   formatted={formatMoney(result.netResultAtTarget, currency)}
                   sign={sign(result.netResultAtTarget)}
                 />
-              </Stat>
+              </Kpi>
             </div>
             <MathDetails>
               <p>
@@ -642,7 +642,7 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
             <div className="grid-2">
               <div>
                 <h3>Restaurar el valor inicial</h3>
-                <p className="big-figure">
+                <p className="figure figure-result">
                   {derived.restore.alreadyRestored
                     ? formatMoney(0, currency)
                     : formatMoney(derived.restore.contribution, currency)}
@@ -660,7 +660,7 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
               </div>
               <div>
                 <h3>Punto de equilibrio real</h3>
-                <p className="big-figure">
+                <p className="figure figure-result">
                   {derived.breakeven.status === 'achievable'
                     ? formatMoney(derived.breakeven.contribution!, currency)
                     : derived.breakeven.status === 'already_achieved'
@@ -739,25 +739,25 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
 
           {withBudget && budget.value !== null && (
             <Card title={`Con tu presupuesto de ${formatMoney(budget.value, currency)}`}>
-              <div className="stat-grid">
-                <Stat label="Nuevo precio medio">
+              <div className="kpi-row">
+                <Kpi label="Nuevo precio medio">
                   {formatMoney(withBudget.bp.newAveragePrice, currency)}
-                </Stat>
-                <Stat label="Tu equilibrio pasa a">
+                </Kpi>
+                <Kpi label="Tu equilibrio pasa a">
                   {formatMoney(withBudget.bp.breakevenPrice, currency)}
-                </Stat>
-                <Stat label="Subida necesaria hasta el equilibrio">
+                </Kpi>
+                <Kpi label="Subida necesaria hasta el equilibrio">
                   <SignedValue
                     formatted={formatPct(withBudget.bp.requiredGrowth)}
                     sign={sign(withBudget.bp.requiredGrowth)}
                   />
-                </Stat>
-                <Stat label={`Resultado neto en ${formatMoney(targetPrice, currency)}`}>
+                </Kpi>
+                <Kpi label={`Resultado neto en ${formatMoney(targetPrice, currency)}`}>
                   <SignedValue
                     formatted={formatMoney(withBudget.outcome.netResult, currency)}
                     sign={sign(withBudget.outcome.netResult)}
                   />
-                </Stat>
+                </Kpi>
               </div>
               <div className="table-wrap">
                 <table className="data">

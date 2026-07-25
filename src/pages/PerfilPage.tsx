@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Note, Segmented } from '../components/ui'
+import { Card, Note, SectionHeader, Segmented } from '../components/ui'
 import type { Currency, RiskCategory } from '../lib/domain'
 import { formatDateTime } from '../lib/format'
 import { providerStatus } from '../lib/market/service'
@@ -105,7 +105,7 @@ export function PerfilPage() {
 
   return (
     <>
-      <h1>Perfil y ajustes</h1>
+      <SectionHeader num="08" title="Perfil" />
 
       <AccountCard />
 

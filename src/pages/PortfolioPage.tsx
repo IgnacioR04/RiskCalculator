@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Card, EmptyState, Note, NumberField, QualityChip, Segmented, SignedValue, Stat } from '../components/ui'
+import { Card, EmptyState, Kpi, Note, NumberField, QualityChip, SectionHeader, Segmented, SignedValue } from '../components/ui'
 import type { Asset, AssetType, Confidence, Currency, Transaction, TransactionSource } from '../lib/domain'
 import { uid } from '../lib/domain'
 import { dec } from '../lib/finance/decimal'
 import { formatDateTime, formatMoney, formatPct, formatQty, parseUserNumber } from '../lib/format'
-import { HistoricalRiskSection } from '../components/analytics/HistoricalRiskSection'
 import type { AssetMatch } from '../lib/market/provider'
 import { refreshAllQuotes, refreshFx, searchAssets } from '../lib/market/service'
 import { buildPortfolioView } from '../lib/portfolio'
@@ -28,28 +27,28 @@ export function PortfolioPage() {
 
   return (
     <>
-      <h1>Portfolio</h1>
+      <SectionHeader num="03" title="Cartera" />
       {view.hasDemoData && (
         <Note kind="demo">Incluye datos de demostración ficticios (etiquetados «Datos demo»).</Note>
       )}
 
       {view.positions.length > 0 && (
         <Card>
-          <div className="stat-grid">
-            <Stat label="Valor total">{formatMoney(view.totalValue, currency)}</Stat>
-            <Stat label="Capital aportado">{formatMoney(view.totalCost, currency)}</Stat>
-            <Stat label="No realizado">
+          <div className="kpi-row">
+            <Kpi label="Valor total">{formatMoney(view.totalValue, currency)}</Kpi>
+            <Kpi label="Capital aportado">{formatMoney(view.totalCost, currency)}</Kpi>
+            <Kpi label="No realizado">
               <SignedValue
                 formatted={formatMoney(view.totalUnrealizedPnl, currency)}
                 sign={view.totalUnrealizedPnl.gt(0) ? 1 : view.totalUnrealizedPnl.lt(0) ? -1 : 0}
               />
-            </Stat>
-            <Stat label="Realizado">
+            </Kpi>
+            <Kpi label="Realizado">
               <SignedValue
                 formatted={formatMoney(view.totalRealizedPnl, currency)}
                 sign={view.totalRealizedPnl.gt(0) ? 1 : view.totalRealizedPnl.lt(0) ? -1 : 0}
               />
-            </Stat>
+            </Kpi>
           </div>
         </Card>
       )}
@@ -144,7 +143,6 @@ export function PortfolioPage() {
       </Card>
 
       <MarketRefreshSection />
-      <HistoricalRiskSection />
       <AccountsSection />
       <AddTransactionSection />
       <TransactionsSection />
@@ -260,9 +258,9 @@ function AccountsSection() {
           </table>
         </div>
       )}
-      <details className="math">
+      <details className="disclose">
         <summary>Añadir cuenta</summary>
-        <div className="math-body">
+        <div className="disclose-body">
           <div className="grid-2">
             <div className="field">
               <label htmlFor="acc-broker">Bróker o plataforma</label>

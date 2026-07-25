@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, EmptyState, Note, NumberField, SignedValue, Stat } from '../components/ui'
+import { Card, EmptyState, Kpi, Money, Note, NumberField, SectionHeader, SignedValue, Tabs } from '../components/ui'
 import { dec } from '../lib/finance/decimal'
 import { applyStress, contributionImpact, type StressPosition } from '../lib/finance/stress'
 import { STRESS_PRESETS, type StressPreset } from '../lib/finance/stressPresets'
@@ -20,7 +20,7 @@ const INPUT_LABEL: Record<string, string> = {
   budget: 'Presupuesto',
 }
 
-export function EscenariosPage() {
+export function SimularPage() {
   const store = useAppStore()
   const view = useMemo(
     () =>
@@ -49,18 +49,55 @@ export function EscenariosPage() {
     [view.positions],
   )
 
+  const [tab, setTab] = useState<SimTab>('estres')
+
   return (
     <>
-      <h1>Escenarios</h1>
-      <p className="muted">
-        Cálculos «qué pasaría si» sobre tu cartera: shocks deterministas y simulaciones de
-        aportación. No son predicciones y no ejecutan ninguna operación.
+      <SectionHeader num="06" title="Simular" />
+      <p className="muted mb-0">
+        Cálculos «qué pasaría si» sobre tu cartera: shocks deterministas y simulaciones de aportación.
+        No son predicciones y no ejecutan ninguna operación.
       </p>
 
-      <StressSection positions={stressPositions} />
-      <SimulatorSection positions={stressPositions} />
-      <SavedScenariosSection />
+      <Tabs<SimTab>
+        label="Apartados de simulación"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'estres', label: 'Estrés' },
+          { value: 'rebalanceo', label: 'Rebalanceo' },
+          { value: 'antes-despues', label: 'Antes y después' },
+          { value: 'guardadas', label: 'Comparaciones guardadas' },
+        ]}
+      />
+
+      {tab === 'estres' && <StressSection positions={stressPositions} />}
+      {tab === 'antes-despues' && <SimulatorSection positions={stressPositions} />}
+      {tab === 'guardadas' && <SavedScenariosSection />}
+      {tab === 'rebalanceo' && <RebalanceoPlaceholder />}
     </>
+  )
+}
+
+type SimTab = 'estres' | 'rebalanceo' | 'antes-despues' | 'guardadas'
+
+/**
+ * Rebalanceo: pendiente de implementar. Se muestra su estado vacío en vez de
+ * simular resultados que no se calculan (regla del handoff: nada inventado).
+ */
+function RebalanceoPlaceholder() {
+  return (
+    <Card>
+      <EmptyState icon="◇" title="Rebalanceo — próximamente">
+        <p>
+          Aquí podrás fijar pesos objetivo y ver qué aportación haría falta para acercarte a ellos, sin vender. De
+          momento puedes usar «Antes y después» para simular una aportación concreta a un activo.
+        </p>
+        <p className="meta">
+          No se muestra un resultado simulado mientras el cálculo no esté implementado de verdad.
+        </p>
+      </EmptyState>
+    </Card>
   )
 }
 
@@ -126,7 +163,7 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
       <Card title="Escenarios de estrés">
         <EmptyState icon="⇄" title="Necesito posiciones valoradas">
           <p>
-            Añade posiciones en <Link to="/portfolio">Portfolio</Link> (o carga los datos demo) para
+            Añade posiciones en <Link to="/cartera">Portfolio</Link> (o carga los datos demo) para
             simular shocks sobre tu cartera.
           </p>
         </EmptyState>
@@ -149,7 +186,7 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
             aria-pressed={preset?.id === p.id}
             style={
               preset?.id === p.id
-                ? { borderColor: 'var(--color-primary)', color: 'var(--color-primary-strong)' }
+                ? { borderColor: 'var(--brand-muted)', color: 'var(--brand-text)' }
                 : undefined
             }
             title={p.description}
@@ -187,9 +224,9 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
           <strong>{preset.name}:</strong> {preset.description}
         </Note>
       )}
-      <details className="math">
+      <details className="disclose">
         <summary>Definir shocks manualmente</summary>
-        <div className="math-body">
+        <div className="disclose-body">
           <div className="grid-2">
             <NumberField label="Shock general" hint="A toda la cartera. Ej.: −20" value={general} onChange={manual(setGeneral)} suffix="%" />
             <NumberField label="Shock a cripto" hint="Solo clase cripto" value={cryptoShock} onChange={manual(setCryptoShock)} suffix="%" />
@@ -221,16 +258,20 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
 
       {result !== null && (
         <>
-          <div className="stat-grid mt-2">
-            <Stat label="Valor actual">{formatMoney(result.totalBefore, displayCurrency)}</Stat>
-            <Stat label="Valor tras el shock">{formatMoney(result.totalAfter, displayCurrency)}</Stat>
-            <Stat label="Variación">
+          <div className="kpi-row mt-3">
+            <Kpi label="Valor actual">
+              <Money value={result.totalBefore} currency={displayCurrency} />
+            </Kpi>
+            <Kpi label="Valor tras el shock">
+              <Money value={result.totalAfter} currency={displayCurrency} />
+            </Kpi>
+            <Kpi label="Variación">
               <SignedValue
                 formatted={formatMoney(result.totalChange, displayCurrency)}
                 sign={result.totalChange.gt(0) ? 1 : result.totalChange.lt(0) ? -1 : 0}
               />
-            </Stat>
-            <Stat label="Variación %">
+            </Kpi>
+            <Kpi label="Variación %">
               {result.totalChangePct !== null ? (
                 <SignedValue
                   formatted={formatPct(result.totalChangePct)}
@@ -239,7 +280,7 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
               ) : (
                 '—'
               )}
-            </Stat>
+            </Kpi>
           </div>
           <div className="table-wrap">
             <table className="data">
@@ -364,23 +405,23 @@ function SimulatorSection({ positions }: { positions: StressPosition[] }) {
       </div>
       {impact !== null && (
         <>
-          <div className="stat-grid">
-            <Stat label="Peso del activo (antes)">
+          <div className="kpi-row">
+            <Kpi label="Peso del activo (antes)">
               {impact.before.weight !== null ? formatPct(impact.before.weight, 1) : '—'}
-            </Stat>
-            <Stat label="Peso del activo (después)">
+            </Kpi>
+            <Kpi label="Peso del activo (después)">
               {impact.after.weight !== null ? formatPct(impact.after.weight, 1) : '—'}
-            </Stat>
-            <Stat label="Nº efectivo de posiciones (antes)">
+            </Kpi>
+            <Kpi label="Nº efectivo de posiciones (antes)">
               {impact.before.concentration.effectivePositions !== null
                 ? impact.before.concentration.effectivePositions.toFixed(1)
                 : '—'}
-            </Stat>
-            <Stat label="Nº efectivo (después)">
+            </Kpi>
+            <Kpi label="Nº efectivo (después)">
               {impact.after.concentration.effectivePositions !== null
                 ? impact.after.concentration.effectivePositions.toFixed(1)
                 : '—'}
-            </Stat>
+            </Kpi>
           </div>
           {avgPriceChange !== null && avgPriceChange.before !== null && (
             <p>
