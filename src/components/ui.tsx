@@ -13,11 +13,18 @@ import { formatMoneyParts, type Numeric } from '../lib/format'
 
 /* ── Encabezado numerado de sección ──────────────────────────────────────── */
 
+/**
+ * Encabezado numerado de sección (01–08). El título es el `h1` de la pantalla:
+ * cada vista necesita un encabezado real para lectores de pantalla, aunque
+ * visualmente sea una etiqueta pequeña en mayúsculas.
+ */
 export function SectionHeader(props: { num: string; title: string }) {
   return (
     <div className="section-header">
-      <span className="section-num">{props.num}</span>
-      <span className="section-title">{props.title}</span>
+      <span className="section-num" aria-hidden="true">
+        {props.num}
+      </span>
+      <h1 className="section-title">{props.title}</h1>
       <span className="section-rule" />
     </div>
   )
@@ -38,12 +45,18 @@ export function Card(props: {
 }) {
   const variant: CardVariant = props.highlight === true ? 'highlight' : (props.variant ?? 'default')
 
+  // El título de una tarjeta es siempre un encabezado real (h2): la jerarquía
+  // debe existir para lectores de pantalla aunque visualmente sea pequeña.
   if (variant === 'highlight') {
     return (
       <section className="card-highlight">
         <div className="accent-rule" />
         <div style={{ flex: 1, minWidth: 0 }}>
-          {props.title !== undefined && <div className="label" style={{ color: 'var(--brand-text)' }}>{props.title}</div>}
+          {props.title !== undefined && (
+            <h2 className="label" style={{ color: 'var(--brand-text)' }}>
+              {props.title}
+            </h2>
+          )}
           {props.children}
         </div>
       </section>
@@ -56,7 +69,7 @@ export function Card(props: {
       {(props.title !== undefined || props.action !== undefined) && (
         <div className="card-head" style={{ marginBottom: props.children !== undefined ? 10 : 0 }}>
           <div>
-            {props.title !== undefined && <div className="card-title">{props.title}</div>}
+            {props.title !== undefined && <h2 className="card-title">{props.title}</h2>}
             {props.sub !== undefined && <div className="card-sub">{props.sub}</div>}
           </div>
           {props.action}

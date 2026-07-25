@@ -1,30 +1,31 @@
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/shell/AppShell'
+import { lazyWithReload } from './lib/lazyChunk'
 
 /* Carga diferida por página: mantiene el build dividido por rutas. */
-const ResumenPage = lazy(() =>
+const ResumenPage = lazyWithReload(() =>
   import('./pages/ResumenPage').then((module) => ({ default: module.ResumenPage })),
 )
-const CalculadoraPage = lazy(() =>
+const CalculadoraPage = lazyWithReload(() =>
   import('./pages/CalculadoraPage').then((module) => ({ default: module.CalculadoraPage })),
 )
-const PortfolioPage = lazy(() =>
+const PortfolioPage = lazyWithReload(() =>
   import('./pages/PortfolioPage').then((module) => ({ default: module.PortfolioPage })),
 )
-const RiesgoPage = lazy(() =>
+const RiesgoPage = lazyWithReload(() =>
   import('./pages/RiesgoPage').then((module) => ({ default: module.RiesgoPage })),
 )
-const DiversificacionPage = lazy(() =>
+const DiversificacionPage = lazyWithReload(() =>
   import('./pages/DiversificacionPage').then((module) => ({ default: module.DiversificacionPage })),
 )
-const SimularPage = lazy(() =>
+const SimularPage = lazyWithReload(() =>
   import('./pages/SimularPage').then((module) => ({ default: module.SimularPage })),
 )
-const ImportarPage = lazy(() =>
+const ImportarPage = lazyWithReload(() =>
   import('./pages/ImportarPage').then((module) => ({ default: module.ImportarPage })),
 )
-const PerfilPage = lazy(() =>
+const PerfilPage = lazyWithReload(() =>
   import('./pages/PerfilPage').then((module) => ({ default: module.PerfilPage })),
 )
 
