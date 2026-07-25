@@ -17,9 +17,9 @@ import type { Currency } from '../../lib/format'
 import { formatMoney, formatNumber } from '../../lib/format'
 
 const SERIES: Record<string, string> = {
-  Pesimista: '#d95926',
-  Base: '#3987e5',
-  Optimista: '#199e70',
+  Pesimista: 'var(--negative-muted)',
+  Base: 'var(--series-4)',
+  Optimista: 'var(--positive-muted)',
 }
 
 export interface ProjectionScenario {
@@ -63,13 +63,13 @@ export function ProjectionChart(props: {
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="year"
-            stroke="var(--chart-ink)"
+            stroke="var(--text-secondary)"
             fontSize={12}
             tickLine={false}
             tickFormatter={(y: number) => `${y}a`}
           />
           <YAxis
-            stroke="var(--chart-ink)"
+            stroke="var(--text-secondary)"
             fontSize={12}
             tickLine={false}
             width={72}
@@ -79,11 +79,11 @@ export function ProjectionChart(props: {
             formatter={(value: unknown, name: unknown) => [formatMoney(Number(value), props.currency), String(name)]}
             labelFormatter={(y: unknown) => `Dentro de ${Number(y)} año(s)`}
             contentStyle={{
-              fontSize: 13,
-              borderRadius: 8,
-              background: '#1e2530',
-              border: '1px solid #2c3543',
-              color: '#eef2f8',
+              fontSize: 12,
+              borderRadius: 6,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
             }}
           />
           <Legend wrapperStyle={{ fontSize: 12.5 }} />
@@ -92,7 +92,7 @@ export function ProjectionChart(props: {
               key={s.name}
               type="monotone"
               dataKey={s.name}
-              stroke={SERIES[s.name] ?? '#3987e5'}
+              stroke={SERIES[s.name] ?? 'var(--series-4)'}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}

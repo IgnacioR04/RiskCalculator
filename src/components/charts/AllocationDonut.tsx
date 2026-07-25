@@ -1,28 +1,36 @@
 /**
- * Donut de distribución del portfolio. Una porción por categoría; leyenda
- * siempre presente (identidad nunca solo por color). Paleta categórica
- * validada para fondo oscuro.
+ * Donut de distribución. Colores del orden fijo de series (tokens); la
+ * identidad nunca depende solo del color: la lista de al lado repite etiqueta
+ * y porcentaje, y el resumen textual describe el reparto completo.
  */
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { Currency } from '../../lib/format'
 import { formatMoney, formatPct } from '../../lib/format'
 
-const SERIES = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#9085e9']
+const SERIES = [
+  'var(--series-1)',
+  'var(--series-2)',
+  'var(--series-3)',
+  'var(--series-4)',
+  'var(--series-5)',
+  'var(--series-6)',
+  'var(--series-7)',
+]
 
 export interface DonutSlice {
   label: string
   value: number
-  weight: number // 0–1
+  weight: number
 }
 
-export function AllocationDonut(props: { data: DonutSlice[]; currency: Currency }) {
+export function AllocationDonut(props: { data: DonutSlice[]; currency: Currency; compact?: boolean }) {
   const total = props.data.reduce((a, s) => a + s.value, 0)
+  const size = props.compact === true ? 104 : 240
+  const inner = props.compact === true ? 30 : 62
+  const outer = props.compact === true ? 46 : 100
+
   return (
-    <div
-      style={{ width: '100%', height: 280 }}
-      role="img"
-      aria-label="Distribución del portfolio por categoría"
-    >
+    <div style={{ width: '100%', height: size }}>
       <ResponsiveContainer>
         <PieChart>
           <Pie
@@ -31,36 +39,42 @@ export function AllocationDonut(props: { data: DonutSlice[]; currency: Currency 
             nameKey="label"
             cx="50%"
             cy="50%"
-            innerRadius={62}
-            outerRadius={100}
+            innerRadius={inner}
+            outerRadius={outer}
             paddingAngle={2}
-            stroke="var(--color-surface)"
+            stroke="var(--surface-default)"
             strokeWidth={2}
             isAnimationActive={false}
           >
             {props.data.map((s, i) => (
-              <Cell key={s.label} fill={SERIES[i % SERIES.length] ?? '#3987e5'} />
+              <Cell key={s.label} fill={SERIES[i % SERIES.length] ?? SERIES[0]!} />
             ))}
           </Pie>
           <Tooltip
             formatter={(value: unknown, name: unknown) => {
               const v = Number(value)
-              return [`${formatMoney(v, props.currency)} · ${formatPct(total > 0 ? v / total : 0, 1)}`, String(name)]
+              return [
+                `${formatMoney(v, props.currency)} · ${formatPct(total > 0 ? v / total : 0, 1)}`,
+                String(name),
+              ]
             }}
             contentStyle={{
-              fontSize: 13,
-              borderRadius: 8,
-              background: '#1e2530',
-              border: '1px solid #2c3543',
-              color: '#eef2f8',
+              fontSize: 12,
+              borderRadius: 6,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
             }}
-          />
-          <Legend
-            wrapperStyle={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}
-            formatter={(value: string) => <span style={{ color: 'var(--color-text)' }}>{value}</span>}
           />
         </PieChart>
       </ResponsiveContainer>
+      <p className="sr-only">
+        Reparto:{' '}
+        {props.data
+          .map((s) => `${s.label} ${formatPct(total > 0 ? s.value / total : 0, 1)}`)
+          .join(', ')}
+        .
+      </p>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, EmptyState, Note, NumberField, SignedValue, Stat } from '../components/ui'
+import { Card, EmptyState, Note, NumberField, SectionHeader, SignedValue, Stat } from '../components/ui'
 import { dec } from '../lib/finance/decimal'
 import { applyStress, contributionImpact, type StressPosition } from '../lib/finance/stress'
 import { STRESS_PRESETS, type StressPreset } from '../lib/finance/stressPresets'
@@ -20,7 +20,7 @@ const INPUT_LABEL: Record<string, string> = {
   budget: 'Presupuesto',
 }
 
-export function EscenariosPage() {
+export function SimularPage() {
   const store = useAppStore()
   const view = useMemo(
     () =>
@@ -51,7 +51,7 @@ export function EscenariosPage() {
 
   return (
     <>
-      <h1>Escenarios</h1>
+      <SectionHeader num="06" title="Simular" />
       <p className="muted">
         Cálculos «qué pasaría si» sobre tu cartera: shocks deterministas y simulaciones de
         aportación. No son predicciones y no ejecutan ninguna operación.
@@ -126,7 +126,7 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
       <Card title="Escenarios de estrés">
         <EmptyState icon="⇄" title="Necesito posiciones valoradas">
           <p>
-            Añade posiciones en <Link to="/portfolio">Portfolio</Link> (o carga los datos demo) para
+            Añade posiciones en <Link to="/cartera">Portfolio</Link> (o carga los datos demo) para
             simular shocks sobre tu cartera.
           </p>
         </EmptyState>

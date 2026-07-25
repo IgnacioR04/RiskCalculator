@@ -1,10 +1,26 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { AllocationDonut } from '../components/charts/AllocationDonut'
-import { ProjectionChart } from '../components/charts/ProjectionChart'
-import { Card, EmptyState, Note, QualityChip, SignedValue, Stat } from '../components/ui'
+import { EvolutionChart, type EvolutionPoint } from '../components/charts/EvolutionChart'
+import {
+  Button,
+  Card,
+  DataQualityBadge,
+  EmptyState,
+  Figure,
+  Help,
+  Kpi,
+  Money,
+  Note,
+  RiskScale,
+  SectionHeader,
+  SeriesDot,
+  SignedValue,
+  type RiskLevel,
+} from '../components/ui'
+import { Decimal } from '../lib/finance/decimal'
+import { formatDate, formatDateTime, formatMoney, formatNumber, formatPct } from '../lib/format'
 import { buildPortfolioView } from '../lib/portfolio'
-import { formatDateTime, formatMoney, formatPct } from '../lib/format'
 import { useAppStore } from '../state/store'
 
 export function ResumenPage() {
@@ -18,31 +34,79 @@ export function ResumenPage() {
   const demoLoaded = useAppStore((s) => s.demoLoaded)
 
   const view = useMemo(
-    () =>
-      buildPortfolioView({ assets, accounts, transactions, quotes, fxRates, displayCurrency }),
+    () => buildPortfolioView({ assets, accounts, transactions, quotes, fxRates, displayCurrency }),
     [assets, accounts, transactions, quotes, fxRates, displayCurrency],
   )
+
+  /** Serie real de capital aportado acumulado (no se inventa histórico de precios). */
+  const evolution = useMemo<EvolutionPoint[]>(() => {
+    const buys = [...transactions]
+      .filter((t) => t.type === 'buy')
+      .sort((a, b) => a.datetime.localeCompare(b.datetime))
+    let acc = new Decimal(0)
+    return buys.map((t) => {
+      acc = acc.plus(t.investedAmount)
+      return {
+        date: t.datetime,
+        aportado: Number(acc.toFixed(2)),
+        labelCorto: new Intl.DateTimeFormat('es-ES', { month: 'short', year: '2-digit' }).format(
+          new Date(t.datetime),
+        ),
+      }
+    })
+  }, [transactions])
 
   const lastQuote = useMemo(() => {
     const stamps = Object.values(quotes).map((q) => q.fetchedAt)
     return stamps.length > 0 ? stamps.sort().at(-1)! : null
   }, [quotes])
 
+  const lastMovement = useMemo(
+    () => [...transactions].sort((a, b) => b.datetime.localeCompare(a.datetime))[0],
+    [transactions],
+  )
+
+  /** Riesgo orientativo por concentración: el detalle vive en la sección 04. */
+  const riskLevel: RiskLevel = useMemo(() => {
+    const max = view.concentration.maxWeight
+    if (max === null) return 'na'
+    if (max.gt('0.5')) return 'high'
+    if (max.gt('0.3')) return 'warn'
+    return 'ok'
+  }, [view.concentration.maxWeight])
+
+  /** Mayor posición por valor: la usamos para explicar la concentración. */
+  const topPosition = useMemo(
+    () =>
+      view.positions
+        .filter((p) => p.value !== null)
+        .sort((a, b) => b.value!.comparedTo(a.value!))[0],
+    [view.positions],
+  )
+
+  /** Posición con la mayor pérdida no realizada: es la que da pie a recuperar. */
+  const biggestLoss = useMemo(
+    () =>
+      view.positions
+        .filter((p) => p.unrealizedPnl !== null && p.unrealizedPnl.lt(0))
+        .sort((a, b) => a.unrealizedPnl!.comparedTo(b.unrealizedPnl!))[0],
+    [view.positions],
+  )
+
   if (view.positions.length === 0) {
     return (
       <>
-        <h1>Resumen</h1>
+        <SectionHeader num="01" title="Resumen" />
         <Card>
           <EmptyState icon="◇" title="Todavía no hay nada que resumir">
             <p>
-              Empieza por la <Link to="/calculadora">calculadora</Link> (funciona sin registrar
-              nada), añade tus posiciones en <Link to="/portfolio">Portfolio</Link>, o carga los
-              datos de demostración para explorar la aplicación.
+              Empieza por la <Link to="/calculadora">calculadora</Link> (funciona sin registrar nada), añade posiciones
+              en <Link to="/cartera">Cartera</Link>, o carga los datos de demostración para recorrer la aplicación.
             </p>
             {!demoLoaded && (
-              <button type="button" className="btn primary" onClick={loadDemoData}>
+              <Button variant="primary" onClick={loadDemoData}>
                 Cargar datos de demostración
-              </button>
+              </Button>
             )}
           </EmptyState>
         </Card>
@@ -52,177 +116,260 @@ export function ResumenPage() {
 
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">Visión rápida</span>
-          <h1>Resumen</h1>
-          <p className="muted">Lo importante de tu cartera, sin ruido.</p>
-        </div>
-      </div>
+      <SectionHeader num="01" title="Resumen" />
+
       {view.hasDemoData && (
         <Note kind="demo">
-          Estás viendo datos de demostración ficticios. Puedes quitarlos en Perfil y ajustes.
-        </Note>
-      )}
-      <Card highlight>
-        <div className="row spread">
-          <div>
-            <span className="muted">Valor total</span>
-            <div className="big-figure">{formatMoney(view.totalValue, displayCurrency)}</div>
-          </div>
-          <QualityChip
-            quality={view.quality}
-            detail={lastQuote !== null ? `Actualizado: ${formatDateTime(lastQuote)}` : undefined}
-          />
-        </div>
-        <div className="stat-grid mt-4">
-          <Stat label="Aportación neta">
-            {view.netContributed === null ? '—' : formatMoney(view.netContributed, displayCurrency)}
-          </Stat>
-          <Stat label="Resultado total">
-            {view.totalPnl === null ? '—' : (
-              <SignedValue
-                formatted={formatMoney(view.totalPnl, displayCurrency)}
-                sign={view.totalPnl.gt(0) ? 1 : view.totalPnl.lt(0) ? -1 : 0}
-              />
-            )}
-          </Stat>
-          <Stat label="Rentabilidad total">
-            {view.totalReturnPct !== null ? (
-              <SignedValue
-                formatted={formatPct(view.totalReturnPct)}
-                sign={view.totalReturnPct.gt(0) ? 1 : view.totalReturnPct.lt(0) ? -1 : 0}
-              />
-            ) : (
-              '—'
-            )}
-          </Stat>
-          <Stat label="Comisiones">
-            {view.totalFees === null ? '—' : formatMoney(view.totalFees, displayCurrency)}
-          </Stat>
-        </div>
-        {lastQuote !== null && (
-          <p className="muted mt-2 mb-0">Precios actualizados: {formatDateTime(lastQuote)}</p>
-        )}
-      </Card>
-
-      {view.warnings.length > 0 && (
-        <Note kind="warning">
-          <strong>Calidad de los datos:</strong>
-          <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
-            {view.warnings.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
+          Estás viendo datos de demostración ficticios. Puedes quitarlos en <Link to="/perfil">Perfil</Link>.
         </Note>
       )}
 
-      <div className="grid-2">
-        <Card title="Mayores posiciones">
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th scope="col">Activo</th>
-                  <th scope="col">Valor</th>
-                  <th scope="col">Resultado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {view.positions
-                  .filter((p) => p.value !== null)
-                  .sort((a, b) => b.value!.comparedTo(a.value!))
-                  .slice(0, 5)
-                  .map((p) => (
-                    <tr key={p.asset.id}>
-                      <td>
-                        {p.asset.symbol}{' '}
-                        {p.quality !== 'real' && <QualityChip quality={p.quality} />}
-                      </td>
-                      <td>{formatMoney(p.value!, displayCurrency)}</td>
-                      <td>
-                        {p.unrealizedPnl !== null ? (
-                          <SignedValue
-                            formatted={formatMoney(p.unrealizedPnl, displayCurrency)}
-                            sign={p.unrealizedPnl.gt(0) ? 1 : p.unrealizedPnl.lt(0) ? -1 : 0}
-                          />
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                    </tr>
+      <div className="grid-main">
+        {/* ── Columna principal ── */}
+        <div className="col-wide">
+          <Card>
+            <div className="row" style={{ gap: 7 }}>
+              <span className="label">Tienes ahora mismo</span>
+              <Help text="Valor de mercado de todas tus posiciones, convertido a tu divisa con el último cambio disponible." />
+              <span style={{ marginLeft: 'auto' }}>
+                <DataQualityBadge
+                  quality={view.quality}
+                  detail={lastQuote !== null ? `Actualizado: ${formatDateTime(lastQuote)}` : undefined}
+                />
+              </span>
+            </div>
+
+            <div className="row" style={{ alignItems: 'flex-end', gap: 18, marginTop: 7 }}>
+              <Money value={view.totalValue} currency={displayCurrency} size="hero" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, paddingBottom: 5 }}>
+                {view.totalPnl !== null ? (
+                  <Figure size="result" className={view.totalPnl.gte(0) ? 'positive' : 'negative'}>
+                    <span style={{ fontSize: 19 }}>
+                      {view.totalPnl.gte(0) ? '+' : ''}
+                      {formatMoney(view.totalPnl, displayCurrency)}
+                    </span>
+                  </Figure>
+                ) : (
+                  <span className="muted">Resultado no disponible</span>
+                )}
+                <span className="meta">
+                  {view.totalReturnPct !== null
+                    ? `${view.totalReturnPct.gte(0) ? '+' : ''}${formatPct(view.totalReturnPct)} sobre el capital invertido`
+                    : 'faltan costes para calcular la rentabilidad'}
+                </span>
+              </div>
+            </div>
+
+            <div className="kpi-row mt-4">
+              <Kpi
+                label="Aportación neta"
+                hint="Compras y comisiones menos ventas netas. No es el coste pendiente de las posiciones abiertas."
+              >
+                {view.netContributed !== null ? (
+                  <Money value={view.netContributed} currency={displayCurrency} size="kpi" />
+                ) : (
+                  <span className="muted" style={{ fontSize: 12 }}>No disponible</span>
+                )}
+              </Kpi>
+              <Kpi
+                label="Rentabilidad (XIRR)"
+                hint="Rendimiento ponderado por dinero, teniendo en cuenta cuándo aportaste cada euro."
+              >
+                {view.moneyWeighted.ok ? (
+                  <SignedValue
+                    formatted={formatPct(view.moneyWeighted.rate)}
+                    sign={view.moneyWeighted.rate > 0 ? 1 : view.moneyWeighted.rate < 0 ? -1 : 0}
+                  />
+                ) : (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    No disponible
+                  </span>
+                )}
+              </Kpi>
+              <Kpi label="Comisiones" hint="Comisiones acumuladas según la política de cada bróker.">
+                {view.totalFees !== null ? (
+                  <Money value={view.totalFees} currency={displayCurrency} size="kpi" />
+                ) : (
+                  '—'
+                )}
+              </Kpi>
+              <Kpi
+                label="Nº efectivo de activos"
+                hint="En cuántas posiciones «equivalentes» está repartido tu dinero. No juzga la calidad de cada activo."
+              >
+                {view.concentration.effectivePositions !== null
+                  ? formatNumber(view.concentration.effectivePositions, 1)
+                  : '—'}
+              </Kpi>
+            </div>
+
+            {evolution.length > 1 && (
+              <div className="mt-4">
+                <div className="row spread">
+                  <span className="label">Capital aportado · histórico</span>
+                  <span className="row" style={{ gap: 11 }}>
+                    <span className="meta row" style={{ gap: 5 }}>
+                      <i
+                        style={{ width: 13, height: 2, background: 'var(--chart-portfolio)', display: 'inline-block' }}
+                      />
+                      aportado
+                    </span>
+                    <span className="meta row" style={{ gap: 5 }}>
+                      <i
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: '50%',
+                          background: 'var(--brand-primary)',
+                          display: 'inline-block',
+                        }}
+                      />
+                      aportaciones
+                    </span>
+                  </span>
+                </div>
+                <EvolutionChart
+                  points={evolution}
+                  currentValue={view.totalValue.gt(0) ? Number(view.totalValue.toString()) : null}
+                  currency={displayCurrency}
+                />
+                <p className="meta mb-0">
+                  La línea es tu capital aportado real. El valor de mercado día a día necesita histórico de precios de
+                  todos tus activos, que este piloto todavía no descarga: no se dibuja una curva inventada.
+                </p>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* ── Columna lateral ── */}
+        <div className="col-side">
+          {biggestLoss !== undefined && (
+            <Card variant="highlight" title="Puedes calcular tu recuperación">
+              <Figure size="result" className="mt-1">
+                {formatMoney(biggestLoss.unrealizedPnl!.abs(), displayCurrency)}
+              </Figure>
+              <p style={{ font: '400 10.5px/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 6 }}>
+                Es lo que pierdes ahora mismo en <b style={{ color: 'var(--text-primary)' }}>{biggestLoss.asset.symbol}</b>. La
+                calculadora te dice cuánto tendrías que aportar para volver al equilibrio.
+              </p>
+              <div className="row" style={{ gap: 7, marginTop: 13 }}>
+                <Link to="/calculadora" className="btn primary">
+                  Abrir calculadora
+                </Link>
+                <Link to="/riesgo" className="btn">
+                  Ver riesgo
+                </Link>
+              </div>
+            </Card>
+          )}
+
+          <Card>
+            <div className="row" style={{ gap: 7 }}>
+              <span className="label">Riesgo general</span>
+              <Help text="Resume la concentración de tu cartera. No es una nota de calidad ni un consejo." />
+            </div>
+            <div className="row" style={{ alignItems: 'baseline', gap: 9, marginTop: 5 }}>
+              <span style={{ fontSize: 9, color: 'var(--warning)' }} aria-hidden="true">
+                {riskLevel === 'ok' ? '●' : riskLevel === 'warn' ? '▲' : riskLevel === 'high' ? '■' : '—'}
+              </span>
+              <Figure size="result" className="mb-0">
+                <span style={{ fontSize: 26 }}>
+                  {riskLevel === 'ok'
+                    ? 'Adecuado'
+                    : riskLevel === 'warn'
+                      ? 'Atención'
+                      : riskLevel === 'high'
+                        ? 'Alto'
+                        : 'Sin datos'}
+                </span>
+              </Figure>
+            </div>
+            <div className="mt-3">
+              <RiskScale level={riskLevel} />
+            </div>
+            {topPosition !== undefined && view.concentration.maxWeight !== null && (
+              <p style={{ font: '400 10px/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 10 }}>
+                <b style={{ color: 'var(--text-primary)' }}>{topPosition.asset.symbol}</b> es el{' '}
+                <b style={{ color: 'var(--text-primary)' }}>{formatPct(view.concentration.maxWeight, 1)}</b> de tu
+                dinero.{' '}
+                <Link to="/riesgo" style={{ fontSize: 10 }}>
+                  Ver el análisis completo
+                </Link>
+              </p>
+            )}
+          </Card>
+
+          <Card>
+            <div className="row spread">
+              <span className="label">Dónde está tu dinero</span>
+              <Link to="/diversificacion" style={{ font: '400 9.5px var(--font-ui)' }}>
+                ver detalle
+              </Link>
+            </div>
+            {view.byType.length > 0 && (
+              <>
+                <AllocationDonut
+                  currency={displayCurrency}
+                  compact
+                  data={view.byType.map((s) => ({
+                    label: s.label,
+                    value: Number(s.value.toString()),
+                    weight: s.weight !== null ? Number(s.weight.toString()) : 0,
+                  }))}
+                />
+                <div className="stack mt-2">
+                  {view.byType.map((slice, i) => (
+                    <div key={slice.key} className="row" style={{ gap: 7, font: '400 10px var(--font-ui)' }}>
+                      <SeriesDot index={i} />
+                      {slice.label}
+                      <span style={{ marginLeft: 'auto' }}>
+                        <Figure size="sm">{slice.weight !== null ? formatPct(slice.weight, 1) : '—'}</Figure>
+                      </span>
+                    </div>
                   ))}
-              </tbody>
-            </table>
-          </div>
-          <Link to="/portfolio" className="btn small">
-            Ver todo el portfolio
-          </Link>
-        </Card>
+                </div>
+              </>
+            )}
+          </Card>
 
-        <Card title="Distribución por clase">
-          {view.byType.length > 0 && (
-            <AllocationDonut
-              currency={displayCurrency}
-              data={view.byType.map((s) => ({
-                label: s.label,
-                value: Number(s.value.toString()),
-                weight: s.weight !== null ? Number(s.weight.toString()) : 0,
-              }))}
-            />
-          )}
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th scope="col">Clase</th>
-                  <th scope="col">Valor</th>
-                  <th scope="col">Peso</th>
-                </tr>
-              </thead>
-              <tbody>
-                {view.byType.map((slice) => (
-                  <tr key={slice.key}>
-                    <td>{slice.label}</td>
-                    <td>{formatMoney(slice.value, displayCurrency)}</td>
-                    <td>{slice.weight !== null ? formatPct(slice.weight, 1) : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {view.concentration.effectivePositions !== null && (
-            <p className="muted mb-0">
-              Nº efectivo de posiciones:{' '}
-              <strong>{view.concentration.effectivePositions.toFixed(1)}</strong> — mide en cuántas
-              posiciones «equivalentes» está repartido tu dinero; no dice nada sobre la calidad de
-              cada activo.
-            </p>
-          )}
-        </Card>
+          <Card variant="warning">
+            {view.warnings.length > 0 ? (
+              <>
+                <span className="chip warning">▲ {view.warnings.length} dato(s) por revisar</span>
+                <div style={{ font: '400 10px/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 9 }}>
+                  {view.warnings[0]}
+                </div>
+                <Link to="/cartera" style={{ font: '400 10px var(--font-ui)' }}>
+                  Revisar en Cartera
+                </Link>
+              </>
+            ) : (
+              <span className="chip positive">● Sin avisos pendientes</span>
+            )}
+            {lastMovement !== undefined && (
+              <>
+                <div className="divider" />
+                <div className="meta">Último movimiento</div>
+                <div className="row" style={{ gap: 7, font: '400 10px var(--font-ui)', marginTop: 3 }}>
+                  {lastMovement.type === 'buy' ? 'Compra' : 'Venta'}{' '}
+                  {assets.find((a) => a.id === lastMovement.assetId)?.symbol ?? ''}
+                  <span style={{ marginLeft: 'auto' }}>
+                    <Figure size="sm">
+                      {lastMovement.type === 'buy' ? '+' : '−'}
+                      {formatMoney(lastMovement.investedAmount, lastMovement.investedCurrency)}
+                    </Figure>
+                  </span>
+                </div>
+                <div className="meta mt-1">
+                  {formatDate(lastMovement.datetime)} ·{' '}
+                  {accounts.find((a) => a.id === lastMovement.accountId)?.brokerName ?? 'sin cuenta'}
+                </div>
+              </>
+            )}
+          </Card>
+        </div>
       </div>
-
-      <Card title="Proyección ilustrativa">
-        <p className="muted">
-          Cómo evolucionaría tu valor actual ({formatMoney(view.totalValue, displayCurrency)}) con
-          rentabilidades anuales constantes. <strong>No es una predicción</strong>: es interés
-          compuesto sobre supuestos que eliges tú, para hacerte una idea de las magnitudes.
-        </p>
-        <ProjectionChart
-          initialValue={Number(view.totalValue.toString())}
-          years={10}
-          currency={displayCurrency}
-          scenarios={[
-            { name: 'Pesimista', annualReturn: -0.03 },
-            { name: 'Base', annualReturn: 0.05 },
-            { name: 'Optimista', annualReturn: 0.12 },
-          ]}
-        />
-        <p className="muted mb-0">
-          Supuestos: −3 % / +5 % / +12 % anual, sin aportaciones nuevas. Los mercados no crecen de
-          forma constante; la realidad tiene subidas y bajadas.
-        </p>
-      </Card>
     </>
   )
 }

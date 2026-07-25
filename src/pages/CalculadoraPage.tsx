@@ -5,7 +5,7 @@ import {
   type PriceMarker,
   type PricePoint,
 } from '../components/charts/PriceOutcomeChart'
-import { Card, MathDetails, Note, NumberField, Segmented, SignedValue, Stat } from '../components/ui'
+import { Card, MathDetails, Note, NumberField, SectionHeader, Segmented, SignedValue, Stat } from '../components/ui'
 import { TickerSearch } from '../components/TickerSearch'
 import { Decimal, dec } from '../lib/finance/decimal'
 import {
@@ -61,7 +61,7 @@ export function CalculadoraPage() {
       <div className="page-heading">
         <div>
           <span className="eyebrow">Planifica antes de aportar</span>
-          <h1>Calculadora de recuperación</h1>
+          <SectionHeader num="02" title="Calculadora" />
           <p className="muted">
             Mueve el objetivo y compara cuánto capital necesitas y dónde quedaría tu equilibrio.
           </p>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Card, Note, QualityChip, Segmented } from '../components/ui'
+import { Card, Note, QualityChip, SectionHeader, Segmented } from '../components/ui'
 import { buildImportProposal, type ImportProposal } from '../lib/import/convert'
 import {
   buildPortfolioUpdatePrompt,
@@ -98,7 +98,7 @@ export function ImportarPage() {
       <div className="page-heading">
         <div>
           <span className="eyebrow">Asistente de cartera</span>
-          <h1>Importar y actualizar con IA</h1>
+          <SectionHeader num="07" title="Importar" />
           <p className="muted">
             Las imágenes se procesan en el asistente que elijas; aquí solo entra el JSON que tú
             revisas y confirmas.

@@ -15,8 +15,8 @@ import {
 import type { Currency } from '../../lib/format'
 import { formatMoney, formatPct } from '../../lib/format'
 
-const SERIES_1 = 'var(--series-1)'
-const INK_MUTED = 'var(--chart-ink)'
+const SERIES_1 = 'var(--chart-portfolio)'
+const INK_MUTED = 'var(--text-secondary)'
 const GRID = 'var(--chart-grid)'
 
 export interface CurvePoint {
@@ -60,12 +60,7 @@ export function ContributionCurveChart(props: {
               'Aportación necesaria',
             ]}
             labelFormatter={(g: unknown) => `Si sube ${formatPct(Number(g) / 100, 1)}`}
-            contentStyle={{
-              fontSize: 13,
-              borderRadius: 8,
-              borderColor: 'var(--color-border)',
-              background: 'var(--color-surface-2)',
-            }}
+            contentStyle={{ fontSize: 12, borderRadius: 6, background: 'var(--surface-raised)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
           />
           <Line
             type="monotone"
@@ -82,7 +77,7 @@ export function ContributionCurveChart(props: {
               y={props.selected.contribution}
               r={5}
               fill={SERIES_1}
-              stroke="var(--color-text)"
+              stroke="var(--surface-default)"
               strokeWidth={2}
             />
           )}

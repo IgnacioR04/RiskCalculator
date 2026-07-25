@@ -6,7 +6,7 @@ import type { Decimal } from './finance/decimal'
 
 export type Currency = 'EUR' | 'USD'
 
-type Numeric = Decimal | number | string
+export type Numeric = Decimal | number | string
 
 function toNumber(value: Numeric): number {
   return typeof value === 'number' ? value : Number(value.toString())
@@ -19,6 +19,31 @@ export function formatMoney(value: Numeric, currency: Currency, maxDecimals = 2)
     minimumFractionDigits: 2,
     maximumFractionDigits: maxDecimals,
   }).format(toNumber(value))
+}
+
+/**
+ * Separa un importe en cifra y símbolo de divisa. El sistema visual exige que
+ * el símbolo vaya en Archivo, ~30 % menor y en texto secundario, mientras la
+ * cifra va en serif tabular.
+ */
+export function formatMoneyParts(
+  value: Numeric,
+  currency: Currency,
+  maxDecimals = 2,
+): { amount: string; symbol: string } {
+  const parts = new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: maxDecimals,
+  }).formatToParts(toNumber(value))
+  let amount = ''
+  let symbol = ''
+  for (const part of parts) {
+    if (part.type === 'currency') symbol = part.value
+    else if (part.type !== 'literal') amount += part.value
+  }
+  return { amount: amount.trim(), symbol }
 }
 
 /** Porcentaje a partir de una fracción (0,05 → «5,00 %»). */

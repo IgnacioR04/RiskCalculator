@@ -51,6 +51,38 @@ se marcan como `[SUPOSICIÓN]` y pueden revertirse sin coste alto.
   Reversible: con el proxy de servidor desplegado puede pasarse al feed
   oficial. Ver DATA_SOURCES.md.
 
+
+## Integración del rediseño con la analítica de cartera (2026-07-25)
+
+Al llevar el rediseño a `main` apareció trabajo paralelo en el repositorio
+(dos commits de Codex, ~4.900 líneas) con analítica de cartera real:
+`portfolioRisk.ts` (covarianzas, contribución al riesgo), `AllocationExplorer`
+(reparto por clase, cuenta, sector, país y divisa), `OverlapSection`
+(solapamientos ETF/acción), comisiones por bróker, TWR, auth de Supabase con
+email y contraseña, y suite Playwright.
+
+Decisión: **el rediseño se adapta sobre esa versión, no al revés.** Ninguna
+función se pierde y varias pantallas mejoran respecto al plan original:
+
+- **Capa de alias en `global.css`.** La analítica se escribió contra los
+  nombres de variable anteriores (`--color-*`). En vez de reescribir sus
+  componentes se mapean a los tokens del handoff, así conservan su maquetación
+  y adoptan la paleta nueva. `tokens.css` sigue siendo la única fuente de
+  verdad del color.
+- **Lo que el rediseño declaraba «no disponible» ahora existe de verdad:**
+  la sección 04 Riesgo monta `HistoricalRiskSection` (volatilidad, drawdown,
+  Sharpe, Sortino, beta/alpha, correlación, covarianza y contribución al
+  riesgo) y la 05 Diversificación monta `AllocationExplorer` y
+  `OverlapSection`. Se retiran los estados vacíos que los sustituían.
+- **03 Cartera** conserva posiciones, cuentas, comisiones y operaciones, y
+  cede el riesgo a la 04 y el reparto a la 05.
+- **01 Resumen** usa el modelo de datos más rico: P&L total (realizado + no
+  realizado), aportación neta —distinta del coste pendiente— y comisiones.
+- Se conserva el `LoginGate` con Supabase (email/contraseña) y la carga
+  diferida por ruta.
+
+Verificado tras la integración: 93 tests, lint, typecheck y build por rutas.
+
 ## Decisiones técnicas
 
 - 2026-07-24 — Toda la lógica financiera vive en `src/lib/finance/` como

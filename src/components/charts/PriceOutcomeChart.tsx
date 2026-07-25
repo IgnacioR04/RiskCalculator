@@ -29,9 +29,9 @@ export interface PriceMarker {
   label: string
 }
 
-const SERIES_1 = 'var(--series-1)'
-const SERIES_2 = 'var(--series-2)'
-const INK_MUTED = 'var(--chart-ink)'
+const SERIES_1 = 'var(--brand-primary)' // con aportación
+const SERIES_2 = 'var(--series-4)' // sin aportación
+const INK_MUTED = 'var(--text-secondary)'
 const GRID = 'var(--chart-grid)'
 
 export function PriceOutcomeChart(props: {
@@ -60,12 +60,7 @@ export function PriceOutcomeChart(props: {
           <Tooltip
             formatter={(value: unknown, name: unknown) => [fmtMoney(Number(value)), String(name)]}
             labelFormatter={(price: unknown) => `Precio ${fmtMoney(Number(price))}`}
-            contentStyle={{
-              fontSize: 13,
-              borderRadius: 8,
-              borderColor: 'var(--color-border)',
-              background: 'var(--color-surface-2)',
-            }}
+            contentStyle={{ fontSize: 12, borderRadius: 6, background: 'var(--surface-raised)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
           />
           <Legend wrapperStyle={{ fontSize: 13 }} />
           <ReferenceLine y={0} stroke={INK_MUTED} strokeWidth={1.5} />

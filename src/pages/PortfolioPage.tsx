@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react'
-import {
-  AllocationExplorer,
-} from '../components/analytics/AllocationExplorer'
-import { HistoricalRiskSection } from '../components/analytics/HistoricalRiskSection'
-import { OverlapSection } from '../components/analytics/OverlapSection'
+import { Link } from 'react-router-dom'
 import {
   Card,
   EmptyState,
   Note,
   NumberField,
+  Figure,
   QualityChip,
+  SectionHeader,
+  SeriesDot,
   Segmented,
   SignedValue,
   Stat,
@@ -50,7 +49,7 @@ import {
 import { buildPortfolioView, type PortfolioView } from '../lib/portfolio'
 import { useAppStore } from '../state/store'
 
-type PortfolioTab = 'overview' | 'risk' | 'manage'
+type PortfolioTab = 'overview' | 'manage'
 
 export function PortfolioPage() {
   const store = useAppStore()
@@ -78,12 +77,12 @@ export function PortfolioPage() {
 
   return (
     <>
+      <SectionHeader num="03" title="Cartera" />
       <div className="page-heading">
         <div>
-          <span className="eyebrow">Tu patrimonio, explicado</span>
-          <h1>Portfolio</h1>
-          <p className="muted">
-            Valor, rentabilidad y riesgo sin mezclar costes pendientes con dinero aportado.
+          <p className="muted mb-0">
+            Valor, rentabilidad y costes sin mezclar coste pendiente con dinero aportado.
+            El riesgo vive en la seccion 04 y el reparto en la 05.
           </p>
         </div>
         <QualityChip
@@ -105,20 +104,13 @@ export function PortfolioPage() {
         value={tab}
         onChange={setTab}
         options={[
-          { value: 'overview', label: 'Vista general' },
-          { value: 'risk', label: 'Riesgo y relaciones' },
-          { value: 'manage', label: 'Gestionar datos' },
+          { value: 'overview', label: 'Posiciones' },
+          { value: 'manage', label: 'Cuentas y operaciones' },
         ]}
       />
 
       {tab === 'overview' && (
         <OverviewTab view={view} currency={currency} onManage={() => setTab('manage')} />
-      )}
-      {tab === 'risk' && (
-        <>
-          <HistoricalRiskSection />
-          <OverlapSection view={view} />
-        </>
       )}
       {tab === 'manage' && (
         <>
@@ -223,8 +215,21 @@ function OverviewTab(props: {
       )}
 
       <div className="grid-2 portfolio-overview-grid">
-        <Card title="Dónde está tu dinero">
-          <AllocationExplorer view={view} currency={currency} />
+        <Card title="Dónde está tu dinero" sub="el reparto completo por clase, cuenta, sector, país y divisa">
+          <div className="stack mt-2">
+            {view.byType.slice(0, 5).map((slice, i) => (
+              <div key={slice.key} className="row" style={{ gap: 7, font: '400 10.5px var(--font-ui)' }}>
+                <SeriesDot index={i} />
+                {slice.label}
+                <span style={{ marginLeft: 'auto' }}>
+                  <Figure size="sm">{slice.weight !== null ? formatPct(slice.weight, 1) : '—'}</Figure>
+                </span>
+              </div>
+            ))}
+          </div>
+          <Link to="/diversificacion" className="btn small mt-3">
+            Ver diversificación
+          </Link>
         </Card>
         <Card title="Concentración">
           <div className="concentration-visual">

@@ -1,9 +1,9 @@
 /**
  * Matriz de correlación como heatmap (relaciones entre activos / riesgo).
- * Escala divergente: azul = correlación negativa (diversifica), gris = 0,
- * naranja/rojo = correlación positiva alta (se mueven juntos → más riesgo
- * concentrado). El valor numérico va SIEMPRE impreso: el color no es la única
- * codificación.
+ * Escala divergente desaturada del sistema: burdeos = correlación negativa
+ * (diversifica), superficie = cerca de cero, acero = correlación positiva alta
+ * (se mueven juntos → riesgo más concentrado). El valor numérico va SIEMPRE
+ * impreso: el color nunca es la única codificación.
  */
 export interface CorrelationCell {
   /** null = muestra insuficiente para calcular. */
@@ -16,11 +16,13 @@ export interface CorrelationMatrix {
   cells: CorrelationCell[][]
 }
 
-/** Color divergente para c ∈ [-1, 1]. -1 azul · 0 gris · +1 rojo cálido. */
+/** Color divergente para c ∈ [-1, 1]: −1 burdeos · 0 superficie · +1 acero. */
 function colorFor(c: number): { bg: string; fg: string } {
-  const neg = { r: 57, g: 135, b: 229 } // #3987e5
-  const mid = { r: 42, g: 50, b: 63 } // gris oscuro (surface-ish)
-  const pos = { r: 217, g: 89, b: 38 } // #d95926
+  // Escala divergente desaturada del sistema: burdeos negativa, superficie
+  // cerca de cero, acero positiva (tokens --matrix-*).
+  const neg = { r: 168, g: 69, b: 90 } // --matrix-negative
+  const mid = { r: 27, g: 29, b: 30 } // --matrix-zero (surface-default)
+  const pos = { r: 109, g: 129, b: 143 } // --matrix-positive
   const t = Math.max(-1, Math.min(1, c))
   const from = t < 0 ? neg : pos
   const k = Math.abs(t)
@@ -28,7 +30,7 @@ function colorFor(c: number): { bg: string; fg: string } {
   const g = Math.round(mid.g + (from.g - mid.g) * k)
   const b = Math.round(mid.b + (from.b - mid.b) * k)
   // Texto claro siempre (fondos oscuros/saturados).
-  return { bg: `rgb(${r} ${g} ${b})`, fg: k > 0.55 ? '#ffffff' : '#e6e9ef' }
+  return { bg: `rgb(${r} ${g} ${b})`, fg: k > 0.5 ? 'var(--text-primary)' : 'var(--text-body)' }
 }
 
 export function CorrelationHeatmap(props: { matrix: CorrelationMatrix }) {
@@ -64,8 +66,8 @@ export function CorrelationHeatmap(props: { matrix: CorrelationMatrix }) {
                       key={colLabel}
                       style={{
                         textAlign: 'center',
-                        background: 'var(--color-surface-2)',
-                        color: 'var(--color-text-faint)',
+                        background: 'var(--surface-raised)',
+                        color: 'var(--text-disabled)',
                         borderRadius: 6,
                       }}
                       title="Muestra insuficiente"
@@ -98,25 +100,25 @@ export function CorrelationHeatmap(props: { matrix: CorrelationMatrix }) {
       </table>
       <div
         className="row"
-        style={{ gap: 12, marginTop: 8, fontSize: '0.78rem', color: 'var(--color-text-muted)' }}
+        style={{ gap: 12, marginTop: 8, fontSize: '9px', color: 'var(--text-secondary)' }}
       >
         <span>
           <span
-            style={{ display: 'inline-block', width: 12, height: 12, background: '#3987e5', borderRadius: 3, verticalAlign: 'middle', marginRight: 4 }}
+            style={{ display: 'inline-block', width: 12, height: 12, background: 'var(--matrix-negative)', borderRadius: 3, verticalAlign: 'middle', marginRight: 4 }}
           />
-          −1 (se mueven al revés · diversifica)
+          −1 · se mueven al revés (diversifica)
         </span>
         <span>
           <span
-            style={{ display: 'inline-block', width: 12, height: 12, background: '#2a323f', borderRadius: 3, verticalAlign: 'middle', marginRight: 4 }}
+            style={{ display: 'inline-block', width: 12, height: 12, background: 'var(--matrix-zero)', borderRadius: 3, verticalAlign: 'middle', marginRight: 4 }}
           />
-          0 (sin relación)
+          0 · sin relación
         </span>
         <span>
           <span
-            style={{ display: 'inline-block', width: 12, height: 12, background: '#d95926', borderRadius: 3, verticalAlign: 'middle', marginRight: 4 }}
+            style={{ display: 'inline-block', width: 12, height: 12, background: 'var(--matrix-positive)', borderRadius: 3, verticalAlign: 'middle', marginRight: 4 }}
           />
-          +1 (se mueven juntos · concentra riesgo)
+          +1 · se mueven juntos (concentra riesgo)
         </span>
       </div>
     </div>
