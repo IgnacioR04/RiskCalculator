@@ -1044,6 +1044,12 @@ table.data tr.highlight td {
   cursor: help;
 }
 
+/* Nunca aplicar la regla anterior a celdas de tabla: `display:flex` en un
+   `<td>` anula el layout de tabla y apila las casillas en una columna. */
+td.heatmap-cell {
+  display: table-cell;
+}
+
 .chart-frame {
   min-height: 240px;
 }
@@ -2790,4 +2796,157 @@ details.disclose .disclose-body {
 
 .card-sub {
   font-size: 11px;
+}
+
+/* ── Matriz de riesgo (correlación / covarianza) ──────────────────────────
+   Rejilla real: celdas cuadradas, cabeceras fijas y lectura en una frase. */
+
+.rmatrix-wrap {
+  --rmatrix-head: 62px;
+  margin-top: var(--space-3);
+}
+
+.rmatrix {
+  display: grid;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+  /* Las casillas no deben estirarse hasta ocupar todo el ancho: a partir de
+     cierto tamaño una matriz deja de leerse mejor y solo ocupa más. */
+  justify-content: start;
+}
+
+.rmatrix-corner {
+  min-width: var(--rmatrix-head);
+}
+
+.rmatrix-head-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 11.5px var(--font-ui);
+  color: var(--text-secondary);
+  padding: 4px 2px;
+  white-space: nowrap;
+  transition: color 0.12s ease;
+}
+
+.rmatrix-head-cell.row {
+  justify-content: flex-end;
+  padding-right: 8px;
+  min-width: var(--rmatrix-head);
+}
+
+.rmatrix-head-cell.on {
+  color: var(--brand-text);
+}
+
+.rmatrix-cell {
+  aspect-ratio: 1 / 1;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-chip);
+  border: 1px solid transparent;
+  font-family: var(--font-figures);
+  font-weight: var(--fw-figures);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 13px;
+  cursor: help;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+}
+
+.rmatrix-cell.diagonal {
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+
+.rmatrix-cell.cross {
+  border-color: var(--brand-primary);
+}
+
+.rmatrix-cell.empty {
+  background: var(--surface-inset);
+  color: var(--text-disabled);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.rmatrix-readout {
+  margin-top: var(--space-3);
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--text-body);
+}
+
+.rmatrix-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.rmatrix-ramp {
+  width: 140px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--matrix-negative) 0%,
+    var(--matrix-zero) 50%,
+    var(--matrix-positive) 100%
+  );
+  flex: 0 0 auto;
+}
+
+@media (max-width: 700px) {
+  .rmatrix-wrap {
+    --rmatrix-head: 50px;
+  }
+  .rmatrix-cell {
+    min-height: 40px;
+    font-size: 12px;
+  }
+  .rmatrix-head-cell {
+    font-size: 10.5px;
+  }
+}
+
+/* Tarjetas de diversificación (sección 04). */
+.div-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.div-metric {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-3) var(--space-4);
+}
+
+.div-metric .label {
+  font-size: 9.5px;
+}
+
+.div-metric .figure {
+  font-size: 24px;
+  display: block;
+  margin-top: 2px;
+}
+
+.div-metric p {
+  font: 400 11px/1.5 var(--font-ui);
+  color: var(--text-secondary);
+  margin: 6px 0 0;
 }

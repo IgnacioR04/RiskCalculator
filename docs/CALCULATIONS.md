@@ -171,3 +171,46 @@ inicial del 0 %.
 Shocks deterministas (no predicciones): caída porcentual general, shocks por
 clase, caída de un activo concreto, movimiento EUR/USD, combinaciones.
 Se aplican sobre la valoración actual y se recalculan métricas.
+
+## Diversificación (sección 04 · Riesgo)
+
+Medidas establecidas, calculadas sobre la matriz de covarianzas anualizada.
+Implementación y pruebas: `src/lib/finance/diversification.ts`.
+
+**Ratio de diversificación** — Choueifaty & Coignard (2008), «Toward Maximum
+Diversification», *Journal of Portfolio Management*:
+
+```
+DR = (Σ wᵢ·σᵢ) / σ_cartera
+```
+
+Compara la volatilidad que tendrías si todos los activos se movieran a la vez
+con la real. `DR = 1` ⇒ no diversificas; cuanto mayor, más compensa repartir.
+
+**Riesgo que se ahorra** = `1 − 1/DR`: fracción de volatilidad eliminada solo
+por repartir.
+
+**Número efectivo de apuestas de riesgo** — entropía de las contribuciones al
+riesgo (Meucci, 2009, «Managing Diversification»):
+
+```
+ENB = exp(−Σ pᵢ·ln pᵢ),  pᵢ = contribución de i al riesgo total
+```
+
+Responde a «¿entre cuántas fuentes de riesgo independientes está repartido de
+verdad mi dinero?». Diez activos que se mueven igual son una sola apuesta.
+Una contribución nula (efectivo) no invalida la medida (`p·ln p → 0`); una
+contribución **negativa** sí: entonces se declara no disponible.
+
+**Correlación media implícita**, despejada de
+
+```
+σ²_cartera = Σ wᵢ²σᵢ² + ρ̄ · Σ_{i≠j} wᵢwⱼσᵢσⱼ
+```
+
+Casos comprobados con valores analíticos: dos activos independientes al 50 %
+⇒ DR = √2 y ρ̄ = 0; dos idénticos ⇒ DR = 1 y ρ̄ = 1; ρ = −0,5 ⇒ DR = 2 y se
+elimina la mitad de la volatilidad; reparto perfecto entre cuatro fuentes
+independientes ⇒ 4 apuestas efectivas.
+
+Todas describen el pasado de la muestra. Ninguna predice nada.

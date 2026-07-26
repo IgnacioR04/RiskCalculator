@@ -11,6 +11,7 @@ import {
   sortinoRatio,
   type SeriesPoint,
 } from '../../lib/finance/historical'
+import { describeDiversification, diversificationMetrics } from '../../lib/finance/diversification'
 import {
   alignManyReturns,
   covarianceMatrix,
@@ -30,8 +31,7 @@ import { twelveDataProvider } from '../../lib/market/twelvedata'
 import { DEMO_FX_EURUSD } from '../../state/demoData'
 import { getDemoHistoricalSeries, hasDemoHistoricalSeries } from '../../state/demoHistory'
 import { useAppStore } from '../../state/store'
-import { CorrelationHeatmap } from '../charts/CorrelationHeatmap'
-import { CovarianceHeatmap } from '../charts/CovarianceHeatmap'
+import { RiskMatrix } from '../charts/RiskMatrix'
 import { RiskContributionChart } from '../charts/RiskContributionChart'
 import { Card, Kpi, Note, Segmented } from '../ui'
 
@@ -412,10 +412,16 @@ export function HistoricalRiskSection() {
       downloadedFx,
       requiredAssetIds,
     })
+    const diversification =
+      covariance.ok && risk !== null
+        ? diversificationMetrics(weights, covariance.value, risk.percentageContributions)
+        : null
+
     return {
       aligned,
       covariance,
       risk,
+      diversification,
       weights,
       coverage:
         Number(view.totalValue.toString()) > 0
@@ -433,6 +439,19 @@ export function HistoricalRiskSection() {
     downloadedFx,
     missing.length,
   ])
+
+  /** Matriz de correlación completa, lista para pintar. */
+  const correlationMatrix = useMemo<(number | null)[][]>(() => {
+    if (loaded === null) return []
+    return loaded.map((row) =>
+      loaded.map((column) => {
+        if (row.asset.id === column.asset.id) return 1
+        const alignedPair = alignReturns(row.returns, column.returns)
+        const result = correlation(alignedPair.a, alignedPair.b)
+        return result.ok ? result.value : null
+      }),
+    )
+  }, [loaded])
 
   /**
    * Conclusiones automáticas en lenguaje natural sobre los pares de activos:
@@ -552,6 +571,86 @@ export function HistoricalRiskSection() {
             </Kpi>
           </div>
 
+          {analytics.diversification !== null && (
+            <section className="risk-block mt-3">
+              <div className="card-title">¿Estás diversificando de verdad?</div>
+              <p className="card-sub">
+                No basta con tener muchos activos: lo que cuenta es que no se muevan todos a la vez.
+              </p>
+              <div className="div-metrics">
+                <div className="div-metric">
+                  <span className="label">Ratio de diversificación</span>
+                  <span className="figure">
+                    {analytics.diversification.diversificationRatio.toFixed(2).replace('.', ',')}
+                  </span>
+                  <p>
+                    1,00 sería no diversificar nada. Compara la volatilidad que tendrías si todo se
+                    moviera junto con la que tienes.
+                  </p>
+                </div>
+                <div className="div-metric">
+                  <span className="label">Riesgo que te ahorras</span>
+                  <span className="figure">
+                    {formatPct(analytics.diversification.volatilityReduction, 1)}
+                  </span>
+                  <p>
+                    Parte de la volatilidad que desaparece solo por repartir, en lugar de tenerlo
+                    todo en un único activo.
+                  </p>
+                </div>
+                <div className="div-metric">
+                  <span className="label">Apuestas reales de riesgo</span>
+                  <span className="figure">
+                    {analytics.diversification.effectiveBets === null
+                      ? '—'
+                      : analytics.diversification.effectiveBets.toFixed(1).replace('.', ',')}
+                  </span>
+                  <p>
+                    Entre cuántas fuentes de riesgo independientes está repartido de verdad. Diez
+                    activos que se mueven igual son una sola apuesta.
+                  </p>
+                </div>
+                <div className="div-metric">
+                  <span className="label">Correlación media</span>
+                  <span className="figure">
+                    {analytics.diversification.averageCorrelation === null
+                      ? '—'
+                      : analytics.diversification.averageCorrelation.toFixed(2).replace('.', ',')}
+                  </span>
+                  <p>
+                    Lo parecidos que son entre sí tus activos, de media. Cuanto más bajo, mejor
+                    reparten el riesgo.
+                  </p>
+                </div>
+              </div>
+              <div
+                className={
+                  'note ' +
+                  (describeDiversification(analytics.diversification.diversificationRatio).level ===
+                  'ok'
+                    ? 'info'
+                    : 'warning')
+                }
+              >
+                <span className="note-glyph" aria-hidden="true">
+                  {describeDiversification(analytics.diversification.diversificationRatio).level ===
+                  'ok'
+                    ? '◆'
+                    : '▲'}
+                </span>
+                <span>
+                  {describeDiversification(analytics.diversification.diversificationRatio).text}{' '}
+                  Sin repartir, tu volatilidad sería{' '}
+                  <strong>
+                    {formatPct(analytics.diversification.weightedAverageVolatility, 1)}
+                  </strong>
+                  ; repartiendo se queda en{' '}
+                  <strong>{formatPct(analytics.diversification.portfolioVolatility, 1)}</strong>.
+                </span>
+              </div>
+            </section>
+          )}
+
           {/* Una vista cada vez: antes se mostraba todo junto y no se leía nada. */}
           <div className="risk-views">
             <Segmented<RiskView>
@@ -593,23 +692,16 @@ export function HistoricalRiskSection() {
               </div>
 
               {matrixKind === 'correlacion' ? (
-                <CorrelationHeatmap
-                  matrix={{
-                    labels: loaded.map((item) => item.asset.symbol),
-                    cells: loaded.map((row) =>
-                      loaded.map((column) => {
-                        if (row.asset.id === column.asset.id) return { value: 1 }
-                        const alignedPair = alignReturns(row.returns, column.returns)
-                        const result = correlation(alignedPair.a, alignedPair.b)
-                        return { value: result.ok ? result.value : null }
-                      }),
-                    ),
-                  }}
+                <RiskMatrix
+                  mode="correlacion"
+                  labels={loaded.map((item) => item.asset.symbol)}
+                  values={correlationMatrix}
                 />
               ) : analytics.covariance.ok ? (
-                <CovarianceHeatmap
+                <RiskMatrix
+                  mode="covarianza"
                   labels={loaded.map((item) => item.asset.symbol)}
-                  matrix={analytics.covariance.value}
+                  values={analytics.covariance.value.map((row) => row.map((value) => value))}
                 />
               ) : (
                 <Note kind="info">Se necesitan al menos 30 retornos comunes.</Note>
