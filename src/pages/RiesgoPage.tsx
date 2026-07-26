@@ -190,25 +190,23 @@ export function RiesgoPage() {
                   <span style={{ fontSize: 8, color: `var(--${levelVar(c.level)})` }} aria-hidden="true">
                     {levelGlyph(c.level)}
                   </span>
-                  <span style={{ font: '500 10.5px var(--font-ui)', color: 'var(--text-primary)' }}>{c.name}</span>
+                  <span className="risk-card-name">{c.name}</span>
                   <StateChip level={c.level} />
                   <span style={{ marginLeft: 'auto' }}>
-                    <Figure size="sm">{c.value}</Figure>
+                    <Figure size="kpi">{c.value}</Figure>
                   </span>
                 </div>
                 <div className="mt-3">
                   <RiskScale level={c.level} position={c.position} dim showLegend={false} />
                 </div>
-                <p className="meta mt-2 mb-0" style={{ lineHeight: 1.45 }}>
-                  {c.explanation}
-                </p>
+                <p className="risk-card-explain mt-2 mb-0">{c.explanation}</p>
               </div>
             ))}
           </div>
 
           <Note kind="info">
-            Volatilidad, caída máxima, correlaciones, covarianzas y contribución al riesgo se calculan sobre series
-            históricas: están en «Análisis histórico», que las descarga bajo petición.
+            Volatilidad, caída máxima, correlaciones, covarianzas y contribución al riesgo necesitan series
+            históricas: los tienes en <strong>Análisis histórico</strong>, que se calcula solo al abrirlo.
           </Note>
           <Note kind="warning">
             Cada métrica dice lo que mide y lo que no: la concentración no juzga la calidad de un activo, y la

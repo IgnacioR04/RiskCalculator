@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Asset, Currency, FxRate, Transaction } from '../../lib/domain'
 import {
   alignReturns,
@@ -6,7 +6,6 @@ import {
   betaAlpha,
   correlation,
   dailyReturns,
-  downsideVolatility,
   maxDrawdown,
   sharpeRatio,
   sortinoRatio,
@@ -34,9 +33,11 @@ import { useAppStore } from '../../state/store'
 import { CorrelationHeatmap } from '../charts/CorrelationHeatmap'
 import { CovarianceHeatmap } from '../charts/CovarianceHeatmap'
 import { RiskContributionChart } from '../charts/RiskContributionChart'
-import { Card, Note, Segmented, Stat } from '../ui'
+import { Card, Kpi, Note, Segmented } from '../ui'
 
 type Period = '90' | '180' | '365'
+type RiskView = 'relaciones' | 'activos' | 'contribucion'
+type MatrixKind = 'correlacion' | 'covarianza'
 
 interface AssetSeries {
   asset: Asset
@@ -321,6 +322,9 @@ export function HistoricalRiskSection() {
   const [downloadedFx, setDownloadedFx] = useState<{ date: string; rate: number }[]>([])
   const [missing, setMissing] = useState<string[]>([])
   const [benchmarkId, setBenchmarkId] = useState('')
+  const [view3, setView3] = useState<RiskView>('relaciones')
+  const [matrixKind, setMatrixKind] = useState<MatrixKind>('correlacion')
+  const autoRan = useRef(false)
 
   async function run() {
     setBusy(true)
@@ -368,6 +372,13 @@ export function HistoricalRiskSection() {
       setBusy(false)
     }
   }
+
+  useEffect(() => {
+    if (autoRan.current || candidates.length === 0) return
+    autoRan.current = true
+    void run()
+    // Solo en el primer montaje (autoRan): despues manda el usuario con la ventana.
+  }, [candidates.length])
 
   const analytics = useMemo(() => {
     if (loaded === null || loaded.length === 0) return null
@@ -422,6 +433,50 @@ export function HistoricalRiskSection() {
     downloadedFx,
     missing.length,
   ])
+
+  /**
+   * Conclusiones automáticas en lenguaje natural sobre los pares de activos:
+   * lo que un inversor necesita saber sin leer la matriz casilla a casilla.
+   */
+  const pairInsights = useMemo<{ kind: 'warning' | 'info'; text: string }[]>(() => {
+    if (loaded === null || loaded.length < 2) return []
+    const pairs: { a: string; b: string; value: number }[] = []
+    for (let i = 0; i < loaded.length; i++) {
+      for (let j = i + 1; j < loaded.length; j++) {
+        const rowItem = loaded[i]!
+        const colItem = loaded[j]!
+        const alignedPair = alignReturns(rowItem.returns, colItem.returns)
+        const result = correlation(alignedPair.a, alignedPair.b)
+        if (result.ok) {
+          pairs.push({ a: rowItem.asset.symbol, b: colItem.asset.symbol, value: result.value })
+        }
+      }
+    }
+    if (pairs.length === 0) return []
+    const out: { kind: 'warning' | 'info'; text: string }[] = []
+
+    const highest = [...pairs].sort((x, y) => y.value - x.value)[0]!
+    if (highest.value >= 0.9) {
+      out.push({
+        kind: 'warning',
+        text: `${highest.a} y ${highest.b} se han movido casi como un mismo activo (${highest.value.toFixed(2)}). Tenerlos por separado diversifica poco.`,
+      })
+    } else if (highest.value >= 0.7) {
+      out.push({
+        kind: 'info',
+        text: `Lo más parecido de tu cartera es ${highest.a} con ${highest.b} (${highest.value.toFixed(2)}): suben y bajan bastante a la vez.`,
+      })
+    }
+
+    const lowest = [...pairs].sort((x, y) => x.value - y.value)[0]!
+    if (lowest.value < 0.3) {
+      out.push({
+        kind: 'info',
+        text: `${lowest.a} y ${lowest.b} apenas se siguen (${lowest.value.toFixed(2)}): es la pareja que más te reparte el riesgo.`,
+      })
+    }
+    return out
+  }, [loaded])
 
   if (candidates.length === 0) {
     return (
@@ -479,150 +534,274 @@ export function HistoricalRiskSection() {
 
       {loaded !== null && analytics !== null && (
         <>
-          <div className="stat-grid analytics-kpis">
-            <Stat label={analytics.complete ? 'Volatilidad de cartera' : 'Volatilidad del segmento'}>
-              {analytics.risk === null ? 'Datos insuficientes' : formatPct(analytics.risk.volatility, 1)}
-            </Stat>
-            <Stat label="Cobertura analizada">{formatPct(analytics.coverage, 0)}</Stat>
-            <Stat label="TWR del periodo">
-              {analytics.twr === null ? 'No disponible' : formatPct(analytics.twr, 1)}
-            </Stat>
-            <Stat label="Muestra común">{analytics.aligned.dates.length} días</Stat>
+          <div className="kpi-row analytics-kpis">
+            <Kpi
+              label={analytics.complete ? 'Volatilidad de cartera' : 'Volatilidad del segmento'}
+              hint="Cuánto oscila el conjunto en un año, teniendo en cuenta que los activos no se mueven a la vez."
+            >
+              {analytics.risk === null ? 'Datos insuf.' : formatPct(analytics.risk.volatility, 1)}
+            </Kpi>
+            <Kpi label="Cobertura analizada" hint="Parte del valor de tu cartera incluida en este análisis.">
+              {formatPct(analytics.coverage, 0)}
+            </Kpi>
+            <Kpi label="TWR del periodo" hint="Rentabilidad ponderada por tiempo: aísla el efecto de cuándo aportaste.">
+              {analytics.twr === null ? 'No disp.' : formatPct(analytics.twr, 1)}
+            </Kpi>
+            <Kpi label="Muestra común" hint="Días con precio en todos los activos analizados.">
+              {analytics.aligned.dates.length} días
+            </Kpi>
           </div>
 
-          <div className="metric-cards">
-            {loaded.map((item) => {
-              const returns = item.returns.map((point) => point.value)
-              const annualization = tradingDaysForAsset(item.asset.assetType)
-              const volatility = annualizedVolatility(returns, annualization)
-              const downside = downsideVolatility(returns, annualization)
-              const drawdown = maxDrawdown(item.series)
-              const sharpe = sharpeRatio(returns, riskFreeRate, annualization)
-              const sortino = sortinoRatio(returns, riskFreeRate, annualization)
-              return (
-                <article className="metric-card" key={item.asset.id}>
-                  <div className="row spread">
-                    <strong>{item.asset.symbol}</strong>
-                    <span className="chip delayed">{item.provider}</span>
-                  </div>
-                  <div className="mini-metrics">
-                    <span><small>Volatilidad</small>{volatility.ok ? formatPct(volatility.value, 1) : '—'}</span>
-                    <span><small>Drawdown</small>{drawdown.ok ? formatPct(drawdown.value.maxDrawdown, 1) : '—'}</span>
-                    <span><small>Sharpe</small>{sharpe.ok ? sharpe.value.toFixed(2) : '—'}</span>
-                    <span><small>Sortino</small>{sortino.ok ? sortino.value.toFixed(2) : '—'}</span>
-                    <span><small>Vol. bajista</small>{downside.ok ? formatPct(downside.value, 1) : '—'}</span>
-                    <span><small>Sesiones/año</small>{annualization}</span>
-                  </div>
-                </article>
-              )
-            })}
+          {/* Una vista cada vez: antes se mostraba todo junto y no se leía nada. */}
+          <div className="risk-views">
+            <Segmented<RiskView>
+              label="Qué quieres ver"
+              hideLabel
+              value={view3}
+              onChange={setView3}
+              options={[
+                { value: 'relaciones', label: 'Cómo se relacionan' },
+                { value: 'contribucion', label: 'Quién aporta el riesgo' },
+                { value: 'activos', label: 'Activo por activo' },
+              ]}
+            />
           </div>
 
-          {loaded.length > 1 && (
-            <>
-              <div className="analytics-grid">
-                <section>
-                  <h3>Correlación</h3>
-                  <p className="muted tiny">
-                    Cercana a +1: se mueven juntos. Cercana a −1: puede diversificar.
-                  </p>
-                  <CorrelationHeatmap
-                    matrix={{
-                      labels: loaded.map((item) => item.asset.symbol),
-                      cells: loaded.map((row) =>
-                        loaded.map((column) => {
-                          if (row.asset.id === column.asset.id) return { value: 1 }
-                          const aligned = alignReturns(row.returns, column.returns)
-                          const result = correlation(aligned.a, aligned.b)
-                          return { value: result.ok ? result.value : null }
-                        }),
-                      ),
-                    }}
-                  />
-                </section>
-                <section>
-                  <h3>Covarianza anualizada</h3>
-                  <p className="muted tiny">
-                    Añade magnitud de riesgo a la relación y alimenta la volatilidad de cartera.
-                  </p>
-                  {analytics.covariance.ok ? (
-                    <CovarianceHeatmap
-                      labels={loaded.map((item) => item.asset.symbol)}
-                      matrix={analytics.covariance.value}
-                    />
-                  ) : (
-                    <Note kind="info">Se necesitan al menos 30 retornos comunes.</Note>
-                  )}
-                </section>
+          {view3 === 'relaciones' && loaded.length > 1 && (
+            <section className="risk-block">
+              <div className="card-head">
+                <div>
+                  <div className="card-title">
+                    {matrixKind === 'correlacion' ? 'Cómo se mueven entre sí' : 'Cuánto riesgo comparten'}
+                  </div>
+                  <div className="card-sub">
+                    {matrixKind === 'correlacion'
+                      ? 'Pasa el ratón por una casilla y te lo explico en una frase.'
+                      : 'Covarianza anualizada: relación y magnitud del riesgo a la vez.'}
+                  </div>
+                </div>
+                <Segmented<MatrixKind>
+                  label="Tipo de matriz"
+                  hideLabel
+                  value={matrixKind}
+                  onChange={setMatrixKind}
+                  options={[
+                    { value: 'correlacion', label: 'Correlación' },
+                    { value: 'covarianza', label: 'Covarianza' },
+                  ]}
+                />
               </div>
 
-              {analytics.risk !== null && (
-                <section>
-                  <h3>Quién aporta el riesgo</h3>
-                  <p className="muted">
-                    Un activo puede pesar poco en euros y dominar el riesgo. Las barras negativas
-                    indican efecto diversificador en esta muestra.
-                  </p>
-                  <RiskContributionChart
-                    data={loaded.map((item, index) => ({
-                      label: item.asset.symbol,
-                      contribution: analytics.risk!.percentageContributions[index] ?? 0,
-                    }))}
-                  />
-                </section>
+              {matrixKind === 'correlacion' ? (
+                <CorrelationHeatmap
+                  matrix={{
+                    labels: loaded.map((item) => item.asset.symbol),
+                    cells: loaded.map((row) =>
+                      loaded.map((column) => {
+                        if (row.asset.id === column.asset.id) return { value: 1 }
+                        const alignedPair = alignReturns(row.returns, column.returns)
+                        const result = correlation(alignedPair.a, alignedPair.b)
+                        return { value: result.ok ? result.value : null }
+                      }),
+                    ),
+                  }}
+                />
+              ) : analytics.covariance.ok ? (
+                <CovarianceHeatmap
+                  labels={loaded.map((item) => item.asset.symbol)}
+                  matrix={analytics.covariance.value}
+                />
+              ) : (
+                <Note kind="info">Se necesitan al menos 30 retornos comunes.</Note>
               )}
 
-              <section>
-                <h3>Beta y alpha</h3>
-                <div className="field compact-field">
-                  <label htmlFor="benchmark-select">Benchmark de comparación</label>
-                  <select
-                    id="benchmark-select"
-                    value={benchmarkId}
-                    onChange={(event) => setBenchmarkId(event.target.value)}
-                  >
-                    {loaded.map((item) => (
-                      <option key={item.asset.id} value={item.asset.id}>
-                        {item.asset.symbol}
-                      </option>
-                    ))}
-                  </select>
+              {pairInsights.length > 0 && (
+                <div className="stack mt-3">
+                  {pairInsights.map((insight) => (
+                    <div key={insight.text} className={'note ' + insight.kind}>
+                      <span className="note-glyph" aria-hidden="true">
+                        {insight.kind === 'warning' ? '▲' : '◆'}
+                      </span>
+                      <span>{insight.text}</span>
+                    </div>
+                  ))}
                 </div>
-                {benchmark !== null && (
-                  <div className="table-wrap">
-                    <table className="data">
-                      <thead>
-                        <tr><th>Activo</th><th>Beta</th><th>Alpha anual</th><th>R²</th><th>Obs.</th></tr>
-                      </thead>
-                      <tbody>
-                        {loaded
-                          .filter((item) => item.asset.id !== benchmark.asset.id)
-                          .map((item) => {
-                            const aligned = alignReturns(item.returns, benchmark.returns)
-                            const regression = betaAlpha(
-                              aligned.a,
-                              aligned.b,
-                              tradingDaysForPortfolio([
-                                item.asset.assetType,
-                                benchmark.asset.assetType,
-                              ]),
-                            )
-                            return (
-                              <tr key={item.asset.id}>
-                                <td>{item.asset.symbol}</td>
-                                <td>{regression.ok ? regression.value.beta.toFixed(2) : '—'}</td>
-                                <td>{regression.ok ? formatPct(regression.value.alpha, 1) : '—'}</td>
-                                <td>{regression.ok ? regression.value.r2.toFixed(2) : '—'}</td>
-                                <td>{aligned.a.length}</td>
-                              </tr>
-                            )
-                          })}
-                      </tbody>
-                    </table>
+              )}
+            </section>
+          )}
+
+          {view3 === 'contribucion' && analytics.risk !== null && (
+            <section className="risk-block">
+              <div className="card-title">Quién aporta el riesgo</div>
+              <p className="card-sub">
+                Un activo puede pesar poco en euros y dominar el riesgo. Las barras negativas indican
+                efecto diversificador en esta muestra.
+              </p>
+              <RiskContributionChart
+                data={loaded.map((item, index) => ({
+                  label: item.asset.symbol,
+                  contribution: analytics.risk!.percentageContributions[index] ?? 0,
+                }))}
+              />
+              <div className="table-wrap">
+                <table className="data">
+                  <thead>
+                    <tr>
+                      <th scope="col">Activo</th>
+                      <th scope="col">Pesa</th>
+                      <th scope="col">Aporta de riesgo</th>
+                      <th scope="col">Diferencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loaded.map((item, index) => {
+                      const weight = analytics.weights[index] ?? 0
+                      // percentageContributions ya viene como fracción (suma 1),
+                      // pese a su nombre: no hay que dividir otra vez.
+                      const contribution = analytics.risk!.percentageContributions[index] ?? 0
+                      const delta = contribution - weight
+                      return (
+                        <tr key={item.asset.id}>
+                          <td>{item.asset.symbol}</td>
+                          <td className="num">{formatPct(weight, 1)}</td>
+                          <td className="num">{formatPct(contribution, 1)}</td>
+                          <td className="num">
+                            <span
+                              className={
+                                delta > 0.02 ? 'negative' : delta < -0.02 ? 'positive' : undefined
+                              }
+                            >
+                              {delta >= 0 ? '+' : ''}
+                              {formatPct(delta, 1)}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="meta mb-0">
+                En rojo, aporta más riesgo del que pesa. En verde, amortigua.
+              </p>
+            </section>
+          )}
+
+          {view3 === 'activos' && (
+            <section className="risk-block">
+              <div className="card-title">Activo por activo</div>
+              <p className="card-sub">
+                Volatilidad y caída máxima del periodo, con la fuente de cada serie.
+              </p>
+              <div className="table-wrap">
+                <table className="data">
+                  <thead>
+                    <tr>
+                      <th scope="col">Activo</th>
+                      <th scope="col">Volatilidad</th>
+                      <th scope="col">Caída máxima</th>
+                      <th scope="col">Sharpe</th>
+                      <th scope="col">Sortino</th>
+                      <th scope="col">Fuente</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loaded.map((item) => {
+                      const returns = item.returns.map((point) => point.value)
+                      const annualization = tradingDaysForAsset(item.asset.assetType)
+                      const volatility = annualizedVolatility(returns, annualization)
+                      const drawdown = maxDrawdown(item.series)
+                      const sharpe = sharpeRatio(returns, riskFreeRate, annualization)
+                      const sortino = sortinoRatio(returns, riskFreeRate, annualization)
+                      return (
+                        <tr key={item.asset.id}>
+                          <td>
+                            <strong>{item.asset.symbol}</strong>
+                            <div className="meta">{item.asset.name}</div>
+                          </td>
+                          <td className="num">
+                            {volatility.ok ? formatPct(volatility.value, 1) : '—'}
+                          </td>
+                          <td className="num negative">
+                            {drawdown.ok ? formatPct(drawdown.value.maxDrawdown, 1) : '—'}
+                          </td>
+                          <td className="num">{sharpe.ok ? sharpe.value.toFixed(2) : '—'}</td>
+                          <td className="num">{sortino.ok ? sortino.value.toFixed(2) : '—'}</td>
+                          <td>
+                            <span className="meta">{item.provider}</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <details className="disclose mt-3">
+                <summary>Beta y alpha frente a un benchmark</summary>
+                <div className="disclose-body">
+                  <div className="field compact-field">
+                    <label htmlFor="benchmark-select">Benchmark de comparación</label>
+                    <select
+                      id="benchmark-select"
+                      value={benchmarkId}
+                      onChange={(event) => setBenchmarkId(event.target.value)}
+                    >
+                      {loaded.map((item) => (
+                        <option key={item.asset.id} value={item.asset.id}>
+                          {item.asset.symbol}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
-              </section>
-            </>
+                  {benchmark !== null && (
+                    <div className="table-wrap">
+                      <table className="data">
+                        <thead>
+                          <tr>
+                            <th scope="col">Activo</th>
+                            <th scope="col">Beta</th>
+                            <th scope="col">Alpha anual</th>
+                            <th scope="col">R²</th>
+                            <th scope="col">Obs.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {loaded
+                            .filter((item) => item.asset.id !== benchmark.asset.id)
+                            .map((item) => {
+                              const alignedPair = alignReturns(item.returns, benchmark.returns)
+                              const regression = betaAlpha(
+                                alignedPair.a,
+                                alignedPair.b,
+                                tradingDaysForPortfolio([
+                                  item.asset.assetType,
+                                  benchmark.asset.assetType,
+                                ]),
+                              )
+                              return (
+                                <tr key={item.asset.id}>
+                                  <td>{item.asset.symbol}</td>
+                                  <td className="num">
+                                    {regression.ok ? regression.value.beta.toFixed(2) : '—'}
+                                  </td>
+                                  <td className="num">
+                                    {regression.ok ? formatPct(regression.value.alpha, 1) : '—'}
+                                  </td>
+                                  <td className="num">
+                                    {regression.ok ? regression.value.r2.toFixed(2) : '—'}
+                                  </td>
+                                  <td className="num">{alignedPair.a.length}</td>
+                                </tr>
+                              )
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </details>
+            </section>
           )}
         </>
       )}

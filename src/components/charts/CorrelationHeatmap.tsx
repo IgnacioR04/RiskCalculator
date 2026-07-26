@@ -33,6 +33,20 @@ function colorFor(c: number): { bg: string; fg: string } {
   return { bg: `rgb(${r} ${g} ${b})`, fg: k > 0.5 ? 'var(--text-primary)' : 'var(--text-body)' }
 }
 
+/**
+ * Explica una casilla en una frase, sin jerga. El número solo no le dice nada
+ * a alguien que no sepa qué es una correlación.
+ */
+function explain(a: string, b: string, value: number): string {
+  if (a === b) return `${a} consigo mismo: siempre 1,00.`
+  const v = value.toFixed(2).replace('.', ',')
+  if (value >= 0.9) return `${a} y ${b} se mueven casi como un mismo activo (${v}): juntarlos apenas diversifica.`
+  if (value >= 0.6) return `${a} y ${b} suelen subir y bajar a la vez (${v}).`
+  if (value >= 0.3) return `${a} y ${b} se parecen algo (${v}), pero no van siempre de la mano.`
+  if (value > -0.3) return `${a} y ${b} van bastante por libre (${v}): reparten riesgo entre sí.`
+  return `${a} y ${b} tienden a moverse al revés (${v}): uno amortigua al otro.`
+}
+
 export function CorrelationHeatmap(props: { matrix: CorrelationMatrix }) {
   const { labels, cells } = props.matrix
   return (
@@ -80,15 +94,14 @@ export function CorrelationHeatmap(props: { matrix: CorrelationMatrix }) {
                 return (
                   <td
                     key={colLabel}
+                    className="heatmap-cell"
                     style={{
                       textAlign: 'center',
                       background: bg,
                       color: fg,
                       borderRadius: 6,
-                      fontVariantNumeric: 'tabular-nums',
-                      fontWeight: 600,
                     }}
-                    title={`${rowLabel} vs ${colLabel}: ${cell.value.toFixed(2)}`}
+                    title={explain(rowLabel, colLabel, cell.value)}
                   >
                     {cell.value.toFixed(2)}
                   </td>
