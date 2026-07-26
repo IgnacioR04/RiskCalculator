@@ -7,6 +7,10 @@ import { expect, test, type Page } from '@playwright/test'
  */
 async function enterDemo(page: Page) {
   await page.goto('/')
+  const demoTab = page.getByRole('tab', { name: 'Demo' })
+  if (await demoTab.isVisible()) {
+    await demoTab.click()
+  }
   await page.getByLabel('Usuario de prueba').fill('admin1')
   await page.getByLabel('Contraseña').fill('1234')
   await page.getByRole('button', { name: 'Probar la aplicación' }).click()

@@ -6,12 +6,13 @@
  * Las posiciones NO se guardan: se derivan siempre de `transactions`.
  */
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import type {
   Asset,
   BrokerAccount,
   Currency,
   FxRate,
+  ImportBatch,
   Quote,
   RiskProfile,
   SavedScenario,
@@ -27,6 +28,21 @@ import {
 } from './demoData'
 
 const STORE_VERSION = 2
+export const GUEST_CACHE_NAME = 'riskcalculator-v1:guest'
+
+export function userCacheName(userId: string): string {
+  return `riskcalculator-v1:user:${userId}`
+}
+
+export type CloudSyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'offline' | 'error'
+
+export interface CloudSyncState {
+  userId: string | null
+  email: string | null
+  status: CloudSyncStatus
+  message: string
+  lastSyncedAt: string | null
+}
 
 interface AppState {
   settings: Settings
@@ -36,8 +52,10 @@ interface AppState {
   quotes: Record<string, Quote>
   fxRates: FxRate[]
   scenarios: SavedScenario[]
+  importBatches: ImportBatch[]
   riskProfile: RiskProfile | null
   demoLoaded: boolean
+  cloudSync: CloudSyncState
 
   setDisplayCurrency: (currency: Currency) => void
   setRiskFreeRate: (rate: string) => void
@@ -59,13 +77,17 @@ interface AppState {
   addScenario: (scenario: SavedScenario) => void
   removeScenario: (id: string) => void
 
+  addImportBatch: (batch: ImportBatch) => void
+
   setRiskProfile: (profile: RiskProfile) => void
+  setCloudSync: (patch: Partial<CloudSyncState>) => void
   replaceFromCloud: (snapshot: {
     settings: Settings
     accounts: BrokerAccount[]
     assets: Asset[]
     transactions: Transaction[]
     scenarios: SavedScenario[]
+    importBatches: ImportBatch[]
     riskProfile: RiskProfile | null
   }) => void
 
@@ -79,6 +101,14 @@ const initialSettings: Settings = {
   displayCurrency: 'EUR',
   locale: 'es-ES',
   riskFreeRate: '0',
+}
+
+const initialCloudSync: CloudSyncState = {
+  userId: null,
+  email: null,
+  status: 'local',
+  message: 'Datos guardados en este dispositivo.',
+  lastSyncedAt: null,
 }
 
 type DemoCollections = Pick<
@@ -150,8 +180,10 @@ export const useAppStore = create<AppState>()(
       quotes: {},
       fxRates: [],
       scenarios: [],
+      importBatches: [],
       riskProfile: null,
       demoLoaded: false,
+      cloudSync: initialCloudSync,
 
       setDisplayCurrency: (currency) =>
         set((s) => ({ settings: { ...s.settings, displayCurrency: currency } })),
@@ -193,7 +225,10 @@ export const useAppStore = create<AppState>()(
       addScenario: (scenario) => set((s) => ({ scenarios: [...s.scenarios, scenario] })),
       removeScenario: (id) => set((s) => ({ scenarios: s.scenarios.filter((x) => x.id !== id) })),
 
+      addImportBatch: (batch) => set((s) => ({ importBatches: [batch, ...s.importBatches] })),
+
       setRiskProfile: (profile) => set({ riskProfile: profile }),
+      setCloudSync: (patch) => set((s) => ({ cloudSync: { ...s.cloudSync, ...patch } })),
       replaceFromCloud: (snapshot) =>
         set((s) => ({
           ...snapshot,
@@ -206,6 +241,7 @@ export const useAppStore = create<AppState>()(
           ),
           fxRates: s.fxRates,
           demoLoaded: false,
+          cloudSync: s.cloudSync,
         })),
 
       loadDemoData: () =>
@@ -226,17 +262,33 @@ export const useAppStore = create<AppState>()(
           quotes: {},
           fxRates: [],
           scenarios: [],
+          importBatches: [],
           riskProfile: null,
           demoLoaded: false,
         }),
     }),
     {
-      name: 'riskcalculator-v1',
+      name: GUEST_CACHE_NAME,
+      storage: createJSONStorage(() => localStorage),
       version: STORE_VERSION,
+      skipHydration: true,
+      partialize: (state) => ({
+        settings: state.settings,
+        accounts: state.accounts,
+        assets: state.assets,
+        transactions: state.transactions,
+        quotes: state.quotes,
+        fxRates: state.fxRates,
+        scenarios: state.scenarios,
+        importBatches: state.importBatches,
+        riskProfile: state.riskProfile,
+        demoLoaded: state.demoLoaded,
+      }),
       migrate: migratePersistedState,
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...(normalizePersistedState(persistedState) as Partial<AppState>),
+        cloudSync: currentState.cloudSync,
       }),
     },
   ),

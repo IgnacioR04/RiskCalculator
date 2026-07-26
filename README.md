@@ -75,6 +75,10 @@ La app abre con una pantalla de login. Credenciales de demo:
 > credenciales de demo con
 > `VITE_DEMO_USER` / `VITE_DEMO_PASSWORD`.
 
+Con Supabase configurado, el acceso principal es email/contrasena con
+confirmacion de correo y recuperacion de contrasena. El modo demo queda
+separado y solo guarda en la cache local de invitado.
+
 ### Comandos
 
 | Comando | Qué hace |
@@ -117,6 +121,29 @@ supabase functions deploy market-proxy
    `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. El workflow de Pages los
    incorpora al build como valores públicos.
 
+### Autenticacion, cache y sincronizacion
+
+Con Supabase configurado, la entrada principal usa email y contrasena:
+registro con confirmacion por correo, inicio de sesion, recuperacion de
+contrasena y sesion persistente tras recargar. Al iniciar sesion, la app carga
+primero los datos remotos y solo despues muestra la cartera.
+
+La cache local esta separada por usuario de Supabase. Al cerrar sesion se borra
+la cache del usuario anterior y se limpia el estado en memoria. Los cambios se
+guardan automaticamente con debounce; si no hay conexion, se conservan en la
+cache local del usuario y se reintentan con cambios posteriores. Para evitar
+perdida accidental, RiskCalculator no sube un estado local completamente vacio
+sobre una cartera remota existente.
+
+En Supabase Auth -> URL Configuration, usa:
+
+- Site URL: `https://ignacior04.github.io/RiskCalculator/`
+- Redirect URLs:
+  - `https://ignacior04.github.io/RiskCalculator/`
+  - `http://localhost:5173/`
+  - `http://127.0.0.1:5173/`
+  - `http://127.0.0.1:4173/`
+
 ## Despliegue
 
 ### GitHub Pages (sin backend, más rápido)
@@ -155,11 +182,13 @@ Edge Function de Supabase.
 Hecho y verificado localmente: motor financiero, calculadora, portfolio
 multicuenta, demo realista de 23.049,26 €, importador/actualizador JSON,
 proveedores CoinGecko/BCE, analítica histórica multimoneda, históricos demo
-sintéticos, comisiones, solapamientos, migraciones con RLS, build dividido por
-páginas y suite E2E definida para escritorio y móvil.
+sintéticos, comisiones, solapamientos, autenticación con Supabase, cache local
+por usuario, sincronización automática, migraciones con RLS, build dividido por
+páginas y suite E2E para escritorio y móvil.
 
-Pendiente (requiere credenciales/decisión del propietario): aplicar
-migraciones a un proyecto Supabase real y ejecutar la verificación RLS,
-desplegar la Edge Function con la clave de Twelve Data y añadir los dos
-secretos públicos de Supabase a GitHub Pages. La suite Playwright se ejecuta
-en CI; en el entorno local hace falta que Chromium esté instalado.
+El proyecto Supabase configurado para este repositorio ya tiene las migraciones
+aplicadas y la Edge Function `market-proxy` desplegada con JWT obligatorio.
+Pendiente manual si aún no está hecho: definir `TWELVE_DATA_API_KEY` como secreto
+de la Edge Function, revisar la lista de URLs permitidas en Supabase Auth y
+añadir `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` como secrets de GitHub
+Pages.

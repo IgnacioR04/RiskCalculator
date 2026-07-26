@@ -4,7 +4,7 @@ import type { Currency, RiskCategory } from '../lib/domain'
 import { formatDateTime } from '../lib/format'
 import { providerStatus } from '../lib/market/service'
 import { authRedirectUrl, getSupabase, isSupabaseConfigured } from '../lib/supabase'
-import { pullFromCloud, pushToCloud } from '../lib/sync'
+import { pullFromCloud, pushToCloud, signOutAndClearCloudSession } from '../lib/sync'
 import { useAppStore } from '../state/store'
 
 /** Cuestionario de perfil: exactamente cinco preguntas (especificación). */
@@ -92,6 +92,7 @@ export function PerfilPage() {
       assets: state.assets,
       transactions: state.transactions,
       scenarios: state.scenarios,
+      importBatches: state.importBatches,
       riskProfile: state.riskProfile,
     }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -384,8 +385,7 @@ function AccountCard() {
               className="btn danger"
               disabled={busy}
               onClick={() => {
-                const supabase = getSupabase()
-                if (supabase !== null) void supabase.auth.signOut()
+                void signOutAndClearCloudSession().finally(() => window.location.reload())
               }}
             >
               Cerrar sesión

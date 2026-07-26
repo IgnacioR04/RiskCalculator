@@ -1,15 +1,23 @@
-/**
- * Shell de la aplicación: rail lateral de 58 px con tooltips accesibles,
- * barra superior con migas / divisa / estado de precios / avatar, y
- * navegación inferior de 5 iconos en móvil.
- */
 import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import type { Currency } from '../../lib/domain'
 import { endDemoSession, getDemoSession } from '../../lib/demoAuth'
-import { getSupabase } from '../../lib/supabase'
+import { signOutAndClearCloudSession } from '../../lib/sync'
 import { useAppStore } from '../../state/store'
 import { MOBILE_SECTIONS, SECTIONS, sectionByPath } from './sections'
+
+const SYNC_LABEL = {
+  local: 'local',
+  loading: 'cargando',
+  saving: 'guardando',
+  saved: 'guardado',
+  offline: 'sin conexion',
+  error: 'error',
+} as const
+
+function initials(label: string): string {
+  return label.split('@')[0]!.slice(0, 2).toUpperCase()
+}
 
 export function AppShell(props: { children: ReactNode; leaf?: string }) {
   const location = useLocation()
@@ -17,7 +25,10 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
   const displayCurrency = useAppStore((s) => s.settings.displayCurrency)
   const setDisplayCurrency = useAppStore((s) => s.setDisplayCurrency)
   const quotes = useAppStore((s) => s.quotes)
-  const user = getDemoSession()
+  const cloudSync = useAppStore((s) => s.cloudSync)
+  const demoUser = getDemoSession()
+  const user = cloudSync.email ?? demoUser ?? 'invitado'
+  const syncLabel = SYNC_LABEL[cloudSync.status]
 
   const lastFetched = Object.values(quotes)
     .map((q) => q.fetchedAt)
@@ -49,10 +60,12 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
             </NavLink>
           )
         })}
-        <span className="rail-status tip" tabIndex={0} role="img" aria-label="Estado de los datos">
+        <span className="rail-status tip" tabIndex={0} role="img" aria-label="Estado de sincronizacion">
           <span className="tip-bubble" role="tooltip">
-            <span className="t-name">Datos guardados en este dispositivo</span>
-            <span className="t-desc">Nada se envía a un servidor mientras no actives la sincronización.</span>
+            <span className="t-name">
+              {cloudSync.userId === null ? 'Datos locales' : `Nube ${syncLabel}`}
+            </span>
+            <span className="t-desc">{cloudSync.message}</span>
           </span>
         </span>
       </nav>
@@ -67,7 +80,7 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
             </>
           )}
           <div className="topbar-right">
-            <div className="segmented" role="radiogroup" aria-label="Divisa de presentación">
+            <div className="segmented" role="radiogroup" aria-label="Divisa de presentacion">
               {(['EUR', 'USD'] as Currency[]).map((c) => (
                 <button
                   key={c}
@@ -82,27 +95,23 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
             </div>
             <span
               className="meta"
-              title="Cripto: CoinGecko. EUR/USD: BCE. Acciones y ETF: precio manual mientras el proveedor está desactivado."
+              title="Cripto: CoinGecko. EUR/USD: BCE. Acciones y ETF: precio manual mientras el proveedor esta desactivado."
             >
               {lastFetched !== undefined ? 'precios · actualizados' : 'precios · sin actualizar'}
+            </span>
+            <span className="meta" title={cloudSync.message}>
+              {cloudSync.userId === null ? 'datos · local' : `nube · ${syncLabel}`}
             </span>
             <button
               type="button"
               className="avatar"
-              title={`${user ?? 'invitado'} · cerrar sesión`}
+              title={`${user} · cerrar sesion`}
               onClick={() => {
-                // Cierra tanto la puerta de demostración como la sesión real
-                // de Supabase, si la hay.
                 endDemoSession()
-                const supabase = getSupabase()
-                if (supabase !== null) {
-                  void supabase.auth.signOut().finally(() => window.location.reload())
-                } else {
-                  window.location.reload()
-                }
+                void signOutAndClearCloudSession().finally(() => window.location.reload())
               }}
             >
-              {(user ?? 'IN').slice(0, 2).toUpperCase()}
+              {initials(user)}
             </button>
           </div>
         </header>
@@ -110,12 +119,12 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
         <main className="app-main">{props.children}</main>
 
         <p className="disclaimer">
-          RiskCalculator ofrece cálculos y análisis con fines educativos. No es asesoramiento financiero, no recomienda
-          comprar ni vender y no predice precios.
+          RiskCalculator ofrece calculos y analisis con fines educativos. No es asesoramiento
+          financiero, no recomienda comprar ni vender y no predice precios.
         </p>
       </div>
 
-      <nav className="mobile-nav" aria-label="Navegación principal">
+      <nav className="mobile-nav" aria-label="Navegacion principal">
         {SECTIONS.filter((s) => MOBILE_SECTIONS.includes(s.path)).map((s) => {
           const Icon = s.icon
           return (

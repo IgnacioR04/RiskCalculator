@@ -1,20 +1,20 @@
 /**
  * Edge Function: proxy seguro hacia Twelve Data.
  *
- * - La clave TWELVE_DATA_API_KEY vive SOLO en los secretos de la función
- *   (supabase secrets set TWELVE_DATA_API_KEY=...); jamás en el navegador.
- * - Lista blanca de endpoints y parámetros: nada más se reenvía.
- * - Supabase verifica el JWT antes de ejecutar la función.
+ * - La clave TWELVE_DATA_API_KEY vive SOLO en los secretos de la funcion
+ *   (supabase secrets set TWELVE_DATA_API_KEY=...); jamas en el navegador.
+ * - Lista blanca de endpoints y parametros: nada mas se reenvia.
+ * - Supabase verifica el JWT antes de ejecutar la funcion.
  * - Rate limiting simple por usuario y, como respaldo, IP.
- * - Caché HTTP corta para abaratar el plan gratuito.
+ * - Cache HTTP corta para abaratar el plan gratuito.
  *
  * Despliegue: supabase functions deploy market-proxy
  */
-// @ts-nocheck — código Deno; el tsconfig del frontend no lo compila.
+// @ts-nocheck - codigo Deno; el tsconfig del frontend no lo compila.
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get('origin') ?? ''
   const configuredOrigins = (Deno.env.get('ALLOWED_ORIGINS') ??
-    'https://ignacior04.github.io,http://localhost:5173')
+    'https://ignacior04.github.io,http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:4173')
     .split(',')
     .map((value) => value.trim())
   const allowedOrigin = configuredOrigins.includes(origin) ? origin : configuredOrigins[0]!
@@ -26,10 +26,10 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
   if (req.method !== 'GET') {
-    return json({ error: 'Método no permitido' }, 405, cors)
+    return json({ error: 'Metodo no permitido' }, 405, cors)
   }
   if (!req.headers.get('authorization')?.startsWith('Bearer ')) {
-    return json({ error: 'Sesión requerida' }, 401, cors)
+    return json({ error: 'Sesion requerida' }, 401, cors)
   }
 
   const apiKey = Deno.env.get('TWELVE_DATA_API_KEY')
@@ -44,7 +44,7 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url)
   const endpoint = url.searchParams.get('endpoint') ?? ''
 
-  // Lista blanca de endpoints y de parámetros permitidos por endpoint.
+  // Lista blanca de endpoints y de parametros permitidos por endpoint.
   const ALLOWED: Record<string, string[]> = {
     symbol_search: ['symbol'],
     quote: ['symbol'],
@@ -61,7 +61,7 @@ Deno.serve(async (req: Request) => {
     const v = url.searchParams.get(p)
     if (v !== null && v.length <= 64) upstream.searchParams.set(p, v)
   }
-  // Límite defensivo para series temporales.
+  // Limite defensivo para series temporales.
   if (endpoint === 'time_series') {
     const size = Number(upstream.searchParams.get('outputsize') ?? '365')
     upstream.searchParams.set('outputsize', String(Math.min(Math.max(size, 1), 5000)))
@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
       headers: {
         ...cors,
         'content-type': 'application/json',
-        // Caché corta en el edge para deduplicar ráfagas.
+        // Cache corta en el edge para deduplicar rafagas.
         'cache-control': 'public, max-age=60',
       },
     })
@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
   }
 })
 
-// ── utilidades ──
+// utilidades
 
 function json(body: unknown, status: number, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
@@ -110,7 +110,7 @@ function allowRequest(req: Request): boolean {
   try {
     subject = JSON.parse(atob(bearer.split('.')[1] ?? '')).sub ?? ''
   } catch {
-    // La plataforma ya verifica el JWT; aquí solo se extrae la clave del cupo.
+    // La plataforma ya verifica el JWT; aqui solo se extrae la clave del cupo.
   }
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   const key = subject || ip

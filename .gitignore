@@ -6,10 +6,23 @@ dist/
 dist-ssr/
 *.tsbuildinfo
 
-# env — nunca commitear secretos
+# env - never commit secrets
 .env
+.env.*
 .env.local
 .env.*.local
+!.env.example
+
+# local databases / dumps
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+*.sql.gz
+*.tar.gz
+supabase/.branches/
+supabase/.temp/
 
 # logs
 npm-debug.log*

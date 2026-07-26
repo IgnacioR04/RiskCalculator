@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import {
   checkDemoCredentials,
   DEMO_HINT,
@@ -6,50 +7,101 @@ import {
   startDemoSession,
 } from '../lib/demoAuth'
 import { authRedirectUrl, getSupabase, isSupabaseConfigured } from '../lib/supabase'
+import { activateGuestCache, activateUserCache, pullFromCloud, startAutoSync, stopAutoSync } from '../lib/sync'
 
-type AccessMode = 'login' | 'signup' | 'demo'
+type AccessMode = 'login' | 'signup' | 'reset' | 'update-password' | 'demo'
 
 export function LoginGate(props: { children: ReactNode }) {
   const configured = isSupabaseConfigured()
-  const [allowed, setAllowed] = useState(() => getDemoSession() !== null)
-  const [checking, setChecking] = useState(configured && !allowed)
+  const [allowed, setAllowed] = useState(false)
+  const [checking, setChecking] = useState(true)
+  const [checkingText, setCheckingText] = useState('Comprobando tu sesión...')
   const [mode, setMode] = useState<AccessMode>(configured ? 'login' : 'demo')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [demoUser, setDemoUser] = useState('')
   const [demoPassword, setDemoPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const mountedRef = useRef(true)
+  const activeUserIdRef = useRef<string | null>(null)
+  const initializingUserIdRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    const supabase = getSupabase()
-    if (supabase === null) {
+  const initializeSession = useCallback(async (session: Session | null) => {
+    if (session === null) {
+      activeUserIdRef.current = null
+      initializingUserIdRef.current = null
+      await activateGuestCache()
+      if (!mountedRef.current) return
+      setAllowed(getDemoSession() !== null)
       setChecking(false)
       return
     }
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session !== null) setAllowed(true)
-      setChecking(false)
-    })
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session !== null) setAllowed(true)
-    })
-    return () => data.subscription.unsubscribe()
+
+    if (
+      activeUserIdRef.current === session.user.id ||
+      initializingUserIdRef.current === session.user.id
+    ) {
+      return
+    }
+
+    initializingUserIdRef.current = session.user.id
+    setCheckingText('Cargando tus datos...')
+    setChecking(true)
+    setMessage(null)
+
+    await activateUserCache(session.user.id, session.user.email ?? null)
+    const result = await pullFromCloud()
+    startAutoSync(session.user.id)
+
+    if (!mountedRef.current) return
+    activeUserIdRef.current = session.user.id
+    initializingUserIdRef.current = null
+    setAllowed(true)
+    setChecking(false)
+    if (!result.ok) setMessage(result.message)
   }, [])
 
-  if (checking) {
-    return (
-      <div className="login-screen">
-        <div className="login-card card">
-          <div className="login-brand">
-            Risk<span>Calculator</span>
-          </div>
-          <p className="muted center">Comprobando tu sesión…</p>
-        </div>
-      </div>
-    )
-  }
-  if (allowed) return <>{props.children}</>
+  useEffect(() => {
+    mountedRef.current = true
+    const supabase = getSupabase()
+    if (supabase === null) {
+      void activateGuestCache().then(() => {
+        if (!mountedRef.current) return
+        setAllowed(getDemoSession() !== null)
+        setChecking(false)
+      })
+      return () => {
+        mountedRef.current = false
+        stopAutoSync()
+      }
+    }
+
+    void supabase.auth.getSession().then(({ data }) => {
+      void initializeSession(data.session)
+    })
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setAllowed(false)
+        setChecking(false)
+        setMode('update-password')
+        setMessage('Introduce una contraseña nueva para terminar la recuperación.')
+        return
+      }
+      if (event === 'SIGNED_OUT') {
+        void initializeSession(null)
+        return
+      }
+      if (session !== null) void initializeSession(session)
+    })
+
+    return () => {
+      mountedRef.current = false
+      data.subscription.unsubscribe()
+      stopAutoSync()
+    }
+  }, [initializeSession])
 
   async function submitAccount(event: FormEvent) {
     event.preventDefault()
@@ -64,83 +116,148 @@ export function LoginGate(props: { children: ReactNode }) {
           password,
           options: { emailRedirectTo: authRedirectUrl() },
         })
-        if (error !== null) setMessage(error.message)
-        else if (data.session !== null) setAllowed(true)
-        else setMessage('Cuenta creada. Confirma el enlace que hemos enviado a tu email.')
+        if (error !== null) {
+          setMessage(error.message)
+        } else if (data.session !== null) {
+          await initializeSession(data.session)
+        } else {
+          setMessage('Cuenta creada. Confirma el enlace enviado a tu email para entrar.')
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         })
-        if (error !== null) setMessage(error.message)
+        if (error !== null) {
+          setMessage(error.message)
+        } else if (data.session !== null) {
+          await initializeSession(data.session)
+        }
       }
     } finally {
       setBusy(false)
     }
   }
 
-  function submitDemo(event: FormEvent) {
+  async function submitReset(event: FormEvent) {
+    event.preventDefault()
+    const supabase = getSupabase()
+    if (supabase === null) return
+    setBusy(true)
+    setMessage(null)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: authRedirectUrl(),
+      })
+      setMessage(
+        error !== null
+          ? error.message
+          : 'Te hemos enviado un enlace para cambiar la contraseña.',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function submitNewPassword(event: FormEvent) {
+    event.preventDefault()
+    const supabase = getSupabase()
+    if (supabase === null) return
+    setBusy(true)
+    setMessage(null)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error !== null) {
+        setMessage(error.message)
+        return
+      }
+      const { data } = await supabase.auth.getSession()
+      await initializeSession(data.session)
+      setMessage('Contraseña actualizada.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function submitDemo(event: FormEvent) {
     event.preventDefault()
     if (checkDemoCredentials(demoUser, demoPassword)) {
+      await activateGuestCache()
       startDemoSession(demoUser)
       setAllowed(true)
+      setMessage(null)
       return
     }
     setMessage('Usuario o contraseña de demostración incorrectos.')
   }
 
+  if (checking) {
+    return (
+      <div className="login-screen">
+        <div className="login-card">
+          <LoginBrand />
+          <p className="muted center">{checkingText}</p>
+        </div>
+      </div>
+    )
+  }
+  if (allowed) return <>{props.children}</>
+
   return (
     <div className="login-screen">
-      <div className="login-card card">
-        <div className="login-brand">
-          Risk<span>Calculator</span>
-        </div>
-        <p className="muted center">
-          Entiende tu cartera y toma decisiones con números, no con intuiciones.
+      <div className="login-card">
+        <LoginBrand />
+        <p className="login-tagline">
+          Accede a tu cartera privada y mantenla sincronizada con Supabase.
         </p>
 
-        {configured && (
+        {configured && mode !== 'update-password' && (
           <div className="segmented auth-tabs" role="tablist" aria-label="Tipo de acceso">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'login'}
-              aria-checked={mode === 'login'}
-              onClick={() => {
-                setMode('login')
-                setMessage(null)
-              }}
-            >
-              Entrar
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'signup'}
-              aria-checked={mode === 'signup'}
-              onClick={() => {
-                setMode('signup')
-                setMessage(null)
-              }}
-            >
-              Crear cuenta
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'demo'}
-              aria-checked={mode === 'demo'}
-              onClick={() => {
-                setMode('demo')
-                setMessage(null)
-              }}
-            >
-              Demo
-            </button>
+            {[
+              ['login', 'Entrar'],
+              ['signup', 'Crear cuenta'],
+              ['reset', 'Recuperar'],
+              ['demo', 'Demo'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={mode === value}
+                aria-checked={mode === value}
+                onClick={() => {
+                  setMode(value as AccessMode)
+                  setMessage(null)
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         )}
 
-        {mode !== 'demo' && configured ? (
+        {mode === 'update-password' && configured && (
+          <form onSubmit={(event) => void submitNewPassword(event)}>
+            <div className="field">
+              <label htmlFor="new-password">Nueva contraseña</label>
+              <input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                required
+              />
+            </div>
+            <button type="submit" className="btn primary wide" disabled={busy}>
+              {busy ? 'Guardando...' : 'Actualizar contraseña'}
+            </button>
+          </form>
+        )}
+
+        {(mode === 'login' || mode === 'signup') && configured && (
           <form onSubmit={(event) => void submitAccount(event)}>
             <div className="field">
               <label htmlFor="login-email">Email</label>
@@ -168,11 +285,33 @@ export function LoginGate(props: { children: ReactNode }) {
               />
             </div>
             <button type="submit" className="btn primary wide" disabled={busy}>
-              {busy ? 'Un momento…' : mode === 'signup' ? 'Crear mi cuenta' : 'Entrar de forma segura'}
+              {busy ? 'Un momento...' : mode === 'signup' ? 'Crear mi cuenta' : 'Entrar'}
             </button>
           </form>
-        ) : (
-          <form onSubmit={submitDemo}>
+        )}
+
+        {mode === 'reset' && configured && (
+          <form onSubmit={(event) => void submitReset(event)}>
+            <div className="field">
+              <label htmlFor="reset-email">Email</label>
+              <input
+                id="reset-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="tu@email.com"
+                required
+              />
+            </div>
+            <button type="submit" className="btn primary wide" disabled={busy}>
+              {busy ? 'Enviando...' : 'Enviar enlace de recuperación'}
+            </button>
+          </form>
+        )}
+
+        {mode === 'demo' && (
+          <form onSubmit={(event) => void submitDemo(event)}>
             <div className="field">
               <label htmlFor="demo-user">Usuario de prueba</label>
               <input
@@ -191,15 +330,14 @@ export function LoginGate(props: { children: ReactNode }) {
                 autoComplete="current-password"
                 value={demoPassword}
                 onChange={(event) => setDemoPassword(event.target.value)}
-                placeholder="••••"
+                placeholder="****"
               />
             </div>
             <button type="submit" className="btn primary wide">
               Probar la aplicación
             </button>
             <p className="muted tiny center">
-              Acceso demo: {DEMO_HINT.user} / {DEMO_HINT.password}. Solo simula una sesión y no
-              protege datos.
+              Acceso demo: {DEMO_HINT.user} / {DEMO_HINT.password}. No usa Supabase.
             </p>
           </form>
         )}
@@ -209,6 +347,15 @@ export function LoginGate(props: { children: ReactNode }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function LoginBrand() {
+  return (
+    <div className="login-brand">
+      <span className="mark">R</span>
+      <span className="name">RiskCalculator</span>
     </div>
   )
 }

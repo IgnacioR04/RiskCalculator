@@ -55,8 +55,16 @@ function resetStore() {
     quotes: {},
     fxRates: [],
     scenarios: [],
+    importBatches: [],
     riskProfile: null,
     demoLoaded: false,
+    cloudSync: {
+      userId: null,
+      email: null,
+      status: 'local',
+      message: 'Datos guardados en este dispositivo.',
+      lastSyncedAt: null,
+    },
   })
 }
 
@@ -132,6 +140,7 @@ describe('useAppStore demo data', () => {
         },
         fxRates: [],
         scenarios: [],
+        importBatches: [],
         riskProfile: null,
         demoLoaded: true,
       },

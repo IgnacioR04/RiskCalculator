@@ -10,6 +10,7 @@ import {
 } from '../lib/import/schema'
 import { formatDateTime, formatMoney, formatQty } from '../lib/format'
 import { dec } from '../lib/finance/decimal'
+import { uid } from '../lib/domain'
 import { useAppStore } from '../state/store'
 
 type ImportMode = 'create' | 'update'
@@ -82,11 +83,20 @@ export function ImportarPage() {
   }
 
   function confirm() {
-    if (proposal === null) return
+    if (proposal === null || validation?.ok !== true || validation.payload === null) return
+    const confirmedAt = new Date().toISOString()
     for (const account of proposal.newAccounts) store.addAccount(account)
     for (const asset of proposal.newAssets) store.addAsset(asset)
     for (const update of proposal.assetUpdates) store.updateAsset(update.id, update.patch)
     store.addTransactions(proposal.transactions)
+    store.addImportBatch({
+      id: uid(),
+      rawJson: validation.payload,
+      validationStatus: 'valid',
+      warnings: validation.warnings,
+      confirmedAt,
+      createdAt: confirmedAt,
+    })
     setConfirmed(true)
     setProposal(null)
     setValidation(null)

@@ -165,6 +165,15 @@ export interface RiskProfile {
   completedAt: string
 }
 
+export interface ImportBatch {
+  id: string
+  rawJson: unknown
+  validationStatus: 'valid' | 'invalid'
+  warnings: string[]
+  confirmedAt: string | null
+  createdAt: string
+}
+
 export interface Settings {
   displayCurrency: Currency
   locale: 'es-ES'
