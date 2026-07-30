@@ -129,9 +129,16 @@ export function buildImportProposal(
   function assetFor(incoming: ImportAsset): Asset | null {
     const symbol = incoming.symbol?.toUpperCase() ?? null
     if (symbol === null && incoming.name === null) return null
-    const candidates = [...existingAssets, ...newAssets].filter((asset) =>
+    let candidates = [...existingAssets, ...newAssets].filter((asset) =>
       assetMatches(asset, incoming),
     )
+    if (candidates.length > 1 && symbol !== null) {
+      // El ticker manda sobre el nombre. Sin esto, una captura que trae
+      // «BTC / Bitcoin» encajaba a la vez con un activo llamado «BTC» y con
+      // otro llamado «Bitcoin», y la posición se descartaba por ambigua.
+      const porSimbolo = candidates.filter((a) => normalized(a.symbol) === normalized(symbol))
+      if (porSimbolo.length > 0) candidates = porSimbolo
+    }
     if (candidates.length > 1) {
       notes.push(
         `${symbol ?? incoming.name}: coincide con varios instrumentos. Añade ISIN o mercado para desambiguar.`,
@@ -196,6 +203,47 @@ export function buildImportProposal(
     }
     newAssets.push(asset)
     return asset
+  }
+
+  /**
+   * Resolución previa de identidades, antes de construir nada.
+   *
+   * El orden de aparición decidía si dos referencias al mismo instrumento
+   * acababan en uno o en dos activos. Una operación que solo trae el ticker
+   * («BTC», sin nombre) creaba un activo llamado BTC; una posición que solo
+   * trae el nombre («Bitcoin») creaba otro; y la que traía ambos encajaba con
+   * los dos a la vez y se descartaba por ambigua.
+   *
+   * Recorriendo primero las referencias más completas —las que traen ticker Y
+   * nombre— el activo nace con las dos señales, y las parciales se enganchan a
+   * él da igual en qué orden lleguen.
+   */
+  const referencias = [
+    ...payload.positions.map((p) => p.asset),
+    ...payload.transactions.map((t) => t.asset),
+  ]
+  const riqueza = (a: ImportAsset): number =>
+    (a.isin !== null ? 4 : 0) + (a.symbol !== null ? 2 : 0) + (a.name !== null ? 1 : 0)
+  for (const ref of [...referencias].sort((a, b) => riqueza(b) - riqueza(a))) {
+    assetFor(ref)
+  }
+
+  /**
+   * Precio unitario conocido por activo, sacado de cualquier posición del
+   * mismo instrumento. Si una app muestra «0,00061 BTC · 56.182 €» y otra
+   * solo «280,02 €», las unidades de la segunda son una división con un
+   * precio que ya está en pantalla: 280,02 / 56.182.
+   *
+   * Sin esto, la segunda entraría como «una unidad indivisible» y se sumaría
+   * a los 0,00061 BTC reales dando 1,00061 BTC.
+   */
+  const precioPorActivo = new Map<string, string>()
+  for (const pos of payload.positions) {
+    if (pos.current_unit_price === null || dec(pos.current_unit_price).lte(0)) continue
+    const a = assetFor(pos.asset)
+    if (a !== null && !precioPorActivo.has(a.id)) {
+      precioPorActivo.set(a.id, pos.current_unit_price)
+    }
   }
 
   payload.transactions.forEach((item, index) => {
@@ -274,15 +322,25 @@ export function buildImportProposal(
      * división, no una suposición.
      */
     let quantity = position.quantity
+
+    // El efectivo no tiene «unidades» ni cotización: 0,65 € son 0,65 euros.
+    // Su coste es su valor, sin estimación ninguna.
+    if (quantity === null && asset.assetType === 'cash' && position.current_value !== null) {
+      quantity = String(position.current_value)
+    }
+
+    const precioUnitario = position.current_unit_price ?? precioPorActivo.get(asset.id) ?? null
     if (
       quantity === null &&
       position.current_value !== null &&
-      position.current_unit_price !== null &&
-      dec(position.current_unit_price).gt(0)
+      precioUnitario !== null &&
+      dec(precioUnitario).gt(0)
     ) {
-      quantity = dec(position.current_value).div(dec(position.current_unit_price)).toString()
+      quantity = dec(position.current_value).div(dec(precioUnitario)).toString()
       notes.push(
-        `Posición ${index + 1} (${asset.symbol}): unidades derivadas de valor ÷ precio unitario.`,
+        position.current_unit_price !== null
+          ? `Posición ${index + 1} (${asset.symbol}): unidades derivadas de valor ÷ precio unitario.`
+          : `Posición ${index + 1} (${asset.symbol}): unidades derivadas con el precio unitario que otra captura muestra del mismo activo.`,
       )
     }
 
@@ -300,11 +358,17 @@ export function buildImportProposal(
       position.average_buy_price !== null ||
       position.absolute_gain !== null ||
       position.return_pct !== null
+    /* Solo si nadie más aporta unidades reales de este activo: mezclar «1
+       unidad indivisible» con 0,00061 BTC reales daría 1,00061 BTC. */
+    const yaTieneUnidadesReales = [...existingTransactions, ...transactions].some(
+      (t) => t.assetId === asset.id,
+    )
     if (
       quantity === null &&
       position.current_value !== null &&
       dec(position.current_value).gt(0) &&
-      costeConocido
+      costeConocido &&
+      !yaTieneUnidadesReales
     ) {
       quantity = '1'
       notes.push(

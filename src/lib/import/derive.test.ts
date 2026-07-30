@@ -190,3 +190,68 @@ describe('el mismo activo no se duplica', () => {
     expect(p.newAssets).toHaveLength(0)
   })
 })
+
+describe('el mismo instrumento en dos brókeres', () => {
+  /**
+   * Caso real: Trade Republic muestra «Bitcoin · 280,02 € · ▲ 1,16 €» sin
+   * ticker ni unidades, y Revolut «BTC · 0,00061 BTC · 56.182 €». Además la
+   * operación de compra solo trae el ticker, sin nombre.
+   *
+   * Tienen que acabar en UN activo, y las unidades de Trade Republic salen del
+   * precio que Revolut sí imprime. Registrarla como «1 unidad» la sumaría a
+   * los 0,00061 BTC reales y daría 1,00061 BTC.
+   */
+  const raw = JSON.stringify({
+    schema_version: 1,
+    accounts: [
+      { broker: 'Trade Republic', label: 'Valores', currency: 'EUR', subtotal: null },
+      { broker: 'Revolut', label: 'Cripto', currency: 'EUR', subtotal: null },
+    ],
+    positions: [
+      {
+        account_broker: 'Trade Republic',
+        asset: { symbol: null, name: 'Bitcoin', type: 'crypto', quote_currency: null, isin: null, exchange: null, sector: null, country: null, holdings: [] },
+        quantity: null, current_value: 280.02, current_unit_price: null, unit_price_currency: null,
+        return_pct: null, absolute_gain: 1.16, gain_currency: 'EUR',
+        total_invested: null, average_buy_price: null, acquisition_date: null,
+        currency: 'EUR', evidence: 'Bitcoin 280,02', confidence: 'high',
+      },
+      {
+        account_broker: 'Revolut',
+        asset: { symbol: 'BTC', name: 'Bitcoin', type: 'crypto', quote_currency: 'EUR', isin: null, exchange: null, sector: null, country: null, holdings: [] },
+        quantity: 0.00061, current_value: 34.4, current_unit_price: 56182, unit_price_currency: 'EUR',
+        return_pct: -9.72, absolute_gain: null, gain_currency: null,
+        total_invested: null, average_buy_price: null, acquisition_date: null,
+        currency: 'EUR', evidence: 'BTC 0,00061', confidence: 'high',
+      },
+    ],
+    transactions: [
+      {
+        account_broker: 'Revolut',
+        asset: { symbol: 'BTC', name: null, type: 'crypto', quote_currency: null, isin: null, exchange: null, sector: null, country: null, holdings: [] },
+        type: 'buy', datetime: null, invested_amount: 44.6, invested_currency: null,
+        quantity: 0.00061, execution_price: null, fee: null, fee_currency: null,
+        evidence: 'USDT -> BTC', confidence: 'medium',
+      },
+    ],
+  })
+
+  it('es un solo activo, no dos ni descartado por ambiguo', () => {
+    const v = validateImportJson(raw)
+    expect(v.ok).toBe(true)
+    const p = buildImportProposal(v.payload!, [], [], [])
+    expect(p.newAssets).toHaveLength(1)
+    expect(p.newAssets[0]!.symbol).toBe('BTC')
+    expect(p.notes.some((n) => n.includes('coincide con varios instrumentos'))).toBe(false)
+    expect(p.incompletePositions).toEqual([])
+  })
+
+  it('las unidades sin ticker se derivan del precio que muestra el otro bróker', () => {
+    const p = buildImportProposal(validateImportJson(raw).payload!, [], [], [])
+    const total = p.transactions.reduce((a, t) => a + Number(t.quantity), 0)
+    // 0,00061 de Revolut + 280,02/56182 de Trade Republic = 0,005594 BTC
+    expect(total).toBeCloseTo(0.005594, 5)
+    // Nunca la unidad indivisible en un activo que ya tiene unidades reales.
+    expect(p.transactions.some((t) => t.quantity === '1')).toBe(false)
+  })
+})
