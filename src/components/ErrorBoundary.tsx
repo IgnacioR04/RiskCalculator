@@ -2,9 +2,16 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
+  /**
+   * Cuando este valor cambia, el error se descarta y se vuelve a intentar el
+   * render. Se le pasa la ruta actual para que navegar a otra pantalla salga
+   * del estado de error sin obligar a recargar.
+   */
+  resetKey?: string
 }
 interface State {
   error: Error | null
+  resetKey: string | undefined
 }
 
 /**
@@ -13,10 +20,17 @@ interface State {
  * claro con opción de recargar. No captura errores de handlers async.
  */
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { error: null }
+  state: State = { error: null, resetKey: this.props.resetKey }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { error }
+  }
+
+  static getDerivedStateFromProps(props: Props, state: State): Partial<State> | null {
+    if (props.resetKey !== state.resetKey) {
+      return { error: null, resetKey: props.resetKey }
+    }
+    return null
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
@@ -42,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 type="button"
                 className="btn primary"
                 onClick={() => {
-                  this.setState({ error: null })
+                  this.setState({ error: null, resetKey: this.props.resetKey })
                 }}
               >
                 Reintentar

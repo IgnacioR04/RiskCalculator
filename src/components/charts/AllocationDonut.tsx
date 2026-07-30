@@ -6,16 +6,7 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { Currency } from '../../lib/format'
 import { formatMoney, formatPct } from '../../lib/format'
-
-const SERIES = [
-  'var(--series-1)',
-  'var(--series-2)',
-  'var(--series-3)',
-  'var(--series-4)',
-  'var(--series-5)',
-  'var(--series-6)',
-  'var(--series-7)',
-]
+import { CHART_SURFACE, SEGMENT_GAP, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE, seriesColor } from './chartTheme'
 
 export interface DonutSlice {
   label: string
@@ -41,13 +32,17 @@ export function AllocationDonut(props: { data: DonutSlice[]; currency: Currency;
             cy="50%"
             innerRadius={inner}
             outerRadius={outer}
-            paddingAngle={2}
-            stroke="var(--surface-default)"
-            strokeWidth={2}
+            paddingAngle={SEGMENT_GAP}
+            stroke={CHART_SURFACE}
+            strokeWidth={SEGMENT_GAP}
             isAnimationActive={false}
           >
+            {/* Orden fijo, nunca ciclado: a partir del séptimo slot el color no
+                se reutiliza, se cae al gris de «Otros». Repetir el oro en la
+                categoría 8 haría que dos entidades distintas compartiesen
+                identidad. */}
             {props.data.map((s, i) => (
-              <Cell key={s.label} fill={SERIES[i % SERIES.length] ?? SERIES[0]!} />
+              <Cell key={s.label} fill={seriesColor(i)} />
             ))}
           </Pie>
           <Tooltip
@@ -58,13 +53,8 @@ export function AllocationDonut(props: { data: DonutSlice[]; currency: Currency;
                 String(name),
               ]
             }}
-            contentStyle={{
-              fontSize: 12,
-              borderRadius: 6,
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            contentStyle={TOOLTIP_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
           />
         </PieChart>
       </ResponsiveContainer>

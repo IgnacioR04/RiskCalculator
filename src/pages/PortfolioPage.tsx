@@ -218,7 +218,7 @@ function OverviewTab(props: {
         <Card title="Dónde está tu dinero" sub="el reparto completo por clase, cuenta, sector, país y divisa">
           <div className="stack mt-2">
             {view.byType.slice(0, 5).map((slice, i) => (
-              <div key={slice.key} className="row" style={{ gap: 7, font: '400 10.5px var(--font-ui)' }}>
+              <div key={slice.key} className="row" style={{ gap: 7, font: '400 var(--fs-aux) var(--font-ui)' }}>
                 <SeriesDot index={i} />
                 {slice.label}
                 <span style={{ marginLeft: 'auto' }}>

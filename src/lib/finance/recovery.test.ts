@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   breakevenContribution,
+  breakevenFromValues,
   growthFromPrices,
   outcomeAtPrice,
   restoreValueContribution,
@@ -206,6 +207,89 @@ describe('outcomeAtPrice — resultado en un objetivo posterior', () => {
     })
     expect(r.netReturnPct).toBeNull()
     expect(r.newAveragePrice).toBeNull()
+  })
+})
+
+describe('breakevenFromValues — equilibrio real sin unidades ni precios', () => {
+  it('tesis del producto (README): BTC 58.000 → 62.000 comprado con 100 a 70.000', () => {
+    // V = 100 · 58.000/70.000 = 82,857… · g = 62.000/58.000 − 1
+    const currentValue = '82.857142857142857142857143'
+    const expectedGrowth = growthFromPrices(58000, 62000)
+
+    const restore = restoreValueContribution({
+      referenceValue: 100,
+      currentValue,
+      expectedGrowth,
+    })
+    const breakeven = breakevenFromValues({
+      historicCapital: 100,
+      currentValue,
+      expectedGrowth,
+    })
+
+    // Las dos cifras que el producto debe mostrar juntas.
+    expect(restore.contribution.toFixed(2)).toBe('10.69')
+    expect(breakeven.status).toBe('achievable')
+    expect(breakeven.contribution!.toFixed(2)).toBe('165.71')
+    // La diferencia es la razón de existir de la comparación.
+    expect(breakeven.contribution!.gt(restore.contribution)).toBe(true)
+  })
+
+  it('coincide con breakevenContribution a partir de unidades y precios', () => {
+    const quantity = 2
+    const cost = 200
+    const currentPrice = 80
+    const targetPrice = 95
+
+    const fromPosition = breakevenContribution({ quantity, cost, currentPrice, targetPrice })
+    const fromValues = breakevenFromValues({
+      historicCapital: cost,
+      currentValue: quantity * currentPrice,
+      expectedGrowth: growthFromPrices(currentPrice, targetPrice),
+    })
+
+    expect(fromValues.status).toBe(fromPosition.status)
+    expect(fromValues.contribution!.toFixed(6)).toBe(fromPosition.contribution!.toFixed(6))
+    expect(fromValues.netWithoutContribution.toFixed(6)).toBe(
+      fromPosition.netWithoutContribution.toFixed(6),
+    )
+  })
+
+  it('ya alcanzado cuando el objetivo cubre todo el capital', () => {
+    const r = breakevenFromValues({ historicCapital: 100, currentValue: 100, expectedGrowth: 0.1 })
+    expect(r.status).toBe('already_achieved')
+    expect(r.contribution).toBeNull()
+    expect(r.netWithoutContribution.toFixed(2)).toBe('10.00')
+  })
+
+  it('inalcanzable sin subida: el capital nuevo ni gana ni pierde', () => {
+    const r = breakevenFromValues({ historicCapital: 100, currentValue: 90, expectedGrowth: 0 })
+    expect(r.status).toBe('unreachable')
+    expect(r.contribution).toBeNull()
+    expect(r.netWithoutContribution.toFixed(2)).toBe('-10.00')
+  })
+
+  it('inalcanzable con subida negativa', () => {
+    const r = breakevenFromValues({ historicCapital: 100, currentValue: 90, expectedGrowth: -0.05 })
+    expect(r.status).toBe('unreachable')
+  })
+
+  it('valor actual 0: ninguna aportación puede revalorizarse', () => {
+    const r = breakevenFromValues({ historicCapital: 100, currentValue: 0, expectedGrowth: 0.2 })
+    expect(r.status).toBe('unreachable')
+    expect(r.netWithoutContribution.toFixed(2)).toBe('-100.00')
+  })
+
+  it('valida las entradas', () => {
+    expect(() => breakevenFromValues({ historicCapital: -1, currentValue: 10, expectedGrowth: 0.1 })).toThrow(
+      RangeError,
+    )
+    expect(() => breakevenFromValues({ historicCapital: 10, currentValue: -1, expectedGrowth: 0.1 })).toThrow(
+      RangeError,
+    )
+    expect(() => breakevenFromValues({ historicCapital: 10, currentValue: 10, expectedGrowth: -1 })).toThrow(
+      RangeError,
+    )
   })
 })
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { Card, Note, SectionHeader, Segmented } from '../components/ui'
-import type { Currency, RiskCategory } from '../lib/domain'
-import { formatDateTime } from '../lib/format'
+import type { Currency, RiskCategory, RiskResult } from '../lib/domain'
+import { formatDateTime, formatMoney } from '../lib/format'
 import { providerStatus } from '../lib/market/service'
 import { authRedirectUrl, getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { pullFromCloud, pushToCloud, signOutAndClearCloudSession } from '../lib/sync'
@@ -94,6 +95,7 @@ export function PerfilPage() {
       scenarios: state.scenarios,
       importBatches: state.importBatches,
       riskProfile: state.riskProfile,
+      riskResults: state.riskResults,
     }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -128,7 +130,9 @@ export function PerfilPage() {
 
       <Card title="Perfil de riesgo">
         {store.riskProfile !== null && !showQuiz && (
-          <>
+          /* El resultado aparece al cerrar el cuestionario: momento raro y de
+             primera vez, así que entra con un puente en lugar de golpe. */
+          <div className="enter-rise">
             <p>
               Tu perfil aproximado: <strong>{CATEGORY_LABEL[store.riskProfile.category]}</strong>{' '}
               (puntuación {store.riskProfile.score}/10, completado el{' '}
@@ -142,7 +146,7 @@ export function PerfilPage() {
             <button type="button" className="btn" onClick={() => setShowQuiz(true)}>
               Repetir el cuestionario
             </button>
-          </>
+          </div>
         )}
         {store.riskProfile === null && !showQuiz && (
           <>
@@ -184,6 +188,8 @@ export function PerfilPage() {
           </>
         )}
       </Card>
+
+      <RiskResultsCard />
 
       <Card title="Proveedores de datos de mercado">
         <div className="table-wrap">
@@ -235,7 +241,8 @@ export function PerfilPage() {
 
       <Card title="Tus datos">
         <p className="muted">
-          Todo se guarda localmente en tu navegador. Puedes exportarlo o borrarlo cuando quieras.
+          Puedes exportar o borrar la copia local de tus cuentas, operaciones, escenarios, cálculos
+          y perfil.
         </p>
         <div className="row">
           <button type="button" className="btn" onClick={exportData}>
@@ -247,7 +254,7 @@ export function PerfilPage() {
             onClick={() => {
               if (
                 window.confirm(
-                  'Esto borra TODOS tus datos locales (cuentas, operaciones, escenarios y perfil). ¿Continuar?',
+                  'Esto borra TODOS tus datos locales (cuentas, operaciones, escenarios, cálculos y perfil). ¿Continuar?',
                 )
               ) {
                 store.clearAll()
@@ -268,23 +275,35 @@ export function PerfilPage() {
   )
 }
 
-/* ── Cuenta (Supabase Auth con enlace mágico) ── */
+/* ── Cuenta (Supabase Auth con email y contraseña) ── */
 
 function AccountCard() {
-  const [email, setEmail] = useState('')
+  const cloudSync = useAppStore((s) => s.cloudSync)
   const [sessionEmail, setSessionEmail] = useState<string | null>(null)
+  const [emailConfirmedAt, setEmailConfirmedAt] = useState<string | null>(null)
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const configured = isSupabaseConfigured()
+
+  function applyUser(user: User | null) {
+    const email = user?.email ?? null
+    setSessionEmail(email)
+    setEmailConfirmedAt(user?.email_confirmed_at ?? null)
+    setNewEmail(email ?? '')
+  }
 
   useEffect(() => {
     const supabase = getSupabase()
     if (supabase === null) return
     void supabase.auth.getSession().then(({ data }) => {
-      setSessionEmail(data.session?.user.email ?? null)
+      applyUser(data.session?.user ?? null)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSessionEmail(session?.user.email ?? null)
+      applyUser(session?.user ?? null)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
@@ -293,8 +312,8 @@ function AccountCard() {
     return (
       <Card title="Cuenta">
         <Note kind="info">
-          La aplicación funciona ahora en <strong>modo local</strong>: tus datos viven solo en este
-          navegador. Para activar cuentas con enlace mágico y guardado en la nube, configura{' '}
+          La aplicación funciona en <strong>modo local</strong>: tus datos viven solo en este
+          navegador. Para activar cuentas con email/contraseña y guardado en la nube, configura{' '}
           <code className="mono">VITE_SUPABASE_URL</code> y{' '}
           <code className="mono">VITE_SUPABASE_ANON_KEY</code> (ver README) y aplica las migraciones
           de <code className="mono">supabase/migrations</code>.
@@ -303,21 +322,58 @@ function AccountCard() {
     )
   }
 
-  async function sendMagicLink() {
+  async function updateEmail() {
     const supabase = getSupabase()
     if (supabase === null) return
+    const email = newEmail.trim()
+    if (!email.includes('@')) {
+      setMessage('Introduce un email válido.')
+      return
+    }
+    if (email === sessionEmail) {
+      setMessage('El email ya coincide con la sesión actual.')
+      return
+    }
     setBusy(true)
     setMessage(null)
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: { emailRedirectTo: authRedirectUrl() },
-      })
-      setMessage(
-        error !== null
-          ? `No se pudo enviar el enlace: ${error.message}`
-          : 'Enlace enviado: revisa tu correo y ábrelo en este dispositivo.',
+      const { data, error } = await supabase.auth.updateUser(
+        { email },
+        { emailRedirectTo: authRedirectUrl() },
       )
+      if (error !== null) {
+        setMessage(`No se pudo cambiar el email: ${error.message}`)
+        return
+      }
+      applyUser(data.user)
+      setMessage('Cambio de email solicitado. Revisa tu correo para confirmarlo.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function updatePassword() {
+    const supabase = getSupabase()
+    if (supabase === null) return
+    if (newPassword.length < 8) {
+      setMessage('La nueva contraseña debe tener al menos 8 caracteres.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage('Las contraseñas no coinciden.')
+      return
+    }
+    setBusy(true)
+    setMessage(null)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error !== null) {
+        setMessage(`No se pudo cambiar la contraseña: ${error.message}`)
+        return
+      }
+      setNewPassword('')
+      setConfirmPassword('')
+      setMessage('Contraseña actualizada.')
     } finally {
       setBusy(false)
     }
@@ -340,45 +396,113 @@ function AccountCard() {
     }
   }
 
+  async function deleteAccount() {
+    const supabase = getSupabase()
+    if (supabase === null || deleteConfirmation !== 'ELIMINAR') return
+    const confirmed = window.confirm(
+      'Esto elimina tu usuario de Supabase y los datos remotos asociados. ¿Continuar?',
+    )
+    if (!confirmed) return
+
+    setBusy(true)
+    setMessage(null)
+    try {
+      const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>(
+        'delete-user',
+        { method: 'POST' },
+      )
+      if (error !== null || data?.ok !== true) {
+        setMessage(data?.error ?? `No se pudo eliminar la cuenta: ${error?.message ?? 'error desconocido'}`)
+        return
+      }
+      await signOutAndClearCloudSession()
+      window.location.reload()
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <Card title="Cuenta">
       {sessionEmail === null ? (
-        <>
-          <p className="muted">
-            Inicia sesión con un enlace mágico por email (sin contraseñas). Tus datos en la nube se
-            protegen con Row Level Security: solo tu usuario puede leerlos.
-          </p>
-          <div className="field">
-            <label htmlFor="auth-email">Email</label>
-            <input
-              id="auth-email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@email.com"
-            />
-          </div>
-          <button
-            type="button"
-            className="btn primary"
-            disabled={busy || !email.includes('@')}
-            onClick={() => void sendMagicLink()}
-          >
-            {busy ? 'Enviando…' : 'Enviarme el enlace mágico'}
-          </button>
-        </>
+        <Note kind="info">
+          Estás usando el modo demo/local. Para usar una cuenta real, cierra el modo demo y entra con
+          email y contraseña desde la pantalla de acceso.
+        </Note>
       ) : (
         <>
           <p>
             Sesión iniciada como <strong>{sessionEmail}</strong>.
           </p>
-          <div className="row">
+          <div className="stat-grid">
+            <div className="kpi">
+              <div className="kpi-label">Email</div>
+              <div className="kpi-value">{emailConfirmedAt !== null ? 'Confirmado' : 'Pendiente'}</div>
+            </div>
+            <div className="kpi">
+              <div className="kpi-label">Nube</div>
+              <div className="kpi-value">{cloudSync.status}</div>
+            </div>
+            <div className="kpi">
+              <div className="kpi-label">Última sincronización</div>
+              <div className="kpi-value">
+                {cloudSync.lastSyncedAt !== null ? formatDateTime(cloudSync.lastSyncedAt) : 'Pendiente'}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid-2">
+            <div>
+              <div className="field">
+                <label htmlFor="account-email">Cambiar email</label>
+                <input
+                  id="account-email"
+                  type="email"
+                  autoComplete="email"
+                  value={newEmail}
+                  onChange={(event) => setNewEmail(event.target.value)}
+                />
+              </div>
+              <button type="button" className="btn" disabled={busy} onClick={() => void updateEmail()}>
+                Actualizar email
+              </button>
+            </div>
+            <div>
+              <div className="field">
+                <label htmlFor="account-password">Nueva contraseña</label>
+                <input
+                  id="account-password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="account-password-confirm">Confirmar contraseña</label>
+                <input
+                  id="account-password-confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                />
+              </div>
+              <button type="button" className="btn" disabled={busy} onClick={() => void updatePassword()}>
+                Actualizar contraseña
+              </button>
+            </div>
+          </div>
+
+          <div className="row mt-2">
             <button type="button" className="btn" disabled={busy} onClick={() => void doSync('push')}>
               Subir datos locales a la nube
             </button>
             <button type="button" className="btn" disabled={busy} onClick={() => void doSync('pull')}>
-              Descargar de la nube (reemplaza lo local)
+              Descargar de la nube
             </button>
             <button
               type="button"
@@ -391,10 +515,101 @@ function AccountCard() {
               Cerrar sesión
             </button>
           </div>
-          <p className="muted mt-2 mb-0">Los datos de demostración nunca se suben a la nube.</p>
+
+          <div className="field mt-2">
+            <label htmlFor="delete-account-confirm">Eliminar cuenta</label>
+            <span className="hint">Escribe ELIMINAR para activar el borrado remoto.</span>
+            <input
+              id="delete-account-confirm"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn danger"
+            disabled={busy || deleteConfirmation !== 'ELIMINAR'}
+            onClick={() => void deleteAccount()}
+          >
+            Eliminar cuenta y datos remotos
+          </button>
+          <p className="muted mt-2 mb-0">{cloudSync.message}</p>
         </>
       )}
       {message !== null && <Note kind="info">{message}</Note>}
     </Card>
   )
+}
+
+function RiskResultsCard() {
+  const results = useAppStore((s) => s.riskResults)
+  const removeRiskResult = useAppStore((s) => s.removeRiskResult)
+
+  return (
+    <Card title="Cálculos guardados">
+      {results.length === 0 ? (
+        <p className="muted mb-0">
+          Todavía no hay cálculos guardados desde la calculadora.
+        </p>
+      ) : (
+        <div className="table-wrap">
+          <table className="data">
+            <thead>
+              <tr>
+                <th scope="col">Fecha</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Resultado</th>
+                <th scope="col">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.slice(0, 20).map((entry) => (
+                <tr key={entry.id}>
+                  <td>{formatDateTime(entry.calculatedAt)}</td>
+                  <td>{riskResultLabel(entry)}</td>
+                  <td>{riskResultSummary(entry)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn small danger"
+                      onClick={() => removeRiskResult(entry.id)}
+                    >
+                      Borrar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function riskResultLabel(entry: RiskResult): string {
+  if (entry.inputs.mode === 'restore') return 'Restaurar'
+  if (entry.inputs.mode === 'breakeven') return 'Equilibrio real'
+  return entry.resultType
+}
+
+function riskResultSummary(entry: RiskResult): string {
+  const currency = entry.inputs.currency === 'USD' ? 'USD' : 'EUR'
+  if (entry.inputs.mode === 'restore') {
+    return moneySummary(entry.result.contribution, currency, 'Aportación')
+  }
+  if (entry.inputs.mode === 'breakeven') {
+    if (entry.result.breakevenStatus === 'unreachable') return 'Equilibrio no alcanzable'
+    const value =
+      entry.result.breakevenStatus === 'already_achieved'
+        ? '0'
+        : entry.result.breakevenContribution
+    return moneySummary(value, currency, 'Equilibrio')
+  }
+  return 'Resultado guardado'
+}
+
+function moneySummary(value: unknown, currency: Currency, label: string): string {
+  if (typeof value !== 'string' && typeof value !== 'number') return `${label}: no disponible`
+  return `${label}: ${formatMoney(value, currency)}`
 }

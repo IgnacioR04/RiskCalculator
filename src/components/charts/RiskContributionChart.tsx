@@ -9,6 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import { formatPct } from '../../lib/format'
+import { AXIS, BAR_RADIUS_H, GRID, TOOLTIP_CURSOR_FILL, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE } from './chartTheme'
 
 export function RiskContributionChart(props: {
   data: { label: string; contribution: number }[]
@@ -17,31 +18,33 @@ export function RiskContributionChart(props: {
     <div className="chart-frame" role="img" aria-label="Contribución de cada activo al riesgo">
       <ResponsiveContainer width="100%" height={Math.max(230, props.data.length * 42)}>
         <BarChart data={props.data} layout="vertical" margin={{ top: 8, right: 20, bottom: 8, left: 12 }}>
-          <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 3" horizontal={false} />
+          <CartesianGrid stroke={GRID.stroke} vertical={false} horizontal={false} />
           <XAxis
             type="number"
             tickFormatter={(value: number) => formatPct(value, 0)}
-            tick={{ fill: 'var(--chart-ink)', fontSize: 11 }}
+            {...AXIS}
           />
           <YAxis
             type="category"
             dataKey="label"
             width={64}
-            tick={{ fill: 'var(--chart-ink)', fontSize: 12 }}
+            {...AXIS}
           />
           <Tooltip
             formatter={(value) => [formatPct(Number(value), 1), 'Contribución']}
-            contentStyle={{
-              background: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 10,
-            }}
+            contentStyle={TOOLTIP_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
+            cursor={TOOLTIP_CURSOR_FILL}
           />
-          <Bar dataKey="contribution" radius={[0, 6, 6, 0]}>
+          <Bar dataKey="contribution" radius={BAR_RADIUS_H}>
             {props.data.map((item) => (
               <Cell
                 key={item.label}
-                fill={item.contribution >= 0 ? 'var(--series-2)' : 'var(--series-1)'}
+                /* Polaridad, no identidad: signo positivo/negativo va con la pareja
+                   divergente, no con dos colores del orden categorico. Reusar
+                   series-1 y series-2 aqui hacia que el mismo azul significase
+                   «categoria 2» en el donut y «contribuye al riesgo» aqui. */
+                fill={item.contribution >= 0 ? 'var(--matrix-negative)' : 'var(--matrix-positive)'}
               />
             ))}
           </Bar>
