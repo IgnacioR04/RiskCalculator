@@ -58,9 +58,15 @@ test('calcula recuperación y equilibrio real', async ({ page }) => {
   await enterDemo(page)
   await goToSection(page, '02', 'Calculadora', 'Calcular')
   await expect(page.getByRole('heading', { name: 'Calculadora', level: 1 })).toBeVisible()
-  await expect(page.getByText('Capital para restaurar el valor inicial')).toBeVisible()
-  await page.getByRole('radio', { name: 'Punto de equilibrio real' }).click()
+  // Invariante de producto: los dos objetivos se ven juntos ya en el modo por
+  // defecto, con su diferencia. Antes había que cambiar de pestaña para ver el
+  // segundo, y el título de esta tarjeta era «Capital para restaurar el valor
+  // inicial».
   await expect(page.getByText('Dos números distintos para tu objetivo')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Restaurar el valor inicial' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Punto de equilibrio real' })).toBeVisible()
+  await expect(page.getByText('¿Por qué no coinciden?')).toBeVisible()
+  await page.getByRole('radio', { name: 'Punto de equilibrio real' }).click()
   await expect(page.getByText('Compra media')).toBeVisible()
 })
 
