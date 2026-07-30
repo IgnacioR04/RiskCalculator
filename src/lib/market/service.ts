@@ -6,7 +6,7 @@
  * Cadena: Twelve Data (si hay proxy) → CoinGecko (cripto) → manual/demo.
  * FX: BCE (Frankfurter) → último cambio en caché → demo.
  */
-import type { Asset, Currency, Quote } from '../domain'
+import type { Asset, AssetType, Currency, Quote } from '../domain'
 import { useAppStore } from '../../state/store'
 import { coingeckoProvider } from './coingecko'
 import { ecbFxProvider, getFxDailySeries, type FxSeriesPoint } from './ecb'
@@ -133,8 +133,18 @@ export async function refreshFx(date?: string): Promise<{ ok: boolean; message?:
   }
 }
 
-/** Búsqueda de activos: Twelve Data si hay proxy; CoinGecko para cripto. */
-export async function searchAssets(query: string): Promise<AssetMatch[]> {
+/**
+ * Búsqueda de activos: Twelve Data si hay proxy; CoinGecko para cripto.
+ *
+ * `expectedType` es el tipo del activo que se está enlazando. Sin él, buscar
+ * «IAG» —una minera de oro— devolvía primero una cripto homónima, y no había
+ * forma de llegar a la acción. Con él, las coincidencias del tipo correcto van
+ * delante y las del tipo contrario quedan al final o se descartan.
+ */
+export async function searchAssets(
+  query: string,
+  expectedType?: AssetType | null,
+): Promise<AssetMatch[]> {
   const results: AssetMatch[] = []
   const errors: string[] = []
   if (twelveDataProvider.isConfigured()) {
@@ -152,7 +162,26 @@ export async function searchAssets(query: string): Promise<AssetMatch[]> {
   if (results.length === 0 && errors.length > 0) {
     throw new ProviderError(errors.join(' · '), 'network')
   }
-  return results
+
+  if (expectedType === undefined || expectedType === null) return ordenar(results, query)
+
+  // Buscando algo que NO es cripto, una cripto homónima casi nunca es lo que
+  // se quiere: se manda al final en vez de eliminarla, por si el tipo venía
+  // mal clasificado desde la importación.
+  const mismoTipo = results.filter((r) => r.assetType === expectedType)
+  const resto = results.filter((r) => r.assetType !== expectedType)
+  return [...ordenar(mismoTipo, query), ...ordenar(resto, query)]
+}
+
+/** Coincidencia exacta de ticker primero; luego por capitalización. */
+function ordenar(matches: AssetMatch[], query: string): AssetMatch[] {
+  const q = query.trim().toUpperCase()
+  return [...matches].sort((a, b) => {
+    const exactA = a.symbol.toUpperCase() === q ? 0 : 1
+    const exactB = b.symbol.toUpperCase() === q ? 0 : 1
+    if (exactA !== exactB) return exactA - exactB
+    return (a.rank ?? Number.MAX_SAFE_INTEGER) - (b.rank ?? Number.MAX_SAFE_INTEGER)
+  })
 }
 
 /**

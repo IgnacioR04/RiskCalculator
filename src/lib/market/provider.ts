@@ -14,6 +14,12 @@ export interface AssetMatch {
   /** Identificadores por proveedor para futuras consultas. */
   providerIds: Record<string, string>
   provider: string
+  /**
+   * Puesto por capitalización, cuando el proveedor lo da (CoinGecko). Ordena
+   * los resultados: entre dos coincidencias del mismo ticker manda la que
+   * tiene mercado de verdad.
+   */
+  rank?: number
 }
 
 export interface MarketQuote {

@@ -16,8 +16,17 @@ import {
 const BASE = 'https://api.coingecko.com/api/v3'
 
 interface SearchResponse {
-  coins: { id: string; symbol: string; name: string }[]
+  coins: { id: string; symbol: string; name: string; market_cap_rank?: number | null }[]
 }
+
+/**
+ * Tope de ranking por capitalización para que la búsqueda devuelva monedas
+ * con mercado de verdad. CoinGecko lista miles de tokens, y buscar «IAG»
+ * (una minera de oro) devolvía antes una cripto homónima sin apenas volumen.
+ * 300 deja fuera las meme coins y los tokens sin capitalización, y mantiene
+ * todo lo que una cartera normal puede tener.
+ */
+const MAX_RANK_CRIPTO = 300
 
 interface SimplePriceResponse {
   [id: string]: { eur?: number; usd?: number; last_updated_at?: number }
@@ -41,14 +50,19 @@ export const coingeckoProvider: MarketDataProvider = {
     const data = await fetchJson<SearchResponse>(
       `${BASE}/search?query=${encodeURIComponent(query)}`,
     )
-    return data.coins.slice(0, 8).map((c) => ({
-      symbol: c.symbol.toUpperCase(),
-      name: c.name,
-      assetType: 'crypto',
-      quoteCurrency: null,
-      providerIds: { coingecko: c.id },
-      provider: 'coingecko',
-    }))
+    return data.coins
+      .filter((c) => typeof c.market_cap_rank === 'number' && c.market_cap_rank <= MAX_RANK_CRIPTO)
+      .sort((a, b) => (a.market_cap_rank ?? Infinity) - (b.market_cap_rank ?? Infinity))
+      .slice(0, 8)
+      .map((c) => ({
+        symbol: c.symbol.toUpperCase(),
+        name: c.name,
+        assetType: 'crypto' as const,
+        quoteCurrency: null,
+        providerIds: { coingecko: c.id },
+        provider: 'coingecko',
+        ...(typeof c.market_cap_rank === 'number' ? { rank: c.market_cap_rank } : {}),
+      }))
   },
 
   async getQuote(providerId: string, preferredCurrency: Currency): Promise<MarketQuote> {

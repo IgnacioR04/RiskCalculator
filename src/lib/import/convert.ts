@@ -11,6 +11,7 @@ import type {
   Transaction,
 } from '../domain'
 import { uid } from '../domain'
+import { resolverProveedor } from './providers'
 import { dec } from '../finance/decimal'
 import { aggregatePosition, type FinTransaction } from '../finance/position'
 import type { ImportPayload } from './schema'
@@ -177,8 +178,15 @@ export function buildImportProposal(
         `${incoming.name}: la captura no muestra su ticker, así que se guarda con el nombre. No se inventa un símbolo.`,
       )
     }
+    const tipo = TYPE_MAP[incoming.type ?? 'other'] ?? 'manual'
+    const proveedor = resolverProveedor(symbol, tipo)
+    if (proveedor.nota !== null) notes.push(proveedor.nota)
+
     const asset: Asset = {
       id: uid(),
+      ...(Object.keys(proveedor.providerIds).length > 0
+        ? { providerIds: proveedor.providerIds }
+        : {}),
       // Sin ticker visible se usa el NOMBRE, no un ticker fabricado. Antes se
       // recortaba el nombre a 12 letras en mayúsculas y salían identificadores
       // falsos como «NASDAQ CLEAN» o «VANGUARD EUR», que no son tickers de

@@ -255,3 +255,36 @@ describe('el mismo instrumento en dos brókeres', () => {
     expect(p.transactions.some((t) => t.quantity === '1')).toBe(false)
   })
 })
+
+describe('enlace con proveedores de datos', () => {
+  it('cripto conocida, metal y acción quedan enlazados por su ticker', () => {
+    const p = proposalFor(
+      [
+        { broker: 'Revolut', name: 'Bitcoin', symbol: 'BTC', type: 'crypto', quantity: 0.001, value: 56 },
+        { broker: 'Revolut', name: 'Oro', symbol: 'XAU', type: 'commodity', quantity: 0.01, value: 35 },
+        { broker: 'Revolut', name: 'Alphabet (Class A)', symbol: 'GOOGL', type: 'stock', quantity: 0.06, value: 17.98 },
+      ],
+      ['Revolut'],
+    )
+    const porSimbolo = Object.fromEntries(p.newAssets.map((a) => [a.symbol, a.providerIds ?? {}]))
+    expect(porSimbolo['BTC']).toEqual({ coingecko: 'bitcoin' })
+    expect(porSimbolo['XAU']).toEqual({ twelvedata: 'XAU/USD' })
+    expect(porSimbolo['GOOGL']).toEqual({ twelvedata: 'GOOGL' })
+  })
+
+  it('sin ticker no se enlaza nada: enlazar mal es peor que no enlazar', () => {
+    const p = proposalFor(
+      [{ broker: 'Trade Republic', name: 'Nasdaq Clean Edge Smart Gr...', quantity: 1, value: 45.06, returnPct: -11.64 }],
+      ['Trade Republic'],
+    )
+    expect(p.newAssets[0]!.providerIds).toBeUndefined()
+  })
+
+  it('una cripto fuera de las grandes tampoco se enlaza a ciegas', () => {
+    const p = proposalFor(
+      [{ broker: 'Revolut', name: 'Token raro', symbol: 'ZZZZ', type: 'crypto', quantity: 10, value: 5 }],
+      ['Revolut'],
+    )
+    expect(p.newAssets[0]!.providerIds).toBeUndefined()
+  })
+})

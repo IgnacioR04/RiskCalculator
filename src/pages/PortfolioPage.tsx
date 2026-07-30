@@ -605,9 +605,12 @@ function AssetMetadataSection() {
   const [country, setCountry] = useState('')
   const [exchange, setExchange] = useState('')
   const [holdingsRaw, setHoldingsRaw] = useState('')
+  const [enlaceHecho, setEnlaceHecho] = useState<string | null>(null)
+  const enlazado = Object.keys(asset?.providerIds ?? {}).length > 0
 
   function select(id: string) {
     setAssetId(id)
+    setEnlaceHecho(null)
     const selected = assets.find((item) => item.id === id)
     setSector(selected?.sector ?? '')
     setCountry(selected?.country ?? '')
@@ -686,6 +689,43 @@ function AssetMetadataSection() {
           >
             Guardar clasificación
           </button>
+
+          <div className="mt-4">
+            <span className="label">Origen de los precios</span>
+            {enlazado ? (
+              <Note kind="info">
+                <span>
+                  <strong>{asset.symbol}</strong> está enlazado con{' '}
+                  <span className="mono">{Object.keys(asset.providerIds ?? {}).join(', ')}</span>.
+                  Ya puede descargar histórico para volatilidad y correlaciones.
+                </span>
+              </Note>
+            ) : (
+              <Note kind="warning">
+                <span>
+                  <strong>{asset.symbol}</strong> no tiene proveedor de datos, así que no entra en
+                  el análisis histórico: sin serie de precios no hay volatilidad, ni covarianzas,
+                  ni frontera eficiente. Búscalo aquí para enlazarlo.
+                </span>
+              </Note>
+            )}
+            <AssetSearch
+              expectedType={asset.assetType}
+              onPick={(match) => {
+                updateAsset(asset.id, {
+                  providerIds: match.providerIds,
+                  ...(asset.symbol === asset.name ? { symbol: match.symbol } : {}),
+                  ...(match.exchange !== undefined && exchange.trim() === ''
+                    ? { exchange: match.exchange }
+                    : {}),
+                })
+                setEnlaceHecho(match.name)
+              }}
+            />
+            {enlaceHecho !== null && (
+              <p className="positive tiny">Enlazado con {enlaceHecho}.</p>
+            )}
+          </div>
         </>
       )}
     </Card>
@@ -1097,7 +1137,7 @@ function AddTransactionSection() {
   )
 }
 
-function AssetSearch(props: { onPick: (match: AssetMatch) => void }) {
+function AssetSearch(props: { onPick: (match: AssetMatch) => void; expectedType?: AssetType }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<AssetMatch[] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -1107,7 +1147,7 @@ function AssetSearch(props: { onPick: (match: AssetMatch) => void }) {
     setBusy(true)
     setError(null)
     try {
-      setResults(await searchAssets(query.trim()))
+      setResults(await searchAssets(query.trim(), props.expectedType ?? null))
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Búsqueda no disponible')
     } finally {
