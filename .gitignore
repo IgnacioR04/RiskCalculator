@@ -38,3 +38,19 @@ npm-debug.log*
 coverage/
 playwright-report/
 test-results/
+
+# Repos de skills descargados y skills de diseno instaladas: son herramientas
+# de terceros, no parte del producto. Reinstalables con `npx skills add
+# emilkowalski/skills` y `npx impeccable install`.
+# Los patrones van anclados a la raiz: sin la barra inicial, `SKILLS/` tambien
+# ignoraria .claude/skills y .agents/skills (en Windows no distingue mayusculas).
+/SKILLS/
+/.claude/skills/
+/.agents/skills/animation-vocabulary/
+/.agents/skills/apple-design/
+/.agents/skills/emil-design-eng/
+/.agents/skills/find-animation-opportunities/
+/.agents/skills/improve-animations/
+/.agents/skills/pick-ui-library/
+/.agents/skills/prototype/
+/.agents/skills/review-animations/

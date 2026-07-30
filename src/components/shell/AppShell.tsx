@@ -60,7 +60,7 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
             </NavLink>
           )
         })}
-        <span className="rail-status tip" tabIndex={0} role="img" aria-label="Estado de sincronizacion">
+        <span className="rail-status tip" tabIndex={0} role="img" aria-label="Estado de sincronización">
           <span className="tip-bubble" role="tooltip">
             <span className="t-name">
               {cloudSync.userId === null ? 'Datos locales' : `Nube ${syncLabel}`}
@@ -105,7 +105,7 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
             <button
               type="button"
               className="avatar"
-              title={`${user} · cerrar sesion`}
+              title={`${user} · cerrar sesión`}
               onClick={() => {
                 endDemoSession()
                 void signOutAndClearCloudSession().finally(() => window.location.reload())
@@ -119,7 +119,7 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
         <main className="app-main">{props.children}</main>
 
         <p className="disclaimer">
-          RiskCalculator ofrece calculos y analisis con fines educativos. No es asesoramiento
+          RiskCalculator ofrece cálculos y análisis con fines educativos. No es asesoramiento
           financiero, no recomienda comprar ni vender y no predice precios.
         </p>
       </div>

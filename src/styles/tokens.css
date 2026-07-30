@@ -36,6 +36,14 @@
   --positive-muted: #497d65;
   --negative: #a8455a;
   --negative-muted: #823a4a;
+  /* Versión legible del negativo para TEXTO sobre tinte o superficie oscura,
+     igual que --brand-text lo es de --brand-primary. #a8455a solo alcanza
+     2,5–2,9:1 sobre las superficies; este llega a 5,6–6,6:1. */
+  --negative-text: #e08a99;
+  /* Igual para el positivo: #5aa17f solo da 4,34:1 sobre su propio tinte. */
+  --positive-text: #7cc4a0;
+  /* Y del aviso, que estaba escrito a mano como #f2d489 en tres reglas. */
+  --warning-text: #f2d489;
   --warning: #c99a3f;
   --info-neutral: #8b969c;
   --benchmark: #7b7f82;
@@ -55,13 +63,22 @@
   --track-na: #2f3234;
 
   /* gráficas */
-  --series-1: #bfa14a;
-  --series-2: #b6bcc2;
-  --series-3: #823a4a;
-  --series-4: #6d818f;
-  --series-5: #5f6d74;
-  --series-6: #497d65;
-  --series-7: #4e5f6b;
+  /* Orden categorico fijo, 6 slots. Validado con el script de la skill
+     dataviz sobre --surface-default en modo oscuro: banda de luminosidad,
+     suelo de croma, separacion para deuteranopia/protanopia/tritanopia
+     (peor par adyacente dE 11,1), suelo de vision normal (16,4) y contraste
+     >= 3:1 contra la superficie. Las cinco pasan.
+     La paleta anterior suspendia cuatro: dos de sus series tenian dE 6,6 en
+     vision normal, es decir, no se distinguian ni con vision de color plena.
+     Alterna calido/frio y luminosidad para que el orden siga siendo legible
+     al desaturar. A partir del sexto dato el color NO se cicla: se cae al
+     gris de --na (Otros). */
+  --series-1: #b0922e;
+  --series-2: #3f6bbf;
+  --series-3: #d36c6b;
+  --series-4: #99519e;
+  --series-5: #10a6ad;
+  --series-6: #2b7932;
   --chart-portfolio: #cfd2d0;
   --chart-area: rgba(182, 188, 194, 0.09);
   --chart-grid: rgba(240, 240, 236, 0.07);
@@ -78,15 +95,29 @@
 
   --fs-hero: 46px;
   --fs-result: 34px;
+  --fs-page: 24px; /* h1 de página: única escala para las 8 rutas */
+  --fs-section: 20px;
   --fs-card-title: 18px;
   --fs-kpi: 16px;
   --fs-body: 13px;
-  --fs-label: 11px;
+  /* Piso legible. Cualquier texto auxiliar en prosa (hints, avisos, leyendas,
+     metadatos) usa este tamaño como mínimo: por debajo de 12px el texto
+     corrido sobre fondo oscuro deja de leerse con comodidad. */
+  --fs-aux: 12px;
+  --fs-label: 11px; /* solo etiquetas en mayúsculas con tracking */
+
+  /* Display: cuanto más grande el tipo, más apretado. Medido en las
+     referencias (Linear h1 lh 1,00 / ls −0,022em · Mercury lh 1,10). */
+  --lh-display: 1.06;
+  --ls-display: -0.022em;
+
+  --fw-control: 500;
+  --fw-emphasis: 590;
 
   /* forma y espacio */
   --radius-card: 6px;
-  --radius-control: 5px;
-  --radius-chip: 4px;
+  --radius-control: 4px;
+  --radius-chip: 3px;
   --border-width: 1px;
   --space-1: 4px;
   --space-2: 8px;
@@ -101,7 +132,31 @@
   --mobile-nav-height: 58px;
 
   --focus-ring: 0 0 0 2px var(--app-bg), 0 0 0 4px var(--brand-primary);
+
+  /* Profundidad selectiva: si algo TAPA contenido, proyecta sombra; si
+     convive con él, no. Las tarjetas siguen planas a propósito.
+     Multicapa con alpha mínima y tintada al fondo de la app, como las dos
+     referencias medidas (Mercury tinta a su superficie; Linear apila 5 capas
+     de 0,01–0,08 más un anillo inset de 1px). */
   --shadow-card: none;
+  --shadow-popover:
+    0 0 0 1px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(8, 9, 10, 0.08),
+    0 6px 14px rgba(8, 9, 10, 0.12);
+  --shadow-overlay:
+    0 0 0 1px rgba(0, 0, 0, 0.2),
+    0 1px 1px rgba(8, 9, 10, 0.07),
+    0 3px 6px rgba(8, 9, 10, 0.1),
+    0 12px 24px rgba(8, 9, 10, 0.14);
+
+  /* Motion. Sin ease-in y sin rebote: en UI retrasan el momento que el
+     usuario mira. Techo de 280ms. */
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out-strong: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-instant: 90ms;
+  --dur-fast: 140ms;
+  --dur-base: 200ms;
+  --dur-slow: 280ms;
 }
 
 /* cifras: siempre serif 600 y tabulares */
@@ -120,9 +175,9 @@
   color: var(--text-secondary);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
+/* El apagado global de movimiento vive ahora en global.css, por casos.
+   Un `* { transition-duration: 0.01ms }` indiscriminado tambien mataba el
+   hover de los controles y el giro del caret, que son retroalimentacion util,
+   no decoracion. Bajo `prefers-reduced-motion` no se MUEVE nada, pero los
+   cambios de estado siguen siendo legibles. */
+

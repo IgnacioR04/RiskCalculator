@@ -13,11 +13,10 @@ import {
   YAxis,
 } from 'recharts'
 import type { Currency } from '../../lib/format'
+import { AXIS, GRID as CHART_GRID, TOOLTIP_CURSOR, TOOLTIP_STYLE } from './chartTheme'
 import { formatMoney, formatPct } from '../../lib/format'
 
 const SERIES_1 = 'var(--chart-portfolio)'
-const INK_MUTED = 'var(--text-secondary)'
-const GRID = 'var(--chart-grid)'
 
 export interface CurvePoint {
   growthPct: number // en puntos porcentuales (5 = +5 %)
@@ -37,21 +36,17 @@ export function ContributionCurveChart(props: {
     >
       <ResponsiveContainer>
         <LineChart data={props.points} margin={{ top: 12, right: 18, bottom: 4, left: 8 }}>
-          <CartesianGrid stroke={GRID} vertical={false} />
+          <CartesianGrid {...CHART_GRID} />
           <XAxis
             dataKey="growthPct"
             type="number"
             domain={['dataMin', 'dataMax']}
             tickFormatter={(v: number) => formatPct(v / 100, 0)}
-            stroke={INK_MUTED}
-            fontSize={12}
-            tickLine={false}
+            {...AXIS}
           />
           <YAxis
             tickFormatter={(v: number) => formatMoney(v, props.currency)}
-            stroke={INK_MUTED}
-            fontSize={12}
-            tickLine={false}
+            {...AXIS}
             width={80}
           />
           <Tooltip
@@ -60,7 +55,8 @@ export function ContributionCurveChart(props: {
               'Aportación necesaria',
             ]}
             labelFormatter={(g: unknown) => `Si sube ${formatPct(Number(g) / 100, 1)}`}
-            contentStyle={{ fontSize: 12, borderRadius: 6, background: 'var(--surface-raised)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            contentStyle={TOOLTIP_STYLE}
+            cursor={TOOLTIP_CURSOR}
           />
           <Line
             type="monotone"

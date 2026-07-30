@@ -187,7 +187,7 @@ export function RiesgoPage() {
             {cards.map((c) => (
               <div key={c.name} className="card-raised">
                 <div className="row" style={{ gap: 7 }}>
-                  <span style={{ fontSize: 8, color: `var(--${levelVar(c.level)})` }} aria-hidden="true">
+                  <span style={{ fontSize: 12, color: `var(--${levelVar(c.level)})` }} aria-hidden="true">
                     {levelGlyph(c.level)}
                   </span>
                   <span className="risk-card-name">{c.name}</span>

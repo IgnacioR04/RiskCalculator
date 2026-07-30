@@ -126,7 +126,7 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
       <Card title="Escenarios de estrés">
         <EmptyState icon="⇄" title="Necesito posiciones valoradas">
           <p>
-            Añade posiciones en <Link to="/cartera">Portfolio</Link> (o carga los datos demo) para
+            Añade posiciones en <Link to="/cartera">Cartera</Link> (o carga los datos demo) para
             simular shocks sobre tu cartera.
           </p>
         </EmptyState>

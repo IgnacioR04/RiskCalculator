@@ -20,6 +20,16 @@ import {
 } from 'recharts'
 import type { Currency } from '../../lib/format'
 import { formatDate, formatMoney, formatNumber } from '../../lib/format'
+import {
+  ACTIVE_DOT_RADIUS,
+  AXIS,
+  DOT_RADIUS,
+  GRID,
+  LINE_WIDTH,
+  TOOLTIP_CURSOR,
+  TOOLTIP_LABEL_STYLE,
+  TOOLTIP_STYLE,
+} from './chartTheme'
 
 export interface EvolutionPoint {
   /** ISO date. */
@@ -28,14 +38,6 @@ export interface EvolutionPoint {
   aportado: number
   /** Etiqueta legible del eje. */
   labelCorto: string
-}
-
-const TOOLTIP_STYLE = {
-  fontSize: 12,
-  borderRadius: 6,
-  background: 'var(--surface-raised)',
-  border: '1px solid var(--border-default)',
-  color: 'var(--text-primary)',
 }
 
 export function EvolutionChart(props: {
@@ -48,25 +50,13 @@ export function EvolutionChart(props: {
     <div style={{ width: '100%', height: 150 }}>
       <ResponsiveContainer>
         <LineChart data={props.points} margin={{ top: 10, right: 14, bottom: 0, left: 4 }}>
-          <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-          <XAxis
-            dataKey="labelCorto"
-            stroke="var(--text-disabled)"
-            fontSize={8.5}
-            tickLine={false}
-            axisLine={false}
-            minTickGap={24}
-          />
-          <YAxis
-            stroke="var(--text-disabled)"
-            fontSize={8.5}
-            tickLine={false}
-            axisLine={false}
-            width={54}
-            tickFormatter={(v: number) => formatNumber(v, 0)}
-          />
+          <CartesianGrid {...GRID} />
+          <XAxis dataKey="labelCorto" {...AXIS} minTickGap={24} />
+          <YAxis {...AXIS} width={54} tickFormatter={(v: number) => formatNumber(v, 0)} />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
+            cursor={TOOLTIP_CURSOR}
             formatter={(v: unknown) => [formatMoney(Number(v), props.currency), 'Capital aportado']}
             labelFormatter={(l: unknown) => String(l)}
           />
@@ -75,17 +65,25 @@ export function EvolutionChart(props: {
             dataKey="aportado"
             name="Capital aportado"
             stroke="var(--chart-portfolio)"
-            strokeWidth={2.2}
-            dot={{ r: 3.2, fill: 'var(--brand-primary)', stroke: 'none' }}
+            strokeWidth={LINE_WIDTH}
+            /* Anillo de 2px del color de superficie: separa el punto de la línea. */
+            dot={{
+              r: DOT_RADIUS,
+              fill: 'var(--brand-primary)',
+              stroke: 'var(--surface-default)',
+              strokeWidth: 2,
+            }}
+            activeDot={{ r: ACTIVE_DOT_RADIUS, stroke: 'var(--surface-default)', strokeWidth: 2 }}
             isAnimationActive={false}
           />
           {props.currentValue !== null && last !== undefined && (
             <ReferenceDot
               x={last.labelCorto}
               y={props.currentValue}
-              r={3.6}
+              r={DOT_RADIUS}
               fill="var(--info-neutral)"
-              stroke="none"
+              stroke="var(--surface-default)"
+              strokeWidth={2}
             />
           )}
         </LineChart>

@@ -63,12 +63,6 @@
   box-sizing: border-box;
 }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-}
-
 body {
   font-family: var(--font-sans);
   background: var(--color-bg);
@@ -86,34 +80,8 @@ body {
   flex-direction: column;
 }
 
-h1,
-h2,
-h3,
-h4 {
-  margin: 0 0 var(--space-3);
-  line-height: 1.25;
-}
-
 h1 {
   font-size: 1.45rem;
-}
-h2 {
-  font-size: 1.15rem;
-}
-h3 {
-  font-size: 1rem;
-}
-
-p {
-  margin: 0 0 var(--space-3);
-}
-
-a {
-  color: var(--color-primary);
-}
-
-button {
-  font: inherit;
 }
 
 /* ── Login ── */
@@ -152,15 +120,6 @@ button {
 
 /* ── Componentes ── */
 
-.card {
-  background: linear-gradient(180deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 88%, #000));
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-}
-
 .card.highlight {
   border-color: color-mix(in srgb, var(--color-primary) 60%, var(--color-border));
   box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--color-primary) 30%, transparent);
@@ -170,12 +129,6 @@ button {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-4);
 }
 
 @media (min-width: 680px) {
@@ -202,28 +155,6 @@ button {
   color: var(--color-text-muted);
 }
 
-.field input,
-.field select,
-.field textarea {
-  font: inherit;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  color: var(--color-text);
-  width: 100%;
-}
-
-.field input::placeholder,
-.field textarea::placeholder {
-  color: var(--color-text-faint);
-}
-
-.field select option {
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
 .field input:focus-visible,
 .field select:focus-visible,
 .field textarea:focus-visible,
@@ -233,36 +164,10 @@ a:focus-visible {
   outline-offset: 1px;
 }
 
-.field input[aria-invalid='true'] {
-  border-color: var(--color-negative);
-}
-
 .field .error {
   font-size: 0.78rem;
   color: var(--color-negative);
   font-weight: 600;
-}
-
-.input-suffix {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-suffix input {
-  padding-right: 44px;
-}
-
-.input-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  position: relative;
-}
-
-.input-search input {
-  flex: 1;
-  padding-left: 38px;
 }
 
 .input-search-icon {
@@ -324,7 +229,7 @@ a:focus-visible {
   font-weight: 600;
   font-size: 0.9rem;
   text-decoration: none;
-  transition: background 0.12s ease, border-color 0.12s ease, transform 0.06s ease;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform 0.06s ease;
 }
 
 .btn:hover {
@@ -336,31 +241,9 @@ a:focus-visible {
   transform: translateY(1px);
 }
 
-.btn.primary {
-  background: linear-gradient(180deg, #4a97f4, #2f74d6);
-  border-color: #2f74d6;
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgb(47 116 214 / 0.35);
-}
-
-.btn.primary:hover {
-  background: linear-gradient(180deg, #5aa2f6, #3a7fdd);
-}
-
-.btn.danger {
-  border-color: color-mix(in srgb, var(--color-negative) 55%, var(--color-border));
-  color: var(--color-negative);
-  background: var(--color-negative-soft);
-}
-
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.btn.small {
-  padding: 6px 10px;
-  font-size: 0.8rem;
 }
 
 /* Cifras y resultados */
@@ -397,14 +280,6 @@ a:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.positive {
-  color: var(--color-positive);
-}
-
-.negative {
-  color: var(--color-negative);
-}
-
 /* Notas y avisos */
 .note {
   border-radius: var(--radius-sm);
@@ -423,19 +298,19 @@ a:focus-visible {
 .note.warning {
   background: var(--color-warning-soft);
   border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
-  color: #f2d489;
+  color: var(--warning-text);
 }
 
 .note.negative {
   background: var(--color-negative-soft);
   border-color: color-mix(in srgb, var(--color-negative) 45%, transparent);
-  color: #f6b4b4;
+  color: var(--negative-text);
 }
 
 .note.demo {
   background: var(--color-warning-soft);
   border: 1px dashed color-mix(in srgb, var(--color-warning) 60%, transparent);
-  color: #f2d489;
+  color: var(--warning-text);
   font-weight: 600;
 }
 
@@ -492,19 +367,6 @@ table.data {
   border-collapse: collapse;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
-}
-
-table.data th,
-table.data td {
-  text-align: right;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
-}
-
-table.data th:first-child,
-table.data td:first-child {
-  text-align: left;
 }
 
 table.data th {
@@ -578,19 +440,10 @@ table.data tr.highlight td {
   color: var(--color-text-muted);
 }
 
-.empty-state .icon {
-  font-size: 2.2rem;
-  margin-bottom: var(--space-2);
-}
-
 /* Utilidades */
 .muted {
   color: var(--color-text-muted);
   font-size: 0.85rem;
-}
-
-.mono {
-  font-family: var(--font-mono);
 }
 
 .row {
@@ -604,28 +457,6 @@ table.data tr.highlight td {
   justify-content: space-between;
 }
 
-.mt-2 {
-  margin-top: var(--space-2);
-}
-.mt-4 {
-  margin-top: var(--space-4);
-}
-.mb-0 {
-  margin-bottom: 0;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* ── Producto y analítica ───────────────────────────────────────────────── */
 
 .page-heading {
@@ -636,9 +467,12 @@ table.data tr.highlight td {
   margin: var(--space-2) 0 var(--space-5);
 }
 
+/* Solo el margen: el tamaño y el tracking los define `.section-title`, que es
+   el h1 real de todas las rutas. Este override venía del diseño anterior y
+   hacía que Calculadora, Cartera e Importar renderizasen su título a 37,6px
+   con tracking negativo (sobre texto en mayúsculas) mientras las otras cinco
+   páginas lo dejaban en 11px. Mismo componente, dos tratamientos. */
 .page-heading h1 {
-  font-size: clamp(1.65rem, 4vw, 2.35rem);
-  letter-spacing: -0.035em;
   margin-bottom: var(--space-1);
 }
 
@@ -721,7 +555,7 @@ table.data tr.highlight td {
 .data-health ul {
   margin: 0;
   padding: 0 var(--space-6) var(--space-4);
-  color: #f2d489;
+  color: var(--warning-text);
   font-size: 0.82rem;
 }
 
@@ -792,7 +626,6 @@ table.data tr.highlight td {
   background:
     radial-gradient(circle at center, var(--color-surface) 57%, transparent 58%),
     conic-gradient(var(--color-primary), var(--series-6), var(--color-primary));
-  box-shadow: 0 0 35px rgb(63 143 240 / 0.14);
 }
 
 .concentration-ring strong {
@@ -851,10 +684,10 @@ table.data tr.highlight td {
 
 .position-meta span {
   padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--color-surface-3);
-  color: var(--color-text-muted);
-  font-size: 0.66rem;
+  border-radius: var(--radius-chip);
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  font-size: var(--fs-label);
 }
 
 .account-grid,
@@ -1167,7 +1000,8 @@ td.heatmap-cell {
 }
 
 .mode-explainer small {
-  color: var(--color-text-muted);
+  color: var(--text-secondary);
+  font-size: var(--fs-aux);
 }
 
 .recovery-visual {
@@ -1310,8 +1144,12 @@ h4 {
   font-weight: 500;
 }
 
+/* Escala única de títulos para las ocho rutas: antes cada página inventaba la
+   suya (67px en Cartera, 40px en Riesgo, 13,6px en Diversificación). */
 h1 {
-  font-size: 20px;
+  font-size: var(--fs-page);
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
 }
 h2 {
   font-size: var(--fs-card-title);
@@ -1375,7 +1213,25 @@ textarea:focus-visible,
   font-size: var(--fs-kpi);
 }
 .figure-sm {
-  font-size: 12px;
+  font-size: var(--fs-aux);
+}
+
+/* `.big-figure` es la clase heredada que usan la calculadora y el hero de
+   cartera. Se reconduce al sistema de cifras —serif 600, tabulares, tamaño
+   por token— para que la regla «toda cifra usa .figure» no tenga excepciones
+   justo en los números protagonistas. */
+.big-figure {
+  font-family: var(--font-figures);
+  font-weight: var(--fw-figures);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--text-primary);
+  font-size: clamp(28px, 6vw, var(--fs-result));
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+}
+
+.portfolio-hero .big-figure {
+  font-size: clamp(34px, 7vw, var(--fs-hero));
 }
 
 /* Símbolo de divisa: Archivo, ~30 % menor, secundario */
@@ -1388,7 +1244,7 @@ textarea:focus-visible,
 }
 
 .label {
-  font: 400 9.5px var(--font-ui);
+  font: 400 var(--fs-label) var(--font-ui);
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -1403,8 +1259,8 @@ textarea:focus-visible,
 }
 
 .meta {
-  font-size: 9.5px;
-  color: var(--text-tertiary);
+  font-size: var(--fs-aux);
+  color: var(--text-secondary);
 }
 
 .positive {
@@ -1469,7 +1325,7 @@ textarea:focus-visible,
   border: none;
   cursor: pointer;
   flex: 0 0 auto;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .rail-item:hover {
@@ -1538,7 +1394,10 @@ textarea:focus-visible,
   text-align: left;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.12s ease;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  /* Se superpone al contenido, así que proyecta sombra: es la misma regla que
+     siguen los tooltips de las gráficas. */
+  box-shadow: var(--shadow-popover);
 }
 
 .tip:hover .tip-bubble,
@@ -1555,7 +1414,7 @@ textarea:focus-visible,
 
 .tip-bubble .t-desc {
   display: block;
-  font: 400 10px/1.5 var(--font-ui);
+  font: 400 var(--fs-aux)/1.5 var(--font-ui);
   color: var(--text-secondary);
   margin-top: 2px;
 }
@@ -1574,11 +1433,11 @@ textarea:focus-visible,
 }
 
 .crumb {
-  font: 400 10.5px var(--font-ui);
+  font: 400 var(--fs-aux) var(--font-ui);
   color: var(--text-secondary);
 }
 .crumb-sep {
-  font: 400 10.5px var(--font-ui);
+  font: 400 var(--fs-aux) var(--font-ui);
   color: var(--text-disabled);
 }
 .crumb-leaf {
@@ -1602,7 +1461,7 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 500 9.5px var(--font-ui);
+  font: var(--fw-control) var(--fs-aux) var(--font-ui);
   color: var(--text-body);
   cursor: pointer;
   flex: 0 0 auto;
@@ -1634,7 +1493,7 @@ textarea:focus-visible,
 }
 
 .section-num {
-  font: 600 9.5px var(--font-mono);
+  font: 600 var(--fs-label) var(--font-mono);
   padding: 3px 7px;
   border-radius: 3px;
   background: var(--surface-default);
@@ -1833,7 +1692,7 @@ textarea:focus-visible,
 }
 
 .kpi-label {
-  font: 400 8.5px var(--font-ui);
+  font: 400 var(--fs-label) var(--font-ui);
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -1860,7 +1719,7 @@ textarea:focus-visible,
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font: 500 10.5px var(--font-ui);
+  font: var(--fw-control) var(--fs-body) var(--font-ui);
   padding: 8px 14px;
   border-radius: var(--radius-control);
   border: var(--border-width) solid var(--border-strong);
@@ -1869,7 +1728,7 @@ textarea:focus-visible,
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .btn:hover {
@@ -1890,7 +1749,8 @@ textarea:focus-visible,
 .btn.tertiary {
   border-color: transparent;
   background: transparent;
-  color: var(--text-disabled);
+  /* Es un control activo: --text-disabled solo daba 2,6:1. */
+  color: var(--text-secondary);
   padding: 8px 5px;
 }
 
@@ -1901,7 +1761,9 @@ textarea:focus-visible,
 
 .btn.danger {
   border-color: var(--negative-muted);
-  color: var(--negative);
+  /* Acción irreversible: el texto tiene que leerse. --negative sobre su
+     propio tinte daba 2,1:1; --negative-text da 5,9:1. */
+  color: var(--negative-text);
   background: var(--tint-negative);
 }
 
@@ -1914,7 +1776,7 @@ textarea:focus-visible,
 }
 
 .btn.small {
-  font-size: 10px;
+  font-size: var(--fs-aux);
   padding: 6px 11px;
 }
 
@@ -1924,7 +1786,7 @@ textarea:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font: 500 9.5px var(--font-ui);
+  font: var(--fw-control) var(--fs-label) var(--font-ui);
   padding: 4px 9px;
   border-radius: var(--radius-chip);
   background: var(--surface-raised);
@@ -1935,7 +1797,7 @@ textarea:focus-visible,
 
 .chip.positive {
   background: var(--tint-positive);
-  color: var(--positive);
+  color: var(--positive-text);
   border-color: transparent;
 }
 .chip.warning {
@@ -1945,12 +1807,12 @@ textarea:focus-visible,
 }
 .chip.negative {
   background: var(--tint-negative);
-  color: var(--negative);
+  color: var(--negative-text);
   border-color: transparent;
 }
 .chip.info {
   background: var(--tint-info);
-  color: var(--info-neutral);
+  color: var(--text-body);
   border-color: transparent;
 }
 .chip.brand {
@@ -1966,7 +1828,7 @@ textarea:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font: 500 9px var(--font-ui);
+  font: var(--fw-control) var(--fs-label) var(--font-ui);
   padding: 3px 7px;
   border-radius: var(--radius-chip);
   white-space: nowrap;
@@ -1979,7 +1841,7 @@ textarea:focus-visible,
   border-radius: 50%;
   border: var(--border-width) solid var(--border-strong);
   background: transparent;
-  font: 400 8px var(--font-ui);
+  font: 400 var(--fs-label) var(--font-ui);
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
@@ -1987,6 +1849,15 @@ textarea:focus-visible,
   cursor: help;
   padding: 0;
   flex: 0 0 auto;
+  /* El circulo se queda pequeno por diseno; el area tactil se amplia con un
+     pseudo-elemento para llegar a los 24x24 de WCAG 2.5.8 sin engordarlo. */
+  position: relative;
+}
+
+.help::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
 }
 
 /* ── Barra de riesgo de 4 estados ────────────────────────────────────────── */
@@ -2057,8 +1928,8 @@ textarea:focus-visible,
   display: flex;
   justify-content: space-between;
   margin-top: 6px;
-  font: 400 8.5px var(--font-ui);
-  color: var(--text-disabled);
+  font: 400 var(--fs-label) var(--font-ui);
+  color: var(--text-secondary);
 }
 
 .risk-legend .on {
@@ -2079,9 +1950,11 @@ textarea:focus-visible,
 }
 
 .segmented button {
-  font: 400 9.5px var(--font-ui);
-  padding: 5px 10px;
-  border-radius: 3px;
+  font: 400 var(--fs-aux) var(--font-ui);
+  /* WCAG 2.5.8 (AA): minimo 24x24. Antes 20px de alto. */
+  min-height: 24px;
+  padding: 5px 11px;
+  border-radius: var(--radius-chip);
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -2107,8 +1980,9 @@ textarea:focus-visible,
 }
 
 .tabs button {
-  font: 400 10.5px var(--font-ui);
-  padding: 7px 13px;
+  font: 400 var(--fs-aux) var(--font-ui);
+  min-height: 24px;
+  padding: 6px 13px;
   border-radius: var(--radius-control);
   border: none;
   background: transparent;
@@ -2165,7 +2039,7 @@ textarea:focus-visible,
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-size: 10.5px;
+  font-size: var(--fs-aux);
 }
 
 table.data th,
@@ -2183,8 +2057,8 @@ table.data td:first-child {
 }
 
 table.data th {
-  font: 500 8.5px var(--font-ui);
-  letter-spacing: 0.1em;
+  font: var(--fw-control) var(--fs-label) var(--font-ui);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
   border-bottom-color: var(--border-default);
@@ -2215,14 +2089,15 @@ table.data tr.highlight td {
 }
 
 .field label {
-  font: 400 8.5px var(--font-ui);
-  letter-spacing: 0.06em;
+  /* Etiqueta de campo: la lee todo el mundo antes de teclear. Estaba a 8,5px. */
+  font: 400 var(--fs-aux) var(--font-ui);
+  letter-spacing: 0.04em;
   color: var(--text-secondary);
 }
 
 .field .hint {
-  font: 400 9.5px/1.5 var(--font-ui);
-  color: var(--text-tertiary);
+  font: 400 var(--fs-aux)/1.5 var(--font-ui);
+  color: var(--text-secondary);
 }
 
 .field input,
@@ -2269,8 +2144,10 @@ table.data tr.highlight td {
 }
 
 .field .error {
-  font: 500 9.5px var(--font-ui);
-  color: var(--negative);
+  font: var(--fw-control) var(--fs-aux) var(--font-ui);
+  /* Un mensaje de error tiene que leerse: --negative solo da 2,6-3,3:1 sobre
+     las superficies. */
+  color: var(--negative-text);
 }
 
 /* Campo con celda interna (rejilla de la calculadora) */
@@ -2321,8 +2198,8 @@ table.data tr.highlight td {
 .input-suffix .suffix {
   position: absolute;
   right: 11px;
-  font: 400 10px var(--font-ui);
-  color: var(--text-tertiary);
+  font: 400 var(--fs-aux) var(--font-ui);
+  color: var(--text-secondary);
   pointer-events: none;
 }
 
@@ -2400,7 +2277,7 @@ input[type='range']::-moz-range-thumb {
 }
 
 .note .note-glyph {
-  font-size: 8px;
+  font-size: var(--fs-aux);
   margin-top: 4px;
   flex: 0 0 auto;
 }
@@ -2425,7 +2302,8 @@ input[type='range']::-moz-range-thumb {
   border-color: var(--negative-muted);
 }
 .note.negative .note-glyph {
-  color: var(--negative);
+  /* Sobre el tinte negativo, --negative queda en 2,6:1. */
+  color: var(--negative-text);
 }
 
 .note.demo {
@@ -2455,8 +2333,11 @@ details.disclose > summary {
   gap: 9px;
   cursor: pointer;
   list-style: none;
-  font: 500 11px var(--font-ui);
+  font: var(--fw-control) var(--fs-aux) var(--font-ui);
   color: var(--text-body);
+  /* Es un control de fila completa, no texto en linea: necesita los 24px. */
+  min-height: 24px;
+  padding: 3px 0;
 }
 
 details.disclose > summary::-webkit-details-marker {
@@ -2466,8 +2347,8 @@ details.disclose > summary::-webkit-details-marker {
 details.disclose > summary::before {
   content: '▸';
   color: var(--brand-text);
-  font-size: 9px;
-  transition: transform 0.12s ease;
+  font-size: var(--fs-label);
+  transition: transform var(--dur-fast) var(--ease-out);
 }
 
 details.disclose[open] > summary::before {
@@ -2484,7 +2365,7 @@ details.disclose .disclose-body {
 
 .formula {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-aux);
   color: var(--text-body);
   display: block;
   line-height: 1.8;
@@ -2619,8 +2500,8 @@ details.disclose .disclose-body {
 }
 
 .login-foot {
-  font: 400 9px/1.55 var(--font-ui);
-  color: var(--text-disabled);
+  font: 400 var(--fs-aux)/1.55 var(--font-ui);
+  color: var(--text-secondary);
   text-align: center;
   margin: 16px 0 0;
 }
@@ -2632,8 +2513,8 @@ details.disclose .disclose-body {
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: var(--text-tertiary);
-  font: 400 9.5px var(--font-ui);
+  color: var(--text-secondary);
+  font: 400 var(--fs-aux) var(--font-ui);
   cursor: pointer;
   padding: 4px 6px;
 }
@@ -2700,8 +2581,8 @@ details.disclose .disclose-body {
 }
 
 .disclaimer {
-  font: 400 9px/1.6 var(--font-ui);
-  color: var(--text-disabled);
+  font: 400 var(--fs-aux)/1.6 var(--font-ui);
+  color: var(--text-secondary);
   text-align: center;
   padding: 8px 16px 0;
   max-width: 720px;
@@ -2758,7 +2639,7 @@ details.disclose .disclose-body {
 }
 
 .risk-block table.data th {
-  font-size: 10px;
+  font-size: var(--fs-label);
 }
 
 .risk-block table.data td {
@@ -2767,7 +2648,7 @@ details.disclose .disclose-body {
 }
 
 .risk-block .meta {
-  font-size: 11px;
+  font-size: var(--fs-aux);
 }
 
 /* Fichas del resumen de riesgo (sección 04): tipografía legible. */
@@ -2783,7 +2664,7 @@ details.disclose .disclose-body {
 }
 
 .analytics-kpis .kpi-label {
-  font-size: 10px;
+  font-size: var(--fs-label);
 }
 
 .analytics-kpis .kpi-value {
@@ -2795,7 +2676,7 @@ details.disclose .disclose-body {
 }
 
 .card-sub {
-  font-size: 11px;
+  font-size: var(--fs-aux);
 }
 
 /* ── Matriz de riesgo (correlación / covarianza) ──────────────────────────
@@ -2828,7 +2709,7 @@ details.disclose .disclose-body {
   color: var(--text-secondary);
   padding: 4px 2px;
   white-space: nowrap;
-  transition: color 0.12s ease;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .rmatrix-head-cell.row {
@@ -2854,7 +2735,7 @@ details.disclose .disclose-body {
   font-variant-numeric: tabular-nums lining-nums;
   font-size: 13px;
   cursor: help;
-  transition: border-color 0.12s ease, transform 0.12s ease;
+  transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 
 .rmatrix-cell.diagonal {
@@ -2916,7 +2797,7 @@ details.disclose .disclose-body {
     font-size: 12px;
   }
   .rmatrix-head-cell {
-    font-size: 10.5px;
+    font-size: var(--fs-label);
   }
 }
 
@@ -2936,7 +2817,7 @@ details.disclose .disclose-body {
 }
 
 .div-metric .label {
-  font-size: 9.5px;
+  font-size: var(--fs-label);
 }
 
 .div-metric .figure {
@@ -2949,4 +2830,138 @@ details.disclose .disclose-body {
   font: 400 11px/1.5 var(--font-ui);
   color: var(--text-secondary);
   margin: 6px 0 0;
+}
+
+/* ── Profundidad selectiva ───────────────────────────────────────────────── */
+/* Los tooltips son lo único que se superpone al contenido, así que son lo
+   único que proyecta sombra. Una regla sirve para las seis gráficas: el
+   `contentStyle` inline de Recharts no define box-shadow. */
+.recharts-default-tooltip,
+.recharts-tooltip-wrapper > div {
+  box-shadow: var(--shadow-popover);
+}
+
+/* ── Texto sobre superficies teñidas ─────────────────────────────────────── */
+/* Un tinte al 14–16 % aclara la superficie y le come contraste al gris: el
+   secundario baja a 4,2:1 dentro de un callout. Sobre tinte, el texto sube un
+   paso. Es la contrapartida de la regla «nada de gris sobre color teñido». */
+.feature-callout .muted,
+.note .muted,
+.card-warning .muted {
+  color: var(--text-body);
+}
+
+/* ── Movimiento: entradas y reduced-motion ───────────────────────────────── */
+/* Cinco puentes donde el contenido teletransportaba. Solo `transform` y
+   `opacity`; `ease-out` siempre, nunca `ease-in` ni rebote; techo de 280ms y
+   ese techo solo en el nivel raro/primera vez.
+   Las entradas usan `@starting-style`, que no necesita JS: donde el navegador
+   no lo soporte el elemento simplemente aparece, que es el comportamiento
+   actual. */
+
+/* Entrada estándar: sube 6px y aparece. Filas 1 y 5 del informe. */
+.enter-rise {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+@starting-style {
+  .enter-rise {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Confirmación junto a un botón: desplazamiento lateral mínimo. Fila 4. */
+.enter-aside {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+@starting-style {
+  .enter-aside {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+
+/* Estado vacío: el único sitio donde se admite un tiempo más largo, porque es
+   raro y de primera vez. El glifo entra 60ms después del texto. Fila 3. */
+.empty-state {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--dur-slow) var(--ease-out-strong),
+    transform var(--dur-slow) var(--ease-out-strong);
+}
+
+.empty-state .icon {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--dur-slow) var(--ease-out-strong) 60ms,
+    transform var(--dur-slow) var(--ease-out-strong) 60ms;
+}
+
+@starting-style {
+  .empty-state {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  .empty-state .icon {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Fila 2 (apertura animada del desplegable): REVERTIDA.
+   La receta canónica —`::details-content` con `height: 0 -> auto`,
+   `overflow: hidden` e `interpolate-size: allow-keywords`— se implementó y se
+   probó en Chrome 148: la transición no arranca y, peor, el `height: 0` con
+   `overflow: hidden` clipa el contenido de forma permanente. Medido en un
+   `<details>` aislado: 41px de alto tanto cerrado como abierto, es decir, el
+   desglose matemático quedaba invisible al abrirlo.
+   Un salto instantáneo es preferible a contenido oculto, así que el cuerpo
+   vuelve a abrir de golpe. El caret sigue girando en 140ms.
+   Pendiente de revisar cuando el soporte de `::details-content` madure. */
+
+/* Reduced-motion: se reduce, no se apaga.
+   Sustituye al antiguo `* { transition-duration: 0.01ms !important }`, que
+   también mataba el hover de los controles y el giro del caret —
+   retroalimentación útil, no decoración. Aquí no se MUEVE nada (se anula la
+   traslación y la interpolación de altura) pero el fundido se conserva, así
+   que el cambio de estado sigue siendo legible. */
+@media (prefers-reduced-motion: reduce) {
+  .enter-rise,
+  .enter-aside,
+  .empty-state,
+  .empty-state .icon {
+    transform: none;
+  }
+
+  @starting-style {
+    .enter-rise,
+    .enter-aside,
+    .empty-state,
+    .empty-state .icon {
+      transform: none;
+    }
+  }
+
+  /* Las animaciones en bucle sí se detienen: son las que molestan de verdad. */
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* `<small>` hereda 0,8125em del navegador; sobre una base de 13px eso da
+   10,5px, por debajo del piso legible. */
+small {
+  font-size: var(--fs-aux);
 }

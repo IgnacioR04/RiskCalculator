@@ -14,6 +14,14 @@ import {
   YAxis,
 } from 'recharts'
 import type { Currency } from '../../lib/format'
+import {
+  AXIS,
+  GRID as CHART_GRID,
+  LEGEND_STYLE,
+  TOOLTIP_CURSOR,
+  TOOLTIP_LABEL_STYLE,
+  TOOLTIP_STYLE,
+} from './chartTheme'
 import { formatMoney, formatNumber } from '../../lib/format'
 
 const SERIES: Record<string, string> = {
@@ -60,17 +68,15 @@ export function ProjectionChart(props: {
     <div style={{ width: '100%', height: 300 }} role="img" aria-label="Proyección del valor del portfolio">
       <ResponsiveContainer>
         <LineChart data={rows} margin={{ top: 12, right: 18, bottom: 4, left: 8 }}>
-          <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+          <CartesianGrid {...CHART_GRID} />
           <XAxis
             dataKey="year"
-            stroke="var(--text-secondary)"
-            fontSize={12}
+            {...AXIS}
             tickLine={false}
             tickFormatter={(y: number) => `${y}a`}
           />
           <YAxis
-            stroke="var(--text-secondary)"
-            fontSize={12}
+            {...AXIS}
             tickLine={false}
             width={72}
             tickFormatter={(v: number) => formatNumber(v, 0)}
@@ -78,15 +84,11 @@ export function ProjectionChart(props: {
           <Tooltip
             formatter={(value: unknown, name: unknown) => [formatMoney(Number(value), props.currency), String(name)]}
             labelFormatter={(y: unknown) => `Dentro de ${Number(y)} año(s)`}
-            contentStyle={{
-              fontSize: 12,
-              borderRadius: 6,
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            contentStyle={TOOLTIP_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
+            cursor={TOOLTIP_CURSOR}
           />
-          <Legend wrapperStyle={{ fontSize: 12.5 }} />
+          <Legend wrapperStyle={LEGEND_STYLE} />
           {props.scenarios.map((s) => (
             <Line
               key={s.name}

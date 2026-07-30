@@ -41,15 +41,18 @@ export function Card(props: {
   variant?: CardVariant
   /** Compatibilidad con el uso anterior: highlight={true}. */
   highlight?: boolean
+  /** Clases extra; se usa para las entradas (`enter-rise`). */
+  className?: string
   children: ReactNode
 }) {
   const variant: CardVariant = props.highlight === true ? 'highlight' : (props.variant ?? 'default')
+  const extra = props.className !== undefined ? ` ${props.className}` : ''
 
   // El título de una tarjeta es siempre un encabezado real (h2): la jerarquía
   // debe existir para lectores de pantalla aunque visualmente sea pequeña.
   if (variant === 'highlight') {
     return (
-      <section className="card-highlight">
+      <section className={`card-highlight${extra}`}>
         <div className="accent-rule" />
         <div style={{ flex: 1, minWidth: 0 }}>
           {props.title !== undefined && (
@@ -65,7 +68,7 @@ export function Card(props: {
 
   const cls = variant === 'warning' ? 'card-warning' : variant === 'raised' ? 'card-raised' : 'card'
   return (
-    <section className={cls}>
+    <section className={`${cls}${extra}`}>
       {(props.title !== undefined || props.action !== undefined) && (
         <div className="card-head" style={{ marginBottom: props.children !== undefined ? 10 : 0 }}>
           <div>
@@ -417,7 +420,7 @@ export function InputCell(props: {
           aria-invalid={props.error !== undefined ? 'true' : undefined}
         />
         {props.suffix !== undefined && (
-          <span style={{ font: '400 10px var(--font-ui)', color: 'var(--text-secondary)' }}>{props.suffix}</span>
+          <span style={{ font: '400 var(--fs-aux) var(--font-ui)', color: 'var(--text-secondary)' }}>{props.suffix}</span>
         )}
       </div>
       {props.error !== undefined && (
@@ -472,7 +475,13 @@ export function Disclose(props: { summary: string; aside?: string; children: Rea
       <summary>
         {props.summary}
         {props.aside !== undefined && (
-          <span style={{ marginLeft: 'auto', font: '400 9px var(--font-ui)', color: 'var(--text-disabled)' }}>
+          <span
+            style={{
+              marginLeft: 'auto',
+              font: '400 var(--fs-aux) var(--font-ui)',
+              color: 'var(--text-secondary)',
+            }}
+          >
             {props.aside}
           </span>
         )}

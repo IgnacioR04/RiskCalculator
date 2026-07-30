@@ -16,6 +16,13 @@ import {
   YAxis,
 } from 'recharts'
 import type { Currency } from '../../lib/format'
+import {
+  AXIS,
+  GRID as CHART_GRID,
+  LEGEND_STYLE,
+  TOOLTIP_CURSOR,
+  TOOLTIP_STYLE,
+} from './chartTheme'
 import { formatMoney, formatNumber } from '../../lib/format'
 
 export interface PricePoint {
@@ -31,8 +38,6 @@ export interface PriceMarker {
 
 const SERIES_1 = 'var(--brand-primary)' // con aportación
 const SERIES_2 = 'var(--series-4)' // sin aportación
-const INK_MUTED = 'var(--text-secondary)'
-const GRID = 'var(--chart-grid)'
 
 export function PriceOutcomeChart(props: {
   points: PricePoint[]
@@ -46,34 +51,33 @@ export function PriceOutcomeChart(props: {
     <div style={{ width: '100%', height: 300 }} role="img" aria-label="Resultado neto según el precio del activo">
       <ResponsiveContainer>
         <LineChart data={props.points} margin={{ top: 16, right: 18, bottom: 4, left: 8 }}>
-          <CartesianGrid stroke={GRID} vertical={false} />
+          <CartesianGrid {...CHART_GRID} />
           <XAxis
             dataKey="price"
             type="number"
             domain={['dataMin', 'dataMax']}
             tickFormatter={fmtAxis}
-            stroke={INK_MUTED}
-            fontSize={12}
-            tickLine={false}
+            {...AXIS}
           />
-          <YAxis tickFormatter={fmtAxis} stroke={INK_MUTED} fontSize={12} tickLine={false} width={70} />
+          <YAxis tickFormatter={fmtAxis} {...AXIS} width={70} />
           <Tooltip
             formatter={(value: unknown, name: unknown) => [fmtMoney(Number(value)), String(name)]}
             labelFormatter={(price: unknown) => `Precio ${fmtMoney(Number(price))}`}
-            contentStyle={{ fontSize: 12, borderRadius: 6, background: 'var(--surface-raised)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            contentStyle={TOOLTIP_STYLE}
+            cursor={TOOLTIP_CURSOR}
           />
-          <Legend wrapperStyle={{ fontSize: 13 }} />
-          <ReferenceLine y={0} stroke={INK_MUTED} strokeWidth={1.5} />
+          <Legend wrapperStyle={LEGEND_STYLE} />
+          <ReferenceLine y={0} stroke={AXIS.stroke} strokeWidth={1} />
           {props.markers.map((m) => (
             <ReferenceLine
               key={m.label}
               x={m.price}
-              stroke={INK_MUTED}
+              stroke={AXIS.stroke}
               strokeDasharray="4 4"
               label={{
                 value: m.label,
                 position: 'top',
-                fill: INK_MUTED,
+                fill: AXIS.stroke,
                 fontSize: 11,
               }}
             />

@@ -173,6 +173,58 @@ export function breakevenContribution(
   }
 }
 
+export interface BreakevenFromValuesInput {
+  /** Capital histórico aportado hasta hoy (C ≥ 0), sin la aportación nueva. */
+  historicCapital: DecimalValue
+  /** Valor actual de la posición (V > 0), antes de aportar nada. */
+  currentValue: DecimalValue
+  /** Subida esperada desde hoy hasta el objetivo (0,05 = +5 %). */
+  expectedGrowth: DecimalValue
+}
+
+/**
+ * Equilibrio económico real expresado en valores, sin necesitar unidades ni
+ * precios. Se apoya en que la fórmula solo depende de C, V y g:
+ *
+ *   A = (C − V·(1 + g)) / g
+ *
+ * que es exactamente `breakevenContribution` con la base normalizada q = 1,
+ * P_actual = V y P_obj = V·(1 + g). Delegar en ella mantiene una sola
+ * implementación del análisis de dominio (alcanzable / ya alcanzado /
+ * inalcanzable) en lugar de duplicarlo.
+ *
+ * Existe para que el modo «restaurar valor» pueda mostrar las dos cifras a la
+ * vez con los datos que ya pide, sin exigir precio medio ni precio actual.
+ */
+export function breakevenFromValues(input: BreakevenFromValuesInput): BreakevenResult {
+  const c = dec(input.historicCapital)
+  const v = dec(input.currentValue)
+  const g = dec(input.expectedGrowth)
+  if (c.lt(0)) throw new RangeError('El capital aportado no puede ser negativo')
+  if (v.lt(0)) throw new RangeError('El valor actual no puede ser negativo')
+  if (g.lte(-1)) throw new RangeError('La subida esperada debe ser mayor que −100 %')
+
+  if (v.lte(0)) {
+    // Sin valor actual no hay precio de referencia al que comprar: la posición
+    // no puede crecer, así que ninguna aportación alcanza el equilibrio.
+    return {
+      status: c.lte(0) ? 'already_achieved' : 'unreachable',
+      contribution: null,
+      netWithoutContribution: c.negated(),
+      explanation: c.lte(0)
+        ? 'Sin capital aportado y sin valor actual no hay pérdida que recuperar.'
+        : 'Con un valor actual de 0 la posición no puede revalorizarse, así que ninguna aportación alcanza el equilibrio.',
+    }
+  }
+
+  return breakevenContribution({
+    quantity: 1,
+    cost: c,
+    currentPrice: v,
+    targetPrice: v.times(g.plus(1)),
+  })
+}
+
 export interface TargetPriceResult {
   /** Precio de equilibrio: (C + A) / (q + A/P_actual). */
   breakevenPrice: Decimal

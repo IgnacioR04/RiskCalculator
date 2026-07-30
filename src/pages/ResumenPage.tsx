@@ -249,7 +249,7 @@ export function ResumenPage() {
               <Figure size="result" className="mt-1">
                 {formatMoney(biggestLoss.unrealizedPnl!.abs(), displayCurrency)}
               </Figure>
-              <p style={{ font: '400 10.5px/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 6 }}>
+              <p style={{ font: '400 var(--fs-aux)/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 6 }}>
                 Es lo que pierdes ahora mismo en <b style={{ color: 'var(--text-primary)' }}>{biggestLoss.asset.symbol}</b>. La
                 calculadora te dice cuánto tendrías que aportar para volver al equilibrio.
               </p>
@@ -270,7 +270,7 @@ export function ResumenPage() {
               <Help text="Resume la concentración de tu cartera. No es una nota de calidad ni un consejo." />
             </div>
             <div className="row" style={{ alignItems: 'baseline', gap: 9, marginTop: 5 }}>
-              <span style={{ fontSize: 9, color: 'var(--warning)' }} aria-hidden="true">
+              <span style={{ fontSize: 12, color: 'var(--warning)' }} aria-hidden="true">
                 {riskLevel === 'ok' ? '●' : riskLevel === 'warn' ? '▲' : riskLevel === 'high' ? '■' : '—'}
               </span>
               <Figure size="result" className="mb-0">
@@ -289,11 +289,11 @@ export function ResumenPage() {
               <RiskScale level={riskLevel} />
             </div>
             {topPosition !== undefined && view.concentration.maxWeight !== null && (
-              <p style={{ font: '400 10px/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 10 }}>
+              <p style={{ font: '400 var(--fs-aux)/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 10 }}>
                 <b style={{ color: 'var(--text-primary)' }}>{topPosition.asset.symbol}</b> es el{' '}
                 <b style={{ color: 'var(--text-primary)' }}>{formatPct(view.concentration.maxWeight, 1)}</b> de tu
                 dinero.{' '}
-                <Link to="/riesgo" style={{ fontSize: 10 }}>
+                <Link to="/riesgo" style={{ fontSize: 12 }}>
                   Ver el análisis completo
                 </Link>
               </p>
@@ -303,7 +303,7 @@ export function ResumenPage() {
           <Card>
             <div className="row spread">
               <span className="label">Dónde está tu dinero</span>
-              <Link to="/diversificacion" style={{ font: '400 9.5px var(--font-ui)' }}>
+              <Link to="/diversificacion" style={{ font: '400 var(--fs-aux) var(--font-ui)' }}>
                 ver detalle
               </Link>
             </div>
@@ -320,7 +320,7 @@ export function ResumenPage() {
                 />
                 <div className="stack mt-2">
                   {view.byType.map((slice, i) => (
-                    <div key={slice.key} className="row" style={{ gap: 7, font: '400 10px var(--font-ui)' }}>
+                    <div key={slice.key} className="row" style={{ gap: 7, font: '400 var(--fs-aux) var(--font-ui)' }}>
                       <SeriesDot index={i} />
                       {slice.label}
                       <span style={{ marginLeft: 'auto' }}>
@@ -337,10 +337,10 @@ export function ResumenPage() {
             {view.warnings.length > 0 ? (
               <>
                 <span className="chip warning">▲ {view.warnings.length} dato(s) por revisar</span>
-                <div style={{ font: '400 10px/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 9 }}>
+                <div style={{ font: '400 var(--fs-aux)/1.55 var(--font-ui)', color: 'var(--text-body)', marginTop: 9 }}>
                   {view.warnings[0]}
                 </div>
-                <Link to="/cartera" style={{ font: '400 10px var(--font-ui)' }}>
+                <Link to="/cartera" style={{ font: '400 var(--fs-aux) var(--font-ui)' }}>
                   Revisar en Cartera
                 </Link>
               </>
@@ -351,7 +351,7 @@ export function ResumenPage() {
               <>
                 <div className="divider" />
                 <div className="meta">Último movimiento</div>
-                <div className="row" style={{ gap: 7, font: '400 10px var(--font-ui)', marginTop: 3 }}>
+                <div className="row" style={{ gap: 7, font: '400 var(--fs-aux) var(--font-ui)', marginTop: 3 }}>
                   {lastMovement.type === 'buy' ? 'Compra' : 'Venta'}{' '}
                   {assets.find((a) => a.id === lastMovement.assetId)?.symbol ?? ''}
                   <span style={{ marginLeft: 'auto' }}>

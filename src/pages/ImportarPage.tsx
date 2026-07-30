@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Card, Note, QualityChip, SectionHeader, Segmented } from '../components/ui'
 import { buildImportProposal, type ImportProposal } from '../lib/import/convert'
 import {
@@ -22,6 +22,8 @@ export function ImportarPage() {
   const [validation, setValidation] = useState<ImportValidation | null>(null)
   const [proposal, setProposal] = useState<ImportProposal | null>(null)
   const [confirmed, setConfirmed] = useState(false)
+  /** Cerrojo sincrónico contra el doble clic en «Confirmar cambios». */
+  const confirmingRef = useRef(false)
   const [copied, setCopied] = useState(false)
 
   const updatePrompt = useMemo(
@@ -53,6 +55,7 @@ export function ImportarPage() {
     setValidation(null)
     setProposal(null)
     setConfirmed(false)
+    confirmingRef.current = false
   }
 
   function validate() {
@@ -84,6 +87,15 @@ export function ImportarPage() {
 
   function confirm() {
     if (proposal === null || validation?.ok !== true || validation.payload === null) return
+    /**
+     * Cerrojo contra el doble clic. Limpiar el estado al final no basta: dos
+     * clics rápidos se procesan antes de que React vuelva a renderizar, y en el
+     * segundo `proposal` sigue vivo en el closure, así que la importación
+     * entera se escribiría dos veces y duplicaría las operaciones. El ref se
+     * actualiza de forma sincrónica, así que sí corta la segunda llamada.
+     */
+    if (confirmingRef.current) return
+    confirmingRef.current = true
     const confirmedAt = new Date().toISOString()
     for (const account of proposal.newAccounts) store.addAccount(account)
     for (const asset of proposal.newAssets) store.addAsset(asset)
@@ -212,7 +224,7 @@ export function ImportarPage() {
       </Card>
 
       {validation !== null && !validation.ok && (
-        <Card title="Necesita correcciones">
+        <Card title="Necesita correcciones" className="enter-rise">
           <Note kind="negative">
             <strong>No se ha guardado nada.</strong>
             <ul>
@@ -223,7 +235,7 @@ export function ImportarPage() {
       )}
 
       {validation?.ok === true && proposal !== null && (
-        <Card highlight title="Previsualización">
+        <Card highlight title="Previsualización" className="enter-rise">
           <div className="preview-kpis">
             <div><strong>{proposal.newAccounts.length}</strong><span>Cuentas nuevas</span></div>
             <div><strong>{proposal.newAssets.length}</strong><span>Activos nuevos</span></div>

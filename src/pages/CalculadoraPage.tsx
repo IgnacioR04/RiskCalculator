@@ -10,6 +10,7 @@ import { TickerSearch } from '../components/TickerSearch'
 import { Decimal, dec } from '../lib/finance/decimal'
 import {
   breakevenContribution,
+  breakevenFromValues,
   growthFromPrices,
   outcomeAtPrice,
   requiredGrowthToRestore,
@@ -116,6 +117,7 @@ export function CalculadoraPage() {
 
 function RestoreCalculator({ currency }: { currency: Currency }) {
   const addScenario = useAppStore((s) => s.addScenario)
+  const addRiskResult = useAppStore((s) => s.addRiskResult)
   const [saved, setSaved] = useState(false)
 
   const cRef = useField('100')
@@ -146,6 +148,28 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
       expectedGrowth: growthPct.value!.div(100),
     })
   }, [ready, cRef.value, vNow.value, growthPct.value])
+
+  /**
+   * El equilibrio real con los mismos datos que ya pide este modo. Sin esto la
+   * pantalla mostraría un solo objetivo, que es justo lo que el producto no
+   * debe hacer: la diferencia entre ambos es su razón de existir.
+   */
+  const breakeven = useMemo(() => {
+    if (!ready) return null
+    return breakevenFromValues({
+      historicCapital: cRef.value!,
+      currentValue: vNow.value!,
+      expectedGrowth: growthPct.value!.div(100),
+    })
+  }, [ready, cRef.value, vNow.value, growthPct.value])
+
+  /** Cuánto más cuesta el equilibrio real que restaurar el valor mostrado. */
+  const breakevenGap = useMemo(() => {
+    if (result === null || breakeven === null) return null
+    if (breakeven.status !== 'achievable') return null
+    const gap = breakeven.contribution!.minus(result.contribution)
+    return gap.gt(0) ? gap : null
+  }, [result, breakeven])
 
   const budgetGrowth = useMemo(() => {
     if (!ready || budget.value === null || budgetError !== undefined) return null
@@ -225,27 +249,58 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
 
       {result !== null && ready && (
         <>
-          <Card highlight title="Capital para restaurar el valor inicial">
-            {result.alreadyRestored ? (
-              <>
-                <p className="big-figure">{formatMoney(0, currency)}</p>
-                <p>
-                  No necesitas aportar nada: si tu posición sube un{' '}
-                  {formatPct(growthPct.value!.div(100))}, pasaría a valer{' '}
-                  <strong>{formatMoney(result.valueAtTarget, currency)}</strong>, igual o por encima
-                  de {formatMoney(cRef.value!, currency)}.
+          <Card highlight title="Dos números distintos para tu objetivo">
+            <div className="grid-2">
+              <div>
+                <h3>Restaurar el valor inicial</h3>
+                <p className="big-figure">
+                  {formatMoney(result.alreadyRestored ? 0 : result.contribution, currency)}
                 </p>
-              </>
-            ) : (
-              <>
-                <p className="big-figure">{formatMoney(result.contribution, currency)}</p>
-                <p>
-                  Si aportas <strong>{formatMoney(result.contribution, currency)}</strong> hoy y tu
-                  posición sube un <strong>{formatPct(growthPct.value!.div(100))}</strong>, volverá
-                  a valer <strong>{formatMoney(result.valueAtTarget, currency)}</strong>.
+                {result.alreadyRestored ? (
+                  <p className="muted">
+                    No necesitas aportar nada: si tu posición sube un{' '}
+                    {formatPct(growthPct.value!.div(100))}, pasaría a valer{' '}
+                    <strong>{formatMoney(result.valueAtTarget, currency)}</strong>, igual o por
+                    encima de {formatMoney(cRef.value!, currency)}.
+                  </p>
+                ) : (
+                  <p className="muted">
+                    Aportación para que, subiendo un{' '}
+                    <strong>{formatPct(growthPct.value!.div(100))}</strong>, tu posición vuelva a{' '}
+                    <em>mostrar</em> {formatMoney(cRef.value!, currency)}. No implica recuperar todo
+                    tu dinero: contando lo nuevo, tu resultado neto sería{' '}
+                    <SignedValue
+                      formatted={formatMoney(result.netResultAtTarget, currency)}
+                      sign={sign(result.netResultAtTarget)}
+                    />
+                    .
+                  </p>
+                )}
+              </div>
+              <div>
+                <h3>Punto de equilibrio real</h3>
+                <p className="big-figure">
+                  {breakeven === null
+                    ? '—'
+                    : breakeven.status === 'achievable'
+                      ? formatMoney(breakeven.contribution!, currency)
+                      : breakeven.status === 'already_achieved'
+                        ? formatMoney(0, currency)
+                        : '—'}
                 </p>
-              </>
-            )}
+                <p className="muted">{breakeven?.explanation}</p>
+                {breakeven?.status === 'unreachable' && (
+                  <Note kind="negative">
+                    Sin aportar nada, en ese objetivo tu resultado sería{' '}
+                    <SignedValue
+                      formatted={formatMoney(breakeven.netWithoutContribution, currency)}
+                      sign={sign(breakeven.netWithoutContribution)}
+                    />
+                    . Prueba con una subida esperada mayor que 0 %.
+                  </Note>
+                )}
+              </div>
+            </div>
             <div className="recovery-visual" aria-label="Camino desde el valor actual al objetivo">
               <div>
                 <span>Hoy</span>
@@ -271,17 +326,22 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
                 <strong>{formatMoney(cRef.value!, currency)}</strong>
               </div>
             </div>
-            <Note kind="warning">
-              <strong>Ojo:</strong> volver a ver {formatMoney(cRef.value!, currency)} en tu posición{' '}
-              <em>no</em> significa recuperar todo tu dinero. Habrías aportado en total{' '}
-              <strong>{formatMoney(result.totalCapital, currency)}</strong>, así que en ese objetivo
-              tu resultado económico sería{' '}
+            <Note kind="info">
+              <strong>¿Por qué no coinciden?</strong> «Restaurar» solo pide que la posición vuelva a
+              mostrar {formatMoney(cRef.value!, currency)}; el dinero nuevo que aportas también
+              cuenta como coste, así que en ese objetivo tu resultado económico sería{' '}
               <SignedValue
                 formatted={formatMoney(result.netResultAtTarget, currency)}
                 sign={sign(result.netResultAtTarget)}
               />
-              . Para saber cuánto necesitas para no perder dinero, usa la pestaña «Punto de
-              equilibrio real».
+              . El «equilibrio real» exige que el valor cubra <em>todo</em> lo aportado, incluida la
+              aportación nueva, por eso suele ser bastante mayor
+              {breakevenGap !== null && (
+                <>
+                  : <strong>{formatMoney(breakevenGap, currency)}</strong> más que restaurar el valor
+                </>
+              )}
+              .
             </Note>
             <div className="stat-grid">
               <Stat label="Valor en el objetivo">{formatMoney(result.valueAtTarget, currency)}</Stat>
@@ -295,18 +355,32 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
             </div>
             <MathDetails>
               <p>
-                Fórmula: <span className="formula">A = max(0, C_ref / (1 + g) − V_actual)</span>
-              </p>
-              <p>
-                Con tus datos:{' '}
+                Restaurar valor:{' '}
+                <span className="formula">A = max(0, C_ref / (1 + g) − V_actual)</span> ={' '}
                 <span className="formula">
-                  A = {cRef.value!.toString()} / (1 + {growthPct.value!.div(100).toString()}) −{' '}
+                  {cRef.value!.toString()} / (1 + {growthPct.value!.div(100).toString()}) −{' '}
                   {vNow.value!.toString()} = {result.contribution.toDP(6).toString()}
                 </span>
               </p>
+              <p>
+                Equilibrio real: <span className="formula">A = (C − V_actual·(1 + g)) / g</span>
+                {breakeven?.status === 'achievable' && (
+                  <>
+                    {' '}
+                    ={' '}
+                    <span className="formula">
+                      ({cRef.value!.toString()} − {vNow.value!.toString()}·(1 +{' '}
+                      {growthPct.value!.div(100).toString()})) /{' '}
+                      {growthPct.value!.div(100).toString()} ={' '}
+                      {breakeven.contribution!.toDP(6).toString()}
+                    </span>
+                  </>
+                )}
+              </p>
               <p className="muted">
-                C_ref = cantidad de referencia · V_actual = valor actual · g = subida esperada. Sin
-                comisiones ni efecto divisa en esta calculadora independiente.
+                C_ref = cantidad de referencia · C = capital aportado (aquí, el mismo valor de
+                referencia) · V_actual = valor actual · g = subida esperada. Sin comisiones ni
+                efecto divisa en esta calculadora independiente.
               </p>
             </MathDetails>
             <div className="row">
@@ -314,25 +388,60 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
                 type="button"
                 className="btn primary"
                 onClick={() => {
+                  const savedAt = new Date().toISOString()
+                  const scenarioId = uid()
+                  const inputs = {
+                    referenceValue: cRef.value!.toString(),
+                    currentValue: vNow.value!.toString(),
+                    expectedGrowthPct: growthPct.value!.toString(),
+                    ...(budget.value !== null ? { budget: budget.value.toString() } : {}),
+                  }
                   addScenario({
-                    id: uid(),
+                    id: scenarioId,
                     name: `Restaurar ${formatMoney(cRef.value!, currency)} con +${growthPct.value!.toString()} %`,
-                    createdAt: new Date().toISOString(),
+                    createdAt: savedAt,
                     mode: 'restore',
                     currency,
-                    inputs: {
-                      referenceValue: cRef.value!.toString(),
-                      currentValue: vNow.value!.toString(),
-                      expectedGrowthPct: growthPct.value!.toString(),
-                      ...(budget.value !== null ? { budget: budget.value.toString() } : {}),
+                    inputs,
+                  })
+                  addRiskResult({
+                    id: uid(),
+                    resultType: 'calculator',
+                    sourceId: scenarioId,
+                    inputs: { mode: 'restore', currency, ...inputs },
+                    result: {
+                      contribution: result.contribution.toString(),
+                      alreadyRestored: result.alreadyRestored,
+                      valueAtTarget: result.valueAtTarget.toString(),
+                      totalCapital: result.totalCapital.toString(),
+                      netResultAtTarget: result.netResultAtTarget.toString(),
+                      // Las dos cifras viajan juntas también en el guardado: un
+                      // cálculo archivado con solo una repetiría el problema.
+                      ...(breakeven !== null
+                        ? {
+                            breakevenStatus: breakeven.status,
+                            breakevenContribution: breakeven.contribution?.toString() ?? null,
+                            breakevenNetWithoutContribution:
+                              breakeven.netWithoutContribution.toString(),
+                          }
+                        : {}),
+                      ...(budgetGrowth !== null
+                        ? { requiredGrowthWithBudgetPct: budgetGrowth.times(100).toString() }
+                        : {}),
                     },
+                    calculatedAt: savedAt,
+                    createdAt: savedAt,
                   })
                   setSaved(true)
                 }}
               >
-                Guardar como escenario
+                Guardar cálculo
               </button>
-              {saved && <span className="muted">Guardado en «Escenarios». No ejecuta ninguna compra.</span>}
+              {saved && (
+                <span className="muted enter-aside">
+                  Guardado en cálculos y escenarios. No ejecuta ninguna compra.
+                </span>
+              )}
             </div>
           </Card>
 
@@ -426,6 +535,7 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
 
 function BreakevenCalculator({ currency }: { currency: Currency }) {
   const addScenario = useAppStore((s) => s.addScenario)
+  const addRiskResult = useAppStore((s) => s.addRiskResult)
   const [saved, setSaved] = useState(false)
 
   const invested = useField('100')
@@ -775,26 +885,70 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
                 type="button"
                 className="btn primary"
                 onClick={() => {
+                  const savedAt = new Date().toISOString()
+                  const scenarioId = uid()
+                  const scenarioInputs = {
+                    investedAmount: invested.value!.toString(),
+                    averagePrice: avgPrice.value!.toString(),
+                    currentPrice: currentPrice.value!.toString(),
+                    targetPrice: targetPrice.toString(),
+                    ...(budget.value !== null ? { budget: budget.value.toString() } : {}),
+                  }
+                  const calculationInputs = {
+                    ...scenarioInputs,
+                    targetKind,
+                    ...(targetKind === 'pct' && targetPctField.value !== null
+                      ? { targetGrowthPct: targetPctField.value.toString() }
+                      : {}),
+                  }
                   addScenario({
-                    id: uid(),
+                    id: scenarioId,
                     name: `Equilibrio real a ${formatMoney(targetPrice, currency)}`,
-                    createdAt: new Date().toISOString(),
+                    createdAt: savedAt,
                     mode: 'breakeven',
                     currency,
-                    inputs: {
-                      investedAmount: invested.value!.toString(),
-                      averagePrice: avgPrice.value!.toString(),
-                      currentPrice: currentPrice.value!.toString(),
-                      targetPrice: targetPrice.toString(),
-                      ...(budget.value !== null ? { budget: budget.value.toString() } : {}),
+                    inputs: scenarioInputs,
+                  })
+                  addRiskResult({
+                    id: uid(),
+                    resultType: 'calculator',
+                    sourceId: scenarioId,
+                    inputs: { mode: 'breakeven', currency, ...calculationInputs },
+                    result: {
+                      quantity: derived.quantity.toString(),
+                      currentValue: derived.currentValue.toString(),
+                      expectedGrowth: derived.growth.toString(),
+                      restoreContribution: derived.restore.contribution.toString(),
+                      restoreAlreadyRestored: derived.restore.alreadyRestored,
+                      restoreValueAtTarget: derived.restore.valueAtTarget.toString(),
+                      restoreNetResultAtTarget: derived.restore.netResultAtTarget.toString(),
+                      breakevenStatus: derived.breakeven.status,
+                      breakevenContribution: derived.breakeven.contribution?.toString() ?? null,
+                      breakevenNetWithoutContribution:
+                        derived.breakeven.netWithoutContribution.toString(),
+                      breakevenExplanation: derived.breakeven.explanation,
+                      ...(withBudget !== null
+                        ? {
+                            budgetNewAveragePrice: withBudget.bp.newAveragePrice.toString(),
+                            budgetBreakevenPrice: withBudget.bp.breakevenPrice.toString(),
+                            budgetRequiredGrowth: withBudget.bp.requiredGrowth.toString(),
+                            budgetNetResult: withBudget.outcome.netResult.toString(),
+                          }
+                        : {}),
                     },
+                    calculatedAt: savedAt,
+                    createdAt: savedAt,
                   })
                   setSaved(true)
                 }}
               >
-                Guardar como escenario
+                Guardar cálculo
               </button>
-              {saved && <span className="muted">Guardado en «Escenarios». No ejecuta ninguna compra.</span>}
+              {saved && (
+                <span className="muted enter-aside">
+                  Guardado en cálculos y escenarios. No ejecuta ninguna compra.
+                </span>
+              )}
             </div>
           </Card>
 
