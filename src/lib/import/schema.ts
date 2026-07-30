@@ -49,6 +49,12 @@ const importAccountSchema = z.object({
   broker: z.string().trim().min(1).max(60),
   label: z.string().trim().max(60).nullable(),
   currency: currencySchema.nullable(),
+  /**
+   * Subtotal impreso de la cuenta o sección, si la app lo muestra
+   * («Cuenta de valores 237,97 €»). No se importa como dato: sirve para
+   * cuadrar la suma de las posiciones y avisar si no encaja.
+   */
+  subtotal: numericSchema.nullable().default(null),
 })
 
 const importTransactionSchema = z.object({
@@ -77,6 +83,22 @@ const importPositionSchema = z.object({
   currency: currencySchema.nullable(),
   evidence: z.string().trim().max(300).nullable(),
   confidence: confidenceSchema,
+
+  /* ── Campos que las apps imprimen y antes se tiraban ──────────────────
+     El extractor los transcribe tal cual; el coste lo deriva la app en
+     convert.ts, no el modelo. Todos con default null: un JSON del formato
+     anterior sigue validando igual. */
+
+  /** Precio unitario actual impreso («14,29 $», «3564,54 €»). */
+  current_unit_price: numericSchema.nullable().default(null),
+  /** Divisa de ese precio unitario, que puede no ser la de la posición. */
+  unit_price_currency: currencySchema.nullable().default(null),
+  /** Rentabilidad con signo tal cual se ve: «▼ 23,50 %» → -23.50. */
+  return_pct: numericSchema.nullable().default(null),
+  /** Ganancia o pérdida absoluta si la app la muestra en dinero: «▲ 1,16 €». */
+  absolute_gain: numericSchema.nullable().default(null),
+  /** Divisa de `absolute_gain`. */
+  gain_currency: currencySchema.nullable().default(null),
 })
 
 export const importPayloadSchema = z.object({
@@ -138,6 +160,13 @@ function scanKeys(value: unknown, path: string, warnings: string[], errors: stri
     'total_invested',
     'average_buy_price',
     'acquisition_date',
+    // Campos que las apps imprimen y el extractor ahora transcribe.
+    'subtotal',
+    'current_unit_price',
+    'unit_price_currency',
+    'return_pct',
+    'absolute_gain',
+    'gain_currency',
   ])
   for (const [key, v] of Object.entries(value)) {
     if (FORBIDDEN_KEYS.includes(key.toLowerCase())) {
@@ -282,21 +311,62 @@ export function validateImportJson(rawInput: string): ImportValidation {
 /** Prompt listo para copiar en un LLM externo. */
 export const EXTRACTION_PROMPT = `Eres un extractor de datos de inversiones. Te adjunto capturas de pantalla de mis aplicaciones de inversión (con mis datos personales ocultos).
 
-INSTRUCCIONES ESTRICTAS:
-1. Extrae SOLAMENTE la información visible en las imágenes. No inventes NADA: ni tickers, ni fechas, ni precios, ni divisas, ni cantidades, ni brókeres.
-2. Usa null para cualquier dato que no puedas leer con claridad.
-3. Separa cuentas, posiciones actuales y operaciones (compras/ventas).
-4. Para cada dato incluye una evidencia textual breve (el texto visible del que lo sacaste) y un nivel de confianza: "high", "medium" o "low".
-5. Números SIEMPRE con punto decimal y sin separador de miles (ej. 1234.56).
-6. Fechas en formato ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:mm) solo si son visibles.
-7. Divisas: solo "EUR" o "USD"; si es otra o no se ve, usa null.
-8. En holdings, weight es la fracción entre 0 y 1 (6,5 % = 0.065), nunca el porcentaje 6.5.
-9. Devuelve EXCLUSIVAMENTE un JSON válido conforme a este esquema, sin texto adicional, sin markdown:
+TU ÚNICO TRABAJO ES TRANSCRIBIR LO QUE SE VE. No calcules nada.
+
+REGLAS
+
+1. Extrae solo lo que aparece en las imágenes. No inventes tickers, ISIN,
+   fechas, precios, divisas, cantidades ni brókeres.
+2. Usa null únicamente cuando el dato NO ESTÉ EN PANTALLA. Si está impreso,
+   transcríbelo aunque sea un porcentaje, un precio unitario o un subtotal.
+   Dejar en null algo que se ve es un error tan grave como inventarlo.
+3. NO HAGAS CÁLCULOS. No deduzcas el coste a partir de la rentabilidad, ni el
+   precio medio, ni el total invertido, ni conviertas divisas. De eso se
+   encarga la aplicación, que además deja constancia de cada derivación.
+   Tú transcribe los ingredientes.
+4. Si un dato aparece recortado con puntos suspensivos («Nasdaq Clean Edge
+   Smart Gr...»), cópialo tal cual, con los puntos. No lo completes de memoria.
+5. Números siempre con punto decimal y sin separador de miles: 1234.56.
+   «56.182 €» se escribe 56182. «0,00061» se escribe 0.00061.
+6. Rentabilidades como número con signo, sin el símbolo de porcentaje:
+   «▲ 9,16 %» → 9.16 · «▼ 23,50 %» → -23.50
+7. Ganancias o pérdidas en dinero, con signo: «▲ 1,16 €» → 1.16
+8. Fechas en ISO 8601 solo si la fecha completa es visible. Si ves «20 mar,
+   9:24» sin año, deja datetime en null y copia el texto en evidence.
+9. Divisas: solo "EUR" o "USD". Fíjate bien en el símbolo de cada línea: en la
+   misma pantalla puede haber un precio en $ y un valor en €.
+10. Una cuenta por cada sección que tenga su propio subtotal, aunque sean del
+    mismo bróker. Si ves «Cuenta de valores 237,97 €» y «Materias primas
+    88,16 €», son dos cuentas, no una.
+11. Cada dato lleva evidence (el texto literal del que lo sacaste) y
+    confidence: "high", "medium" o "low".
+12. Devuelve EXCLUSIVAMENTE un JSON válido conforme al esquema, sin texto
+    alrededor y sin markdown.
+
+QUÉ BUSCAR EN CADA LÍNEA DE POSICIÓN
+
+Las apps suelen imprimir varios de estos datos juntos. Transcríbelos todos:
+
+  "Oro · 0,0164 XAU · 3564,54 € · 57,86 € · ▼ 16,14 %"
+        cantidad ─┘      │           │        └─ return_pct: -16.14
+                         │           └─ current_value: 57.86
+                         └─ current_unit_price: 3564.54
+
+  "Bitcoin · 280,02 € · ▲ 1,16 €"
+              │            └─ absolute_gain: 1.16
+              └─ current_value: 280.02   (aquí no hay unidades: quantity null)
+
+ESQUEMA
 
 {
   "schema_version": 1,
   "accounts": [
-    { "broker": "string", "label": "string|null", "currency": "EUR|USD|null" }
+    {
+      "broker": "string",
+      "label": "string|null",
+      "currency": "EUR|USD|null",
+      "subtotal": "number|null"
+    }
   ],
   "positions": [
     {
@@ -304,6 +374,11 @@ INSTRUCCIONES ESTRICTAS:
       "asset": { "symbol": "string|null", "name": "string|null", "type": "stock|etf|crypto|commodity|index|cash|other|null", "quote_currency": "EUR|USD|null", "isin": "string|null", "exchange": "string|null", "sector": "string|null", "country": "string|null", "holdings": [{"symbol":"string","name":"string|null","weight":"number|null"}] },
       "quantity": "number|null",
       "current_value": "number|null",
+      "current_unit_price": "number|null",
+      "unit_price_currency": "EUR|USD|null",
+      "return_pct": "number|null",
+      "absolute_gain": "number|null",
+      "gain_currency": "EUR|USD|null",
       "total_invested": "number|null",
       "average_buy_price": "number|null",
       "acquisition_date": "ISO 8601|null",
@@ -328,7 +403,16 @@ INSTRUCCIONES ESTRICTAS:
       "confidence": "high|medium|low"
     }
   ]
-}`
+}
+
+ANTES DE RESPONDER, COMPRUEBA
+
+- Toda línea con una rentabilidad visible lleva return_pct o absolute_gain.
+- Toda línea con «0,0164 XAU · 3564,54 €» lleva quantity y current_unit_price.
+- Ninguna posición inventa un ticker: si no se ve, symbol es null.
+- El subtotal de cada cuenta cuadra con la suma de sus posiciones.
+- No has rellenado total_invested ni average_buy_price salvo que estuvieran
+  impresos con esas palabras.`
 
 export function buildPortfolioUpdatePrompt(context: {
   accounts: { broker: string; label: string }[]

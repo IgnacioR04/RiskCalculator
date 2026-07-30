@@ -311,16 +311,30 @@ export function ImportarPage() {
             </div>
           )}
 
+          {store.demoLoaded && (
+            <Note kind="warning">
+              <strong>Tienes cargados los datos de demostración.</strong> Si importas
+              ahora, tus posiciones reales se sumarán a una cartera ficticia y las
+              cifras mezclarán lo inventado con lo tuyo. Quita primero el demo.
+              <div className="row mt-2">
+                <button type="button" className="btn" onClick={() => store.removeDemoData()}>
+                  Quitar los datos de demostración
+                </button>
+              </div>
+            </Note>
+          )}
+
           <div className="row">
             <button
               type="button"
               className="btn primary"
               onClick={confirm}
               disabled={
-                proposal.newAccounts.length === 0 &&
-                proposal.newAssets.length === 0 &&
-                proposal.assetUpdates.length === 0 &&
-                proposal.transactions.length === 0
+                store.demoLoaded ||
+                (proposal.newAccounts.length === 0 &&
+                  proposal.newAssets.length === 0 &&
+                  proposal.assetUpdates.length === 0 &&
+                  proposal.transactions.length === 0)
               }
             >
               Confirmar cambios

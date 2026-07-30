@@ -49,8 +49,14 @@ function assetMatches(existing: Asset, incoming: ImportAsset): boolean {
   if (incoming.isin !== null && existing.isin !== undefined) {
     return normalized(existing.isin) === normalized(incoming.isin)
   }
+  // Identidad por símbolo O por nombre. Con solo el símbolo, una captura que
+  // muestra «Bitcoin» sin ticker creaba un activo aparte del BTC existente, y
+  // la misma posición acababa contada dos veces.
   const symbol = normalized(incoming.symbol)
-  if (symbol === '' || normalized(existing.symbol) !== symbol) return false
+  const name = normalized(incoming.name)
+  const symbolMatches = symbol !== '' && normalized(existing.symbol) === symbol
+  const nameMatches = name !== '' && normalized(existing.name) === name
+  if (!symbolMatches && !nameMatches) return false
   if (
     incoming.exchange !== null &&
     existing.exchange !== undefined &&
@@ -58,12 +64,9 @@ function assetMatches(existing: Asset, incoming: ImportAsset): boolean {
   ) {
     return false
   }
-  if (
-    incoming.quote_currency !== null &&
-    existing.quoteCurrency !== incoming.quote_currency
-  ) {
-    return false
-  }
+  // La divisa de cotización NO decide la identidad: el mismo Bitcoin se
+  // muestra en EUR en una app y en USD en otra. Descartar por ese campo hacía
+  // que una misma posición se contase dos veces.
   if (
     incoming.type !== null &&
     (TYPE_MAP[incoming.type] ?? 'manual') !== existing.assetType
@@ -138,6 +141,16 @@ export function buildImportProposal(
     const match = candidates[0]
     if (match !== undefined) {
       const patch: Partial<Asset> = {}
+      // Si el activo se guardó sin ticker (símbolo = nombre) y ahora otra
+      // captura sí lo muestra, se completa. Así «Bitcoin» pasa a ser «BTC».
+      if (
+        symbol !== null &&
+        normalized(match.symbol) === normalized(match.name) &&
+        normalized(match.symbol) !== normalized(symbol)
+      ) {
+        patch.symbol = symbol
+        notes.push(`${match.name}: se completa su ticker con «${symbol}» desde otra captura.`)
+      }
       if (incoming.sector !== null && match.sector === undefined) patch.sector = incoming.sector
       if (incoming.country !== null && match.country === undefined) patch.country = incoming.country
       if (incoming.exchange !== null && match.exchange === undefined) patch.exchange = incoming.exchange
@@ -152,9 +165,18 @@ export function buildImportProposal(
       return match
     }
 
+    if (symbol === null && incoming.name !== null) {
+      notes.push(
+        `${incoming.name}: la captura no muestra su ticker, así que se guarda con el nombre. No se inventa un símbolo.`,
+      )
+    }
     const asset: Asset = {
       id: uid(),
-      symbol: symbol ?? (incoming.name ?? 'ACTIVO').slice(0, 12).toUpperCase(),
+      // Sin ticker visible se usa el NOMBRE, no un ticker fabricado. Antes se
+      // recortaba el nombre a 12 letras en mayúsculas y salían identificadores
+      // falsos como «NASDAQ CLEAN» o «VANGUARD EUR», que no son tickers de
+      // nada y contradicen la regla que el propio prompt le impone a la IA.
+      symbol: symbol ?? (incoming.name ?? 'Activo importado').slice(0, 40),
       name: incoming.name ?? symbol ?? 'Activo importado',
       assetType: TYPE_MAP[incoming.type ?? 'other'] ?? 'manual',
       quoteCurrency: incoming.quote_currency ?? 'EUR',
@@ -245,14 +267,57 @@ export function buildImportProposal(
     const account = accountByBroker(position.account_broker, `Posición ${index + 1}`)
     if (account === null) return
     const currency = position.currency ?? asset.quoteCurrency
-    const quantity = position.quantity
+
+    /**
+     * Las apps imprimen el precio unitario junto a la posición («0,0164 XAU ·
+     * 3564,54 €»). Si hay valor y precio unitario, las unidades son una
+     * división, no una suposición.
+     */
+    let quantity = position.quantity
+    if (
+      quantity === null &&
+      position.current_value !== null &&
+      position.current_unit_price !== null &&
+      dec(position.current_unit_price).gt(0)
+    ) {
+      quantity = dec(position.current_value).div(dec(position.current_unit_price)).toString()
+      notes.push(
+        `Posición ${index + 1} (${asset.symbol}): unidades derivadas de valor ÷ precio unitario.`,
+      )
+    }
+
+    /**
+     * Algunas apps (Trade Republic, fondos) muestran el valor de la posición
+     * pero nunca sus unidades. Si además hay rentabilidad impresa, se conoce
+     * el valor y el coste, que es lo que necesita la cartera: se registra la
+     * posición como UNA unidad indivisible cuyo precio es su valor.
+     *
+     * No es una estimación: ni el valor ni el coste se inventan. Lo único que
+     * se pierde son las unidades, que la app de origen tampoco enseña.
+     */
+    const costeConocido =
+      position.total_invested !== null ||
+      position.average_buy_price !== null ||
+      position.absolute_gain !== null ||
+      position.return_pct !== null
+    if (
+      quantity === null &&
+      position.current_value !== null &&
+      dec(position.current_value).gt(0) &&
+      costeConocido
+    ) {
+      quantity = '1'
+      notes.push(
+        `Posición ${index + 1} (${asset.symbol}): la app no muestra unidades, así que se registra como una posición indivisible. El valor y el coste sí son los reales.`,
+      )
+    }
 
     if (quantity === null || dec(quantity).lte(0)) {
       incompletePositions.push({
         label: asset.symbol,
         reason:
           position.current_value !== null
-            ? 'Se ve el valor actual, pero no las unidades. Añade cantidad o una operación con importe y precio.'
+            ? 'Se ve el valor actual, pero ni las unidades ni la rentabilidad. Añade cantidad, o el porcentaje de rentabilidad que muestre tu app.'
             : 'No se reconoce una cantidad positiva.',
       })
       return
@@ -280,11 +345,42 @@ export function buildImportProposal(
       return
     }
 
-    const inferredCost =
+    /**
+     * Coste histórico, por orden de fiabilidad:
+     *   1. `total_invested`, si la app lo imprime.
+     *   2. precio medio × unidades.
+     *   3. valor − ganancia absoluta («280,02 € ▲ 1,16 €»).
+     *   4. valor ÷ (1 + rentabilidad) («35,92 € ▼ 23,50 %» → 46,95 €).
+     *
+     * Las dos últimas son aritmética sobre datos impresos, no estimaciones:
+     * la rentabilidad estaba en pantalla y antes se descartaba, y por eso una
+     * cartera entera acababa sin coste y sin poder calcular rentabilidad.
+     */
+    let inferredCost =
       position.total_invested ??
       (position.average_buy_price !== null
         ? dec(position.average_buy_price).times(dec(quantity)).toString()
         : null)
+
+    if (inferredCost === null && position.current_value !== null) {
+      if (position.absolute_gain !== null) {
+        const cost = dec(position.current_value).minus(dec(position.absolute_gain))
+        if (cost.gt(0)) {
+          inferredCost = cost.toString()
+          notes.push(
+            `Posición ${index + 1} (${asset.symbol}): coste derivado de valor − ganancia impresa.`,
+          )
+        }
+      } else if (position.return_pct !== null) {
+        const factor = dec(position.return_pct).div(100).plus(1)
+        if (factor.gt(0)) {
+          inferredCost = dec(position.current_value).div(factor).toString()
+          notes.push(
+            `Posición ${index + 1} (${asset.symbol}): coste derivado de valor ÷ (1 + rentabilidad impresa).`,
+          )
+        }
+      }
+    }
     const placeholderAmount = inferredCost ?? position.current_value
     if (placeholderAmount === null || dec(placeholderAmount).lte(0)) {
       incompletePositions.push({
