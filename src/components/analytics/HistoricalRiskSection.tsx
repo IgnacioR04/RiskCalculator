@@ -28,6 +28,12 @@ import { buildPortfolioView } from '../../lib/portfolio'
 import { coingeckoProvider } from '../../lib/market/coingecko'
 import { historicalFxSeries } from '../../lib/market/service'
 import { twelveDataProvider } from '../../lib/market/twelvedata'
+import {
+  colaCoinGecko,
+  colaTwelveData,
+  escribirSerie,
+  leerSerie,
+} from '../../lib/market/seriesCache'
 import { DEMO_FX_EURUSD } from '../../state/demoData'
 import { getDemoHistoricalSeries, hasDemoHistoricalSeries } from '../../state/demoHistory'
 import { useAppStore } from '../../state/store'
@@ -98,13 +104,24 @@ async function fetchSeries(
     }
   }
 
+  /* Una serie diaria no cambia hasta el cierre siguiente: si ya se descargó
+     hoy se reutiliza. Antes se volvía a pedir en cada visita y eso agota la
+     cuota diaria del proveedor en unas pocas recargas. */
+  const enCache = leerSerie(asset.id, days, displayCurrency)
+  if (enCache !== null) {
+    return {
+      asset,
+      series: enCache.puntos,
+      returns: dailyReturns(enCache.puntos),
+      provider: `${enCache.proveedor} (en caché)`,
+    }
+  }
+
   const twelveDataId = asset.providerIds?.['twelvedata']
   if (twelveDataId !== undefined && twelveDataProvider.isConfigured()) {
     try {
-      const candles = await twelveDataProvider.getDailyOHLC(
-        twelveDataId,
-        days,
-        asset.quoteCurrency,
+      const candles = await colaTwelveData(() =>
+        twelveDataProvider.getDailyOHLC(twelveDataId, days, asset.quoteCurrency),
       )
       if (candles.length > 0) {
         let series = candles.map((candle) => ({
@@ -114,15 +131,10 @@ async function fetchSeries(
         if (asset.quoteCurrency !== displayCurrency) {
           series = convertPriceSeries(series, fxSeries)
         }
-        return {
-          asset,
-          series,
-          returns: dailyReturns(series),
-          provider:
-            asset.quoteCurrency === displayCurrency
-              ? 'Twelve Data'
-              : 'Twelve Data + BCE FX',
-        }
+        const proveedor =
+          asset.quoteCurrency === displayCurrency ? 'Twelve Data' : 'Twelve Data + BCE FX'
+        escribirSerie(asset.id, days, displayCurrency, series, proveedor)
+        return { asset, series, returns: dailyReturns(series), provider: proveedor }
       }
     } catch {
       // Continúa con el siguiente proveedor.
@@ -133,16 +145,15 @@ async function fetchSeries(
   if (coinGeckoId !== undefined && asset.assetType === 'crypto') {
     try {
       // CoinGecko puede devolver directamente la divisa de presentación.
-      const candles = await coingeckoProvider.getDailyOHLC(
-        coinGeckoId,
-        days,
-        displayCurrency,
+      const candles = await colaCoinGecko(() =>
+        coingeckoProvider.getDailyOHLC(coinGeckoId, days, displayCurrency),
       )
       if (candles.length > 0) {
         const series = candles.map((candle) => ({
           date: candle.time,
           close: Number(candle.close),
         }))
+        escribirSerie(asset.id, days, displayCurrency, series, 'CoinGecko')
         return { asset, series, returns: dailyReturns(series), provider: 'CoinGecko' }
       }
     } catch {
