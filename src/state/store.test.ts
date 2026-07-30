@@ -57,6 +57,7 @@ function resetStore() {
     scenarios: [],
     importBatches: [],
     riskProfile: null,
+    riskResults: [],
     demoLoaded: false,
     cloudSync: {
       userId: null,
@@ -142,6 +143,7 @@ describe('useAppStore demo data', () => {
         scenarios: [],
         importBatches: [],
         riskProfile: null,
+        riskResults: [],
         demoLoaded: true,
       },
       2,

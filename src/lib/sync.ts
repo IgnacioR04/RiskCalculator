@@ -10,6 +10,7 @@ import type {
   BrokerAccount,
   ImportBatch,
   RiskProfile,
+  RiskResult,
   SavedScenario,
   Settings,
   Transaction,
@@ -77,6 +78,7 @@ function cloudSignature(state: SyncState = useAppStore.getState()): string {
     scenarios: state.scenarios,
     importBatches: state.importBatches,
     riskProfile: state.riskProfile,
+    riskResults: state.riskResults,
   })
 }
 
@@ -87,7 +89,8 @@ function hasCloudRows(state: SyncState = useAppStore.getState()): boolean {
     nonDemoTransactions(state).length > 0 ||
     state.scenarios.length > 0 ||
     state.importBatches.length > 0 ||
-    state.riskProfile !== null
+    state.riskProfile !== null ||
+    state.riskResults.length > 0
   )
 }
 
@@ -314,6 +317,16 @@ export async function pushToCloud(options: { allowEmpty?: boolean } = {}): Promi
       confirmed_at: batch.confirmedAt,
       created_at: batch.createdAt,
     }))
+    const riskResultRows = state.riskResults.map((entry: RiskResult) => ({
+      id: entry.id,
+      user_id: userId,
+      result_type: entry.resultType,
+      source_id: entry.sourceId,
+      inputs: entry.inputs,
+      result: entry.result,
+      calculated_at: entry.calculatedAt,
+      created_at: entry.createdAt,
+    }))
 
     if (accountRows.length > 0) {
       const { error } = await supabase.from('broker_accounts').upsert(accountRows, { onConflict: 'id' })
@@ -332,6 +345,7 @@ export async function pushToCloud(options: { allowEmpty?: boolean } = {}): Promi
       ['transactions', transactionRows],
       ['scenarios', scenarioRows],
       ['import_batches', importRows],
+      ['risk_results', riskResultRows],
     ] as const) {
       const error = await mirrorTable(table, [...rows], userId)
       if (error !== null) return { ok: false, message: `Error sincronizando ${table}: ${error.message}` }
@@ -369,13 +383,13 @@ export async function pushToCloud(options: { allowEmpty?: boolean } = {}): Promi
     lastCloudSignature = cloudSignature()
     setCloudStatus({
       status: 'saved',
-      message: `Guardado: ${accountRows.length} cuentas, ${assetRows.length} activos, ${transactionRows.length} operaciones, ${scenarioRows.length} escenarios e ${importRows.length} importaciones.`,
+      message: `Guardado: ${accountRows.length} cuentas, ${assetRows.length} activos, ${transactionRows.length} operaciones, ${scenarioRows.length} escenarios, ${importRows.length} importaciones y ${riskResultRows.length} resultados.`,
       lastSyncedAt: nowIso(),
     })
 
     return {
       ok: true,
-      message: `Nube sincronizada: ${accountRows.length} cuentas, ${assetRows.length} activos, ${transactionRows.length} operaciones, ${scenarioRows.length} escenarios e ${importRows.length} importaciones.`,
+      message: `Nube sincronizada: ${accountRows.length} cuentas, ${assetRows.length} activos, ${transactionRows.length} operaciones, ${scenarioRows.length} escenarios, ${importRows.length} importaciones y ${riskResultRows.length} resultados.`,
     }
   } catch (error) {
     const offline = isNetworkError(error)
@@ -404,13 +418,26 @@ export async function pullFromCloud(): Promise<SyncResult> {
   })
 
   try {
-    const [accounts, assets, transactions, scenarios, imports, profile, preferences, riskProfile] =
+    const [
+      accounts,
+      assets,
+      transactions,
+      scenarios,
+      imports,
+      riskResults,
+      profile,
+      preferences,
+      riskProfile,
+    ] =
       await Promise.all([
         supabase.from('broker_accounts').select('*').eq('user_id', userId),
         supabase.from('assets').select('*').eq('user_id', userId),
         supabase.from('transactions').select('*').eq('user_id', userId),
         supabase.from('scenarios').select('*').eq('user_id', userId),
         supabase.from('import_batches').select('*').eq('user_id', userId).order('created_at', {
+          ascending: false,
+        }),
+        supabase.from('risk_results').select('*').eq('user_id', userId).order('calculated_at', {
           ascending: false,
         }),
         supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
@@ -429,6 +456,7 @@ export async function pullFromCloud(): Promise<SyncResult> {
       ['transactions', transactions],
       ['scenarios', scenarios],
       ['import_batches', imports],
+      ['risk_results', riskResults],
       ['profiles', profile],
       ['preferences', preferences],
       ['risk_profiles', riskProfile],
@@ -504,6 +532,15 @@ export async function pullFromCloud(): Promise<SyncResult> {
       confirmedAt: row.confirmed_at,
       createdAt: row.created_at,
     }))
+    const downloadedRiskResults: RiskResult[] = (riskResults.data ?? []).map((row) => ({
+      id: row.id,
+      resultType: row.result_type,
+      sourceId: row.source_id,
+      inputs: row.inputs ?? {},
+      result: row.result ?? {},
+      calculatedAt: row.calculated_at,
+      createdAt: row.created_at,
+    }))
     const downloadedRiskProfile: RiskProfile | null =
       riskProfile.data === null
         ? null
@@ -524,18 +561,19 @@ export async function pullFromCloud(): Promise<SyncResult> {
       scenarios: downloadedScenarios,
       importBatches: downloadedImports,
       riskProfile: downloadedRiskProfile,
+      riskResults: downloadedRiskResults,
     })
     applyingCloudSnapshot = false
     lastCloudSignature = cloudSignature()
     setCloudStatus({
       status: 'saved',
-      message: `Datos cargados: ${downloadedAccounts.length} cuentas, ${downloadedAssets.length} activos, ${downloadedTransactions.length} operaciones, ${downloadedScenarios.length} escenarios e ${downloadedImports.length} importaciones.`,
+      message: `Datos cargados: ${downloadedAccounts.length} cuentas, ${downloadedAssets.length} activos, ${downloadedTransactions.length} operaciones, ${downloadedScenarios.length} escenarios, ${downloadedImports.length} importaciones y ${downloadedRiskResults.length} resultados.`,
       lastSyncedAt: nowIso(),
     })
 
     return {
       ok: true,
-      message: `Descargados ${downloadedAccounts.length} cuentas, ${downloadedAssets.length} activos, ${downloadedTransactions.length} operaciones, ${downloadedScenarios.length} escenarios e ${downloadedImports.length} importaciones, incluidas tus preferencias.`,
+      message: `Descargados ${downloadedAccounts.length} cuentas, ${downloadedAssets.length} activos, ${downloadedTransactions.length} operaciones, ${downloadedScenarios.length} escenarios, ${downloadedImports.length} importaciones y ${downloadedRiskResults.length} resultados, incluidas tus preferencias.`,
     }
   } catch (error) {
     applyingCloudSnapshot = false
