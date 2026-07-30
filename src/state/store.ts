@@ -15,6 +15,7 @@ import type {
   ImportBatch,
   Quote,
   RiskProfile,
+  RiskResult,
   SavedScenario,
   Settings,
   Transaction,
@@ -54,6 +55,7 @@ interface AppState {
   scenarios: SavedScenario[]
   importBatches: ImportBatch[]
   riskProfile: RiskProfile | null
+  riskResults: RiskResult[]
   demoLoaded: boolean
   cloudSync: CloudSyncState
 
@@ -80,6 +82,8 @@ interface AppState {
   addImportBatch: (batch: ImportBatch) => void
 
   setRiskProfile: (profile: RiskProfile) => void
+  addRiskResult: (result: RiskResult) => void
+  removeRiskResult: (id: string) => void
   setCloudSync: (patch: Partial<CloudSyncState>) => void
   replaceFromCloud: (snapshot: {
     settings: Settings
@@ -89,6 +93,7 @@ interface AppState {
     scenarios: SavedScenario[]
     importBatches: ImportBatch[]
     riskProfile: RiskProfile | null
+    riskResults: RiskResult[]
   }) => void
 
   loadDemoData: () => void
@@ -182,6 +187,7 @@ export const useAppStore = create<AppState>()(
       scenarios: [],
       importBatches: [],
       riskProfile: null,
+      riskResults: [],
       demoLoaded: false,
       cloudSync: initialCloudSync,
 
@@ -228,6 +234,9 @@ export const useAppStore = create<AppState>()(
       addImportBatch: (batch) => set((s) => ({ importBatches: [batch, ...s.importBatches] })),
 
       setRiskProfile: (profile) => set({ riskProfile: profile }),
+      addRiskResult: (result) => set((s) => ({ riskResults: [result, ...s.riskResults] })),
+      removeRiskResult: (id) =>
+        set((s) => ({ riskResults: s.riskResults.filter((result) => result.id !== id) })),
       setCloudSync: (patch) => set((s) => ({ cloudSync: { ...s.cloudSync, ...patch } })),
       replaceFromCloud: (snapshot) =>
         set((s) => ({
@@ -264,6 +273,7 @@ export const useAppStore = create<AppState>()(
           scenarios: [],
           importBatches: [],
           riskProfile: null,
+          riskResults: [],
           demoLoaded: false,
         }),
     }),
@@ -282,6 +292,7 @@ export const useAppStore = create<AppState>()(
         scenarios: state.scenarios,
         importBatches: state.importBatches,
         riskProfile: state.riskProfile,
+        riskResults: state.riskResults,
         demoLoaded: state.demoLoaded,
       }),
       migrate: migratePersistedState,

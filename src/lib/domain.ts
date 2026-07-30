@@ -165,6 +165,18 @@ export interface RiskProfile {
   completedAt: string
 }
 
+export type RiskResultType = 'portfolio_risk' | 'diversification' | 'stress_test' | 'calculator'
+
+export interface RiskResult {
+  id: string
+  resultType: RiskResultType
+  sourceId: string | null
+  inputs: Record<string, unknown>
+  result: Record<string, unknown>
+  calculatedAt: string
+  createdAt: string
+}
+
 export interface ImportBatch {
   id: string
   rawJson: unknown

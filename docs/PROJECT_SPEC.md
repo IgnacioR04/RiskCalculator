@@ -60,7 +60,7 @@ Excluido del MVP (el modelo de datos permite ampliarlo, pero no se implementa):
 - **Frontend**: React 19 + TypeScript estricto + Vite. Zod para validación,
   decimal.js para cálculo financiero, Recharts para gráficas, Zustand para
   estado con persistencia local.
-- **Backend**: Supabase (Auth por email/contraseña o magic link, PostgreSQL con RLS, Edge
+- **Backend**: Supabase (Auth por email/contraseña, PostgreSQL con RLS, Edge
   Functions para proveedores de mercado y secretos).
 - **Despliegue**: GitHub Pages como piloto estático; Vercel queda como
   alternativa. GitHub Actions ejecuta lint, typecheck, unitarias, E2E y build.

@@ -130,6 +130,76 @@ export function diversificationMetrics(
   }
 }
 
+/* ── Bandas de referencia ──────────────────────────────────────────────────
+   Orientación para leer cada cifra, no umbrales oficiales: no existe un
+   «ratio correcto» universal. Las fronteras son coherentes con
+   describeDiversification y se presentan siempre como referencia. */
+
+export type BandLevel = 'ok' | 'warn' | 'high'
+
+export interface MetricBand {
+  /** Rango tal y como se muestra, p. ej. «1,2–1,5». */
+  range: string
+  /** Qué significa ese rango. */
+  meaning: string
+  level: BandLevel
+  /** Si el valor observado cae en esta banda. */
+  matches: (value: number) => boolean
+}
+
+/** Ratio de diversificación: 1,00 = ninguna diversificación. */
+export const RATIO_BANDS: MetricBand[] = [
+  { range: '< 1,05', meaning: 'casi nula', level: 'high', matches: (v) => v < 1.05 },
+  { range: '1,05–1,2', meaning: 'escasa', level: 'warn', matches: (v) => v >= 1.05 && v < 1.2 },
+  { range: '1,2–1,5', meaning: 'razonable', level: 'ok', matches: (v) => v >= 1.2 && v < 1.5 },
+  { range: '> 1,5', meaning: 'buena', level: 'ok', matches: (v) => v >= 1.5 },
+]
+
+/** Riesgo eliminado al repartir = 1 − 1/DR (equivalente a las bandas del DR). */
+export const REDUCTION_BANDS: MetricBand[] = [
+  { range: '< 5 %', meaning: 'casi nula', level: 'high', matches: (v) => v < 0.05 },
+  { range: '5–17 %', meaning: 'escasa', level: 'warn', matches: (v) => v >= 0.05 && v < 0.17 },
+  { range: '17–33 %', meaning: 'razonable', level: 'ok', matches: (v) => v >= 0.17 && v < 0.33 },
+  { range: '> 33 %', meaning: 'notable', level: 'ok', matches: (v) => v >= 0.33 },
+]
+
+/** Correlación media entre pares: cuanto más baja, mejor reparte el riesgo. */
+export const CORRELATION_BANDS: MetricBand[] = [
+  { range: '< 0,3', meaning: 'bien repartido', level: 'ok', matches: (v) => v < 0.3 },
+  { range: '0,3–0,6', meaning: 'moderado', level: 'warn', matches: (v) => v >= 0.3 && v < 0.6 },
+  { range: '> 0,6', meaning: 'se mueven juntos', level: 'high', matches: (v) => v >= 0.6 },
+]
+
+/**
+ * Apuestas efectivas: se leen SIEMPRE en relación al número de activos.
+ * Tener 3 apuestas reales es excelente con 4 activos y pobre con 20.
+ */
+export function effectiveBetsBands(assetCount: number): MetricBand[] {
+  const half = assetCount / 2
+  const threeQuarters = (assetCount * 3) / 4
+  const fmt = (value: number) => value.toFixed(1).replace('.', ',')
+  return [
+    {
+      range: `< ${fmt(half)}`,
+      meaning: 'mucha redundancia',
+      level: 'high',
+      matches: (v) => v < half,
+    },
+    {
+      range: `${fmt(half)}–${fmt(threeQuarters)}`,
+      meaning: 'aceptable',
+      level: 'warn',
+      matches: (v) => v >= half && v < threeQuarters,
+    },
+    {
+      range: `> ${fmt(threeQuarters)}`,
+      meaning: 'bien repartido',
+      level: 'ok',
+      matches: (v) => v >= threeQuarters,
+    },
+  ]
+}
+
 /** Lectura en lenguaje llano del ratio de diversificación. */
 export function describeDiversification(ratio: number): {
   level: 'ok' | 'warn' | 'high'

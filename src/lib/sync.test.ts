@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { BrokerAccount } from './domain'
+import type { BrokerAccount, RiskResult } from './domain'
 import { GUEST_CACHE_NAME, useAppStore, userCacheName } from '../state/store'
 import { activateUserCache, clearUserCache, pushToCloud } from './sync'
 
@@ -17,6 +17,7 @@ const supabaseMock = vi.hoisted(() => {
       })),
       delete: vi.fn(() => ({
         eq: vi.fn(() => ({
+          error: null,
           in: vi.fn(async () => ({ error: null })),
         })),
       })),
@@ -58,6 +59,7 @@ function resetStore() {
     scenarios: [],
     importBatches: [],
     riskProfile: null,
+    riskResults: [],
     demoLoaded: false,
     cloudSync: {
       userId: null,
@@ -81,6 +83,7 @@ function persistedState(state: Partial<ReturnType<typeof useAppStore.getState>>)
       scenarios: [],
       importBatches: [],
       riskProfile: null,
+      riskResults: [],
       demoLoaded: false,
       ...state,
     },
@@ -154,5 +157,24 @@ describe('Supabase sync cache safety', () => {
     expect(result.message).toContain('No se subio un estado local vacio')
     expect(supabaseMock.tableCalls).toEqual(['profiles', 'preferences'])
     expect(useAppStore.getState().cloudSync.status).toBe('saved')
+  })
+
+  it('mirrors saved risk results for authenticated users', async () => {
+    const riskResult: RiskResult = {
+      id: '11111111-1111-4111-8111-111111111111',
+      resultType: 'calculator',
+      sourceId: '22222222-2222-4222-8222-222222222222',
+      inputs: { mode: 'restore', currency: 'EUR', referenceValue: '100' },
+      result: { contribution: '10.69' },
+      calculatedAt: '2026-07-29T10:00:00.000Z',
+      createdAt: '2026-07-29T10:00:00.000Z',
+    }
+    useAppStore.setState({ riskResults: [riskResult] })
+
+    const result = await pushToCloud()
+
+    expect(result.ok).toBe(true)
+    expect(result.message).toContain('1 resultados')
+    expect(supabaseMock.tableCalls).toContain('risk_results')
   })
 })

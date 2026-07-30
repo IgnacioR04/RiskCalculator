@@ -70,8 +70,8 @@ La app abre con una pantalla de login. Credenciales de demo:
 > ⚠️ Esta puerta de acceso **no es seguridad real**: la app es de
 > solo-navegador (GitHub Pages), así que cualquier credencial embebida es
 > visible en el bundle. Sirve como pantalla de acceso del piloto. La
-> autenticación real es Supabase (email/contraseña en el acceso o enlace
-> mágico desde Perfil), que protege los datos con RLS. Puedes cambiar las
+> autenticación real es Supabase (email/contraseña, confirmación de correo y
+> recuperación de contraseña), que protege los datos con RLS. Puedes cambiar las
 > credenciales de demo con
 > `VITE_DEMO_USER` / `VITE_DEMO_PASSWORD`.
 
@@ -113,6 +113,7 @@ Copia `.env.example` a `.env` (nunca se commitea):
 supabase secrets set TWELVE_DATA_API_KEY=tu_clave \
   ALLOWED_ORIGINS=https://ignacior04.github.io,http://localhost:5173
 supabase functions deploy market-proxy
+supabase functions deploy delete-user
 ```
 
 4. Verifica las políticas RLS con `supabase/tests/rls_verification.sql`
@@ -134,6 +135,11 @@ guardan automaticamente con debounce; si no hay conexion, se conservan en la
 cache local del usuario y se reintentan con cambios posteriores. Para evitar
 perdida accidental, RiskCalculator no sube un estado local completamente vacio
 sobre una cartera remota existente.
+
+Desde Perfil, el usuario autenticado puede cambiar email, cambiar contrasena,
+forzar subida/descarga, cerrar sesion y eliminar su cuenta. La eliminacion de
+cuenta pasa por la Edge Function `delete-user`; la clave `service_role` solo
+vive en los secretos de Supabase y no se incluye en el navegador.
 
 En Supabase Auth -> URL Configuration, usa:
 
@@ -187,8 +193,7 @@ por usuario, sincronización automática, migraciones con RLS, build dividido po
 páginas y suite E2E para escritorio y móvil.
 
 El proyecto Supabase configurado para este repositorio ya tiene las migraciones
-aplicadas y la Edge Function `market-proxy` desplegada con JWT obligatorio.
-Pendiente manual si aún no está hecho: definir `TWELVE_DATA_API_KEY` como secreto
-de la Edge Function, revisar la lista de URLs permitidas en Supabase Auth y
-añadir `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` como secrets de GitHub
-Pages.
+aplicadas. Pendiente manual si aún no está hecho: desplegar las Edge Functions
+`market-proxy` y `delete-user`, definir `TWELVE_DATA_API_KEY` como secreto de
+`market-proxy`, revisar la lista de URLs permitidas en Supabase Auth y añadir
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` como secrets de GitHub Pages.
