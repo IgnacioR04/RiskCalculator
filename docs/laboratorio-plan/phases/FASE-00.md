@@ -53,8 +53,8 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 - [x] LAB-001 — Registrar baseline y ADR de arquitectura *(2026-08-08)*
 - [x] LAB-002 — Crear fixtures financieros dorados *(2026-08-08)*
-- [ ] LAB-003 — Separar CI de despliegue — **reformular**: `ci.yml` ya existe con todas las puertas; el trabajo real es encadenar `deploy-pages.yml` a CI (divergencia D2)
-- [ ] LAB-004 — Endurecer GitHub Actions
+- [x] LAB-003 — Separar CI de despliegue *(2026-08-08)* — jobs `quality`, `build` y `e2e-core`; Playwright sirve el build
+- [ ] LAB-004 — Endurecer GitHub Actions — **contiene el criterio G0 que falta**: hacer el despliegue dependiente del SHA validado (divergencia D2)
 - [ ] LAB-005 — Añadir metadatos de build
 - [ ] LAB-006 — Crear feature flags tipadas
 - [ ] LAB-007 — Baseline E2E de rutas actuales

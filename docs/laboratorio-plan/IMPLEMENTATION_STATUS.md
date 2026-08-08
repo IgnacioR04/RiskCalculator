@@ -9,7 +9,7 @@
 |---|---|
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
-| Tarea activa | Ninguna — `LAB-002` terminada. Preparadas: `LAB-003` (recomendada, cierra G0, pero necesita aprobar su reformulación por D2) y `LAB-006` (sin condiciones) |
+| Tarea activa | Ninguna — `LAB-003` terminada. Siguiente para cerrar G0: `LAB-004` (encadenar el despliegue al SHA validado) y después `LAB-007` |
 | Última puerta superada | Ninguna (G0 pendiente) |
 | Última actualización | 2026-08-08 |
 
@@ -37,8 +37,8 @@ Una fase no comienza hasta cumplir su puerta de entrada (dependencias en [00-pla
 |---|---|---|
 | LAB-001 — Baseline y ADR de arquitectura | **Terminada** (2026-08-08) | Entrega `docs/adr/ADR-001-lab-architecture.md` y `docs/lab/current-baseline.md`. Sin cambios de código |
 | LAB-002 — Fixtures financieros dorados | **Terminada** (2026-08-08) | 27 pruebas doradas sobre `src/lib/finance/`. Documentación en `docs/lab/golden-fixtures.md` |
-| LAB-003 — Separar CI de despliegue | Pendiente | Dependencia satisfecha. **Reformular por D2**: `ci.yml` ya existe; el trabajo es encadenar el despliegue a CI |
-| LAB-004 — Endurecer GitHub Actions | Pendiente | Depende de LAB-003 |
+| LAB-003 — Separar CI de despliegue | **Terminada** (2026-08-08) | Jobs `quality`, `build` y `e2e-core`; Playwright sirve el build. Cierra D8 |
+| LAB-004 — Endurecer GitHub Actions | Pendiente | Dependencia satisfecha. **Contiene el criterio G0 que falta**: su paso 4 hace el despliegue dependiente del SHA validado |
 | LAB-005 — Metadatos de build | Pendiente | Depende de LAB-003 |
 | LAB-006 — Feature flags tipadas | Pendiente | Dependencia satisfecha (LAB-001); lista para empezar |
 | LAB-007 — Baseline E2E de rutas actuales | Pendiente | Depende de LAB-003 |
@@ -69,7 +69,9 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | D4 | Segundo destino de despliegue (`vercel.json`, `DEPLOY_TARGET`) no contemplado en el plan | Validar cambios de `base` y rutas en ambos destinos |
 | D5 | El router es `HashRouter` con redirecciones legacy ya implementadas | La migración de navegación parte de URLs con `#`, no de un diseño nuevo |
 | D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
-| D8 | El arnés E2E levanta `npm run dev` (servidor de desarrollo) y el timeout de 30 s queda al borde del arranque en frío: 29,5 s medidos en el baseline, 6,8 s en caliente | Fallos intermitentes de `page.goto` ajenos al producto. Refuerza el paso 4 de `LAB-003` («servir build para Playwright»); considerar además un timeout mayor |
+| D8 | ~~El arnés E2E levanta `npm run dev` y el timeout queda al borde del arranque en frío~~ **Resuelta el 2026-08-08 por `LAB-003`** | Playwright sirve ahora el build con `vite preview`. Las pruebas bajaron de 6,8–29,5 s a 0,7–2,4 s |
+| D9 | El número de workers por defecto de Playwright (4) satura esta máquina: acciones de ~1 s agotaban el timeout de 30 s. Medido: 1 worker 10/10 · 2 workers 10/10 · 4 workers 6/10 | Fijado `workers: 2`. Si en los runners de CI resultara conservador, subir con medición, no a ojo |
+| D10 | La suite unitaria tiene un fallo **intermitente** bajo carga: una prueba de 181 falló en una pasada y las dos siguientes dieron 181/181. No se pudo capturar su identidad en esa ejecución; la firma coincide con `ImportarPage > nada se escribe hasta que se confirma`, que agota el `testTimeout` de 5 s por defecto | **Bloquea el primer criterio de G0** («unit tests pasan en CI»). Arreglo propuesto: subir `testTimeout` en el bloque `test` de `vite.config.ts`, o eliminar la espera real de esa prueba. No incluido en `LAB-003`, que no toca `vite.config.ts` |
 
 ## 6. Historial de cambios
 
@@ -79,8 +81,39 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-08 | `LAB-001` terminada sobre el commit `c807281`. Alta de ADR-001 y del baseline verificado. Registradas seis divergencias entre plan y repositorio (§5 bis). Sin cambios de código. |
 | 2026-08-08 | `LAB-002` terminada. Fixtures dorados y prueba de paridad de 27 casos sobre `src/lib/finance/`. Revisión cuantitativa independiente superada tras corregir cuatro debilidades. Registrada D7. Sin cambios en código de producción. |
 | 2026-08-08 | Eliminada la copia obsoleta del plan en `Markovitz/`. `docs/laboratorio-plan/` queda como fuente de verdad única (cierra D1). |
+| 2026-08-08 | `LAB-003` terminada. CI en tres jobs con `quality` y `e2e-core` como checks requeridos, y Playwright sirviendo el build. Cierra D8; registra D9 y D10. El despliegue **sigue sin depender de CI**: eso es `LAB-004`. |
 
-## 6 bis. Última tarea cerrada — LAB-002
+## 6 bis. Última tarea cerrada — LAB-003
+
+**Archivos** (3):
+
+- `.github/workflows/ci.yml` — reestructurado en tres jobs
+- `playwright.config.ts` — sirve el build y limita la concurrencia
+- `docs/runbooks/ci-required-checks.md` — nuevo
+
+**Qué cambia**: `ci.yml` pasa de un job monolítico `verify` a `quality` (lint, tipos, unitarias), `build` (build, auditoría de secretos, publica `dist`) y `e2e-core` (`needs: build`, descarga `dist`, Playwright, traces solo si falla). Concurrencia por workflow+ref, cancelando solo en PR. Playwright sirve el build con `vite preview` en vez del servidor de desarrollo, de modo que **se prueba el mismo artefacto que se audita**.
+
+**Pruebas**
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run lint` | Correcto |
+| `npm run typecheck` | Correcto |
+| `npx vitest run` | 181/181 (ver D10: una pasada previa dio 180/181 por inestabilidad) |
+| `npm run build` | Correcto |
+| `npm run test:e2e` | 10/10 en 19,9 s, todas entre 0,7 y 2,4 s |
+| YAML de los tres workflows | Parseado correctamente; `ci.yml` expone `quality`, `build`, `e2e-core` con `contents: read` |
+
+**Limitaciones**
+
+- La cobertura (`--coverage` en el paso 8 del documento 03) **no se añade**: exigiría la dependencia `@vitest/coverage-v8`, que no está instalada. Queda para la tarea que fije el presupuesto de calidad.
+- Fijar las Actions a SHA completo es el paso 1 de `LAB-004`, no de esta tarea.
+- Los checks requeridos en branch protection son **configuración remota manual**: el runbook los documenta, pero nadie los ha aplicado en GitHub.
+- El workflow no se ha ejecutado en GitHub: se ha validado localmente y por parseo de YAML.
+
+**Rollback**: revertir el commit. `deploy-pages.yml` no se ha tocado, así que el despliegue sigue comportándose igual que antes.
+
+## 6 ter. Tarea anterior — LAB-002
 
 **Archivos** (4 nuevos, ninguno de producción):
 
