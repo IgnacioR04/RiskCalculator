@@ -11,7 +11,7 @@
 | Fase activa | Fase 0 — Base, contratos y calidad |
 | Tarea activa | Ninguna — `LAB-007` y D10 terminadas. **G0 cumple sus cuatro criterios en la rama `lab/fase-0`, pero uno no entra en vigor hasta fusionar la PR [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9)**. Ver §2 bis |
 | Última puerta superada | Ninguna (G0 pendiente) |
-| Última actualización | 2026-08-08 |
+| Última actualización | 2026-08-09 |
 
 ## 2. Estado por fase y puerta
 
@@ -38,11 +38,13 @@ Evaluada el 2026-08-09 sobre el commit `4850ff4` de `lab/fase-0`.
 | Criterio G0 | Estado | Evidencia |
 |---|---|---|
 | lint, tipos, unit tests, E2E básico y build pasan en CI | **Cumplido** | CI en verde sobre `4850ff4`: `quality`, `build` y `e2e-core`. La inestabilidad D10 está diagnosticada y corregida, no solo ausente |
-| El despliegue no puede adelantarse a CI | **Cumplido en la rama, no en vigor** | `deploy-pages.yml` depende de `workflow_run` de CI y publica el SHA validado. Pero `workflow_run` se resuelve contra la rama por defecto: **mientras la PR no se fusione, en `main` sigue activo el despliegue por `push`** |
+| El despliegue no puede adelantarse a CI | **Cumplido para GitHub Pages, no en vigor hasta fusionar** | `deploy-pages.yml` depende de `workflow_run` de CI, exige push desde `main` de este repositorio y publica el SHA validado. Pero `workflow_run` se resuelve contra la rama por defecto: **mientras la PR no se fusione, en `main` sigue activo el despliegue por `push`**. **Alcance**: esta evidencia cubre el canal de GitHub Pages; ver la nota sobre el segundo destino |
 | Los cálculos actuales tienen fixtures de paridad | **Cumplido** | `LAB-002`: 27 pruebas doradas sobre `src/lib/finance/`, con valores derivados analíticamente y revisión cuantitativa independiente |
 | Las rutas actuales están cubiertas | **Cumplido** | `LAB-007`: las ocho rutas, redirecciones antiguas, modo sin Supabase, rail y barra móvil. 22 pruebas E2E, verificadas también en CI |
 
-**G0 no se declara superada.** Tres criterios están respaldados por evidencia sin reservas; el segundo depende de una fusión que esta sesión no puede hacer. En el momento en que la PR [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9) entre en `main`, el cuarto queda cumplido y G0 puede darse por superada sin trabajo adicional.
+**G0 no se declara superada todavía.** Tres criterios están respaldados por evidencia sin reservas; el **segundo** —el del despliegue— depende de que la PR [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9) entre en `main`, porque `workflow_run` se resuelve contra la rama por defecto.
+
+**Alcance declarado del segundo criterio.** La evidencia cubre el canal de **GitHub Pages**. El repositorio reconoce un segundo destino de despliegue (divergencia D4: `vercel.json` y la bifurcación `DEPLOY_TARGET` de `vite.config.ts`), y **desde el repositorio no puede comprobarse** si hay un proyecto de Vercel conectado ni si su integración con Git está condicionada a CI: `vercel.json` es solo una reescritura para SPA y ningún workflow lo gobierna. Si ese destino está activo, **desplegaría en cada push sin esperar a CI** y el criterio no estaría cumplido para él. Queda como riesgo abierto que exige una comprobación manual en el panel de Vercel; G0 se declara sobre el canal de Pages, no sobre ambos.
 
 Quedan además tres tareas de Fase 0 **fuera del criterio de G0**, que no la bloquean: `LAB-005` (metadatos de build), `LAB-006` (feature flags tipadas) y `LAB-008` (presupuesto de bundle).
 
@@ -85,6 +87,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | D5 | El router es `HashRouter` con redirecciones legacy ya implementadas | La migración de navegación parte de URLs con `#`, no de un diseño nuevo |
 | D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
 | D8 | ~~El arnés E2E levanta `npm run dev` y el timeout queda al borde del arranque en frío~~ **Resuelta el 2026-08-08 por `LAB-003`** | Playwright sirve ahora el build con `vite preview`. Las pruebas bajaron de 6,8–29,5 s a 0,7–2,4 s |
+| D11 | La revisión previa a la fusión detectó riesgos abiertos que **no** se corrigen en la Fase 0: `e2e/` y `playwright.config.ts` no se lintan ni se comprueban de tipos (`lint` es `eslint src` y los `tsconfig` solo incluyen `src`); `seriesCache.test.ts` restaura `vi.useFakeTimers()` dentro del `it` y no en un `afterEach`; el `asyncUtilTimeout` de Testing Library sigue en 1 s pese a que D10 concluyó que el problema es la saturación de CPU; y la conversión FX de series históricas (`convertDemoPriceSeries`) no tiene fixture ni aparece declarada como hueco en `golden-fixtures.md` | Ninguno bloquea G0. El primero es el más relevante: el entregable que sostiene el criterio de rutas es justo el código que las puertas de calidad no revisan |
 | D9 | El número de workers por defecto de Playwright (4) satura esta máquina: acciones de ~1 s agotaban el timeout de 30 s. Medido: 1 worker 10/10 · 2 workers 10/10 · 4 workers 6/10 | Fijado `workers: 2`. **Confirmado en CI**: 10/10 en 9,3 s en el runner. Si algún día resultara conservador, subir con medición, no a ojo |
 | D10 | ~~Fallo intermitente de la suite unitaria bajo carga~~ **Diagnosticada y resuelta el 2026-08-09** | Reproducida de forma determinista bajo carga de CPU y corregida en `vite.config.ts`. Diagnóstico completo abajo |
 
@@ -127,7 +130,9 @@ Las dos últimas se excluyen mutuamente por viewport con `test.skip(isMobile)`, 
 
 **Prueba afectada**: `src/pages/ImportarPage.test.tsx > ImportarPage > nada se escribe hasta que se confirma`.
 
-**Descartado por inspección.** La prueba es **enteramente síncrona**: no tiene `await`, `waitFor`, `userEvent`, temporizadores ni mocks que restaurar. `ImportarPage` no contiene `useEffect`, `fetch` ni temporizadores. El único estado compartido es el store, que `beforeEach` reinicia por completo, y la prueba es la primera del archivo, así que no depende del orden. Los avisos de `act(...)` proceden del `.click()` en crudo: son higiene de test, no un cuelgue.
+**Alcance de la observación.** D10 se observó **solo en local**. Las ejecuciones remotas con el umbral de 5 s todavía vigente dieron 181/181, así que la inestabilidad nunca llegó a manifestarse en CI: el arreglo es una mitigación demostrada de la máquina de desarrollo, no la corrección de un fallo observado en la puerta.
+
+**Descartado por inspección.** La prueba es **enteramente síncrona**: no tiene `await`, `waitFor`, `userEvent`, temporizadores ni mocks que restaurar. (Esto vale para *esta* prueba; en la suite sí hay un `vi.useFakeTimers()` que `seriesCache.test.ts` restaura dentro del `it` y no en un `afterEach`, de modo que un fallo intermedio lo filtraría a la prueba siguiente. Es un riesgo distinto y anterior, anotado como D11.) `ImportarPage` no contiene `useEffect`, `fetch` ni temporizadores. El único estado compartido es el store, que `beforeEach` reinicia por completo, y la prueba es la primera del archivo, así que no depende del orden. Los avisos de `act(...)` proceden del `.click()` en crudo: son higiene de test, no un cuelgue.
 
 **Reproducción determinista.** La duración de la *misma* prueba, con el *mismo* código y entrada, escala de forma monótona con la carga de CPU:
 

@@ -33,8 +33,13 @@ Comprobar en este orden:
 2. **¿El workflow existe en la rama por defecto?** `workflow_run` solo se activa si el
    archivo está en `main`. Mientras estos cambios vivan en una rama sin fusionar, el
    encadenado **no funciona todavía**. No es un fallo.
-3. **¿El evento venía de `main`?** El filtro `branches: [main]` mira la rama de la
-   ejecución de CI, así que las de pull request no despliegan, por diseño.
+3. **¿El evento venía de un push a `main` de este repositorio?** El filtro
+   `branches: [main]` de `workflow_run` **no** basta: compara contra `head_branch`, que es
+   la rama *de origen* de la ejecución de CI, no la de destino. Como CI también corre en
+   `pull_request`, un PR desde un fork cuya rama se llamara `main` lo pasaría. Por eso el
+   `if:` del job de build exige además `workflow_run.event == 'push'`,
+   `head_branch == 'main'` y `head_repository.full_name == github.repository`. Si el
+   despliegue no arranca tras un PR, es precisamente lo esperado.
 
 ## 3. Síntoma: el sitio publicado está roto
 
@@ -75,10 +80,17 @@ un chunk. Si el usuario sigue atascado, forzar recarga dura. No requiere redespl
 |---|---|
 | Actions fijadas a SHA completo con su versión anotada | Sí, en los tres workflows |
 | `pull_request_target` | No se usa en ningún workflow |
-| Secretos accesibles desde código de un PR no confiable | No: los únicos secretos (`VITE_SUPABASE_*`) viven en `deploy-pages.yml`, que solo se dispara por `workflow_run` sobre `main` y por despacho manual |
-| Permisos por defecto del workflow de despliegue | `permissions: {}`; cada job pide lo mínimo: `contents: read` para construir, `pages: write` + `id-token: write` solo para desplegar |
+| Secretos accesibles desde código de un PR no confiable | No: el `if:` del job de build exige push, rama `main` y repositorio de origen propio, de modo que un PR de fork no llega a hacer checkout ni a ver los secretos |
+| Permisos por defecto del workflow de despliegue | `permissions: {}`; cada job pide lo mínimo: `contents: read` y `pages: read` para construir, `pages: write` + `id-token: write` solo para desplegar |
 | Token persistido en el runner | No: `persist-credentials: false` en todos los checkouts |
+| SHA del redespliegue manual | Validado con `^[0-9a-f]{40}$` antes del checkout: un valor vacío haría que checkout tomara la punta de `main` |
 | Concurrencia de Pages | Grupo `pages` sin cancelación, para no interrumpir una publicación en curso |
+
+### Riesgos residuales aceptados
+
+- **Orden de publicación.** CI no cancela ejecuciones en `main`, así que dos pushes seguidos pueden terminar en orden inverso y publicar el bundle antiguo sobre el reciente. Un «Re-run» de una ejecución antigua de CI tiene el mismo efecto. Es el comportamiento de la plantilla oficial de GitHub; si llega a molestar, añadir una comprobación de que el SHA sigue siendo la punta de `main` antes de construir.
+- **La auditoría de secretos de `ci.yml` es un cinturón de seguridad débil**, no una garantía: busca el *nombre* `TWELVE_DATA_API_KEY`, no valores, y se ejecuta en el build de CI, que no recibe ningún secreto. El build que sí los recibe es el de este workflow, y ahí no hay auditoría. La protección real es que `TWELVE_DATA_API_KEY` no lleva prefijo `VITE_`, de modo que Vite nunca la expone al cliente.
+- **El despacho manual no comprueba que el SHA pasara CI**: valida su forma, no su historial. Es responsabilidad de quien lo lanza.
 
 Las Actions las mantiene Dependabot, que ya vigila el ecosistema `github-actions`
 ([`dependabot.yml`](../../.github/dependabot.yml)): fijar a SHA no las deja congeladas.
