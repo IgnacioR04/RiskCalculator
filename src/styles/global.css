@@ -2965,3 +2965,184 @@ details.disclose .disclose-body {
 small {
   font-size: var(--fs-aux);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Laboratorio — shell (LAB-102)
+
+   Estructura de 01-especificacion-producto-ux.md §4: cabecera de contexto,
+   selector de área, navegación secundaria y contenido. Sin colores propios:
+   todo sale de tokens.css.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.lab-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Migas */
+.lab-migas ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 400 var(--fs-aux) / 1.4 var(--font-ui);
+  color: var(--text-secondary);
+}
+
+.lab-migas li + li::before {
+  content: '/';
+  margin-right: var(--space-2);
+  color: var(--text-tertiary);
+}
+
+.lab-migas [aria-current='page'] {
+  color: var(--text-body);
+}
+
+/* Cabecera de contexto */
+.lab-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+
+.lab-context__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+  flex: 1 1 420px;
+}
+
+.lab-context__campo dt {
+  font: 400 var(--fs-aux) / 1.4 var(--font-ui);
+  color: var(--text-tertiary);
+}
+
+.lab-context__campo dd {
+  margin: 2px 0 0;
+  font: 500 var(--fs-body) / 1.4 var(--font-ui);
+  color: var(--text-primary);
+}
+
+/* Un hueco sin dato se ve como hueco: nunca se rellena con un valor falso. */
+.lab-context__pendiente {
+  color: var(--text-disabled);
+  font-style: italic;
+}
+
+.lab-context__acciones {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.lab-context__aviso {
+  margin: 0;
+  font: 400 var(--fs-aux) / 1.4 var(--font-ui);
+  color: var(--text-secondary);
+}
+
+/* Selector de área */
+.lab-areas {
+  display: flex;
+  gap: var(--space-2);
+  border-bottom: var(--border-width) solid var(--border-default);
+}
+
+.lab-area {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.lab-area:hover {
+  color: var(--text-body);
+}
+
+.lab-area--activa {
+  color: var(--brand-primary);
+  border-bottom-color: var(--brand-primary);
+}
+
+.lab-area__titulo {
+  font: 500 var(--fs-card-title) / 1.2 var(--font-ui);
+}
+
+.lab-area__subtitulo {
+  font: 400 var(--fs-aux) / 1.3 var(--font-ui);
+  color: var(--text-tertiary);
+}
+
+/* Navegación secundaria */
+.lab-subnav__lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lab-subnav__enlace {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-chip);
+  font: 400 var(--fs-body) / 1.4 var(--font-ui);
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.lab-subnav__enlace:hover {
+  background: var(--surface-inset);
+  color: var(--text-body);
+}
+
+.lab-subnav__enlace.activo {
+  background: var(--surface-highlight);
+  color: var(--brand-text);
+}
+
+/* El desplegable solo existe en móvil (§4.3). */
+.lab-subnav__selector {
+  display: none;
+}
+
+.lab-contenido h1 {
+  font: 600 var(--fs-page) / 1.2 var(--font-figures);
+  margin: 0 0 var(--space-3);
+}
+
+@media (max-width: 720px) {
+  .lab-subnav__lista {
+    display: none;
+  }
+
+  .lab-subnav__selector {
+    display: block;
+  }
+
+  .lab-subnav__selector select {
+    width: 100%;
+  }
+
+  .lab-context__acciones {
+    align-items: stretch;
+    width: 100%;
+  }
+}
