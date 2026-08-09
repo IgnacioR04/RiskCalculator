@@ -9,15 +9,15 @@
 |---|---|
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
-| Tarea activa | Ninguna — `LAB-007` y D10 terminadas. **G0 cumple sus cuatro criterios en la rama `lab/fase-0`, pero uno no entra en vigor hasta fusionar la PR [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9)**. Ver §2 bis |
-| Última puerta superada | Ninguna (G0 pendiente) |
+| Tarea activa | Ninguna. **G0 superada**; la Fase 1 queda autorizada pero **no iniciada** |
+| Última puerta superada | **G0**, el 2026-08-09, sobre `569e2a8` |
 | Última actualización | 2026-08-09 |
 
 ## 2. Estado por fase y puerta
 
 | Fase | Objetivo | Puerta | Estado | Fecha de cierre |
 |---:|---|---|---|---|
-| 0 | Base, contratos y calidad | G0 | Criterios cumplidos en rama; **pendiente de fusión** | — |
+| 0 | Base, contratos y calidad | G0 | **Superada** | 2026-08-09 |
 | 1 | Shell y migración de navegación | G1 | Pendiente | — |
 | 2 | IPS, restricciones y calidad de datos | G2 | Pendiente | — |
 | 3 | Refactor y ampliación de estabilidad | G3 | Pendiente | — |
@@ -31,20 +31,44 @@
 
 Una fase no comienza hasta cumplir su puerta de entrada (dependencias en [00-plan-maestro-laboratorio.md §12](./00-plan-maestro-laboratorio.md)), salvo tareas sin dependencia explícita.
 
-## 2 bis. Evaluación de la puerta G0
+## 2 bis. Acta de la puerta G0 — **SUPERADA**
 
-Evaluada el 2026-08-09 sobre el commit `4850ff4` de `lab/fase-0`.
+Cerrada el 2026-08-09 sobre `569e2a8b0ca8b346f07ead1719f8e52e0354743b`, commit de fusión de la PR [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9) en `main`.
 
-| Criterio G0 | Estado | Evidencia |
+| Criterio G0 | Estado | Evidencia verificable |
 |---|---|---|
-| lint, tipos, unit tests, E2E básico y build pasan en CI | **Cumplido** | CI en verde sobre `4850ff4`: `quality`, `build` y `e2e-core`. La inestabilidad D10 está diagnosticada y corregida, no solo ausente |
-| El despliegue no puede adelantarse a CI | **Cumplido para GitHub Pages, no en vigor hasta fusionar** | `deploy-pages.yml` depende de `workflow_run` de CI, exige push desde `main` de este repositorio y publica el SHA validado. Pero `workflow_run` se resuelve contra la rama por defecto: **mientras la PR no se fusione, en `main` sigue activo el despliegue por `push`**. **Alcance**: esta evidencia cubre el canal de GitHub Pages; ver la nota sobre el segundo destino |
+| lint, tipos, unit tests, E2E básico y build pasan en CI | **Cumplido** | CI [`31323042816`](https://github.com/IgnacioR04/RiskCalculator/actions/runs/31323042816) sobre `569e2a8`: `quality` ✓, `build` ✓, `e2e-core` ✓ (181 unitarias y 22 E2E). D10 diagnosticada y corregida, no solo ausente |
+| El despliegue no puede adelantarse a CI | **Cumplido** *(canal GitHub Pages)* | Demostrado en producción: CI terminó a las 16:11:03 y **solo entonces** arrancó Deploy [`31323113237`](https://github.com/IgnacioR04/RiskCalculator/actions/runs/31323113237) a las 16:11:05, con `event=workflow_run`. El log confirma `git checkout 569e2a8b…`: se publicó exactamente el SHA que CI validó |
 | Los cálculos actuales tienen fixtures de paridad | **Cumplido** | `LAB-002`: 27 pruebas doradas sobre `src/lib/finance/`, con valores derivados analíticamente y revisión cuantitativa independiente |
-| Las rutas actuales están cubiertas | **Cumplido** | `LAB-007`: las ocho rutas, redirecciones antiguas, modo sin Supabase, rail y barra móvil. 22 pruebas E2E, verificadas también en CI |
+| Las rutas actuales están cubiertas | **Cumplido** | `LAB-007`: las ocho rutas, redirecciones antiguas, modo sin Supabase, rail y barra móvil. 22 pruebas E2E, verificadas en CI y en el sitio publicado |
 
-**G0 no se declara superada todavía.** Tres criterios están respaldados por evidencia sin reservas; el **segundo** —el del despliegue— depende de que la PR [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9) entre en `main`, porque `workflow_run` se resuelve contra la rama por defecto.
+### Protección de `main` aplicada
 
-**Alcance declarado del segundo criterio.** La evidencia cubre el canal de **GitHub Pages**. El repositorio reconoce un segundo destino de despliegue (divergencia D4: `vercel.json` y la bifurcación `DEPLOY_TARGET` de `vite.config.ts`), y **desde el repositorio no puede comprobarse** si hay un proyecto de Vercel conectado ni si su integración con Git está condicionada a CI: `vercel.json` es solo una reescritura para SPA y ningún workflow lo gobierna. Si ese destino está activo, **desplegaría en cada push sin esperar a CI** y el criterio no estaría cumplido para él. Queda como riesgo abierto que exige una comprobación manual en el panel de Vercel; G0 se declara sobre el canal de Pages, no sobre ambos.
+No existía protección ni rulesets previos. Aplicada el 2026-08-09 y verificada por lectura de la API:
+
+| Regla | Valor |
+|---|---|
+| Checks requeridos | `quality`, `e2e-core` |
+| Comprobaciones estrictas (rama al día con `main`) | Sí |
+| Aplicable a administradores | **Sí** — nadie puede saltarse las reglas |
+| Aprobaciones de terceros | 0 (repositorio individual); los cambios siguen pasando por PR |
+| Force push / borrado de `main` | Prohibidos |
+
+### Smoke test del sitio publicado
+
+Sobre <https://ignacior04.github.io/RiskCalculator/>, tras el despliegue de `569e2a8`:
+
+- carga inicial correcta y **assets servidos bajo `/RiskCalculator/`**;
+- las **ocho rutas** responden con su encabezado correcto vía `HashRouter`;
+- **cero apariciones** del fallback del `ErrorBoundary`;
+- **cero errores de consola**;
+- rail de escritorio presente en las ocho rutas; en móvil el rail queda oculto y la barra inferior abre sus cinco secciones.
+
+El hash del bundle no cambió respecto al despliegue anterior (`index-Cz6I4xU_.js`), lo cual es lo esperado: la Fase 0 **no modificó código de producción**. La prueba de que el despliegue ocurrió es la ejecución del workflow, no un cambio de hash.
+
+### Alcance declarado y riesgo abierto
+
+La evidencia del segundo criterio cubre el canal de **GitHub Pages**. El repositorio reconoce un segundo destino (divergencia D4: `vercel.json` y la bifurcación `DEPLOY_TARGET` de `vite.config.ts`), y **desde el repositorio no puede comprobarse** si hay un proyecto de Vercel conectado ni si su integración con Git está condicionada a CI: `vercel.json` es solo una reescritura para SPA y ningún workflow lo gobierna. Si ese destino estuviera activo, desplegaría en cada push sin esperar a CI. **G0 se declara sobre el canal de Pages**; comprobar Vercel exige entrar en su panel y queda como riesgo abierto.
 
 Quedan además tres tareas de Fase 0 **fuera del criterio de G0**, que no la bloquean: `LAB-005` (metadatos de build), `LAB-006` (feature flags tipadas) y `LAB-008` (presupuesto de bundle).
 
@@ -103,7 +127,9 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-08 | Publicada la rama `lab/fase-0` en el remoto con los cuatro commits previos. |
 | 2026-08-08 | `LAB-004` terminada. Ocho Actions fijadas a SHA, permisos mínimos por job y despliegue condicionado al SHA que CI validó. Cierra D2. Con esto G0 solo espera a `LAB-007` y a resolver D10. |
 | 2026-08-09 | D10 reproducida de forma determinista bajo carga de CPU, diagnosticada como coste de arranque y corregida en `vite.config.ts`. |
-| 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. G0 queda con sus cuatro criterios cumplidos en rama, pendiente solo de fusionar la PR #9 para que el encadenado del despliegue entre en vigor. |
+| 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
+| 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
+| 2026-08-09 | **G0 superada.** Protección de `main` aplicada, PR #9 fusionada en `569e2a8`, encadenado CI→despliegue demostrado en producción y smoke test del sitio publicado correcto. La Fase 1 queda autorizada y **sin iniciar**. |
 
 ## 6 bis-0. Última tarea cerrada — LAB-007
 
