@@ -34,16 +34,16 @@ bloqueado a la espera de un check que nadie publica:
 | `dependency-review` | Al endurecer la cadena de suministro | `LAB-004` |
 | `bundle` | Al fijar el presupuesto de bundle | `LAB-008` |
 
-## 3. Lo que esta configuración **no** cubre todavía
+## 3. Relación con el despliegue
 
-El despliegue a GitHub Pages sigue siendo un workflow independiente:
-[`deploy-pages.yml`](../../.github/workflows/deploy-pages.yml) dispara en `push` a `main`
-**sin depender de CI**. Es decir, la protección de rama impide fusionar un PR roto, pero
-no impide que un push directo a `main` se publique mientras CI está en rojo.
+Desde `LAB-004`, [`deploy-pages.yml`](../../.github/workflows/deploy-pages.yml) ya **no**
+dispara en `push`: espera a que CI termine en verde sobre `main` y publica ese mismo SHA.
+La protección de rama y el encadenado son barreras complementarias: la primera impide
+fusionar un PR roto, el segundo impide publicar un `main` roto. Detalle en
+[`pages-deploy-failure.md`](./pages-deploy-failure.md).
 
-Cerrar ese hueco es el paso 4 de `LAB-004` («hacer deploy dependiente del SHA validado») y
-es uno de los dos criterios que faltan para superar la puerta **G0**. Hasta entonces, la
-protección de rama es la única barrera, y solo actúa sobre pull requests.
+Ese encadenado **solo se activa cuando `deploy-pages.yml` está en la rama por defecto**,
+porque `workflow_run` se resuelve contra `main`.
 
 ## 4. Comprobación local antes de abrir un PR
 

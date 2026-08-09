@@ -70,7 +70,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | D5 | El router es `HashRouter` con redirecciones legacy ya implementadas | La migración de navegación parte de URLs con `#`, no de un diseño nuevo |
 | D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
 | D8 | ~~El arnés E2E levanta `npm run dev` y el timeout queda al borde del arranque en frío~~ **Resuelta el 2026-08-08 por `LAB-003`** | Playwright sirve ahora el build con `vite preview`. Las pruebas bajaron de 6,8–29,5 s a 0,7–2,4 s |
-| D9 | El número de workers por defecto de Playwright (4) satura esta máquina: acciones de ~1 s agotaban el timeout de 30 s. Medido: 1 worker 10/10 · 2 workers 10/10 · 4 workers 6/10 | Fijado `workers: 2`. Si en los runners de CI resultara conservador, subir con medición, no a ojo |
+| D9 | El número de workers por defecto de Playwright (4) satura esta máquina: acciones de ~1 s agotaban el timeout de 30 s. Medido: 1 worker 10/10 · 2 workers 10/10 · 4 workers 6/10 | Fijado `workers: 2`. **Confirmado en CI**: 10/10 en 9,3 s en el runner. Si algún día resultara conservador, subir con medición, no a ojo |
 | D10 | Fallo **intermitente** de la suite unitaria bajo carga. Historial: 153/154 (LAB-001, identificado como `ImportarPage > nada se escribe hasta que se confirma`, timeout de 5 s, y pasa aislado en 169 ms) · 180/181 en una pasada de LAB-003 **cuya identidad no se pudo capturar** · 181/181 en las tres pasadas posteriores, incluida la de LAB-004 | **Sigue bloqueando el primer criterio de G0** («unit tests pasan en CI»): no se ha corregido, solo no se ha reproducido. **Causa no confirmada**: no se sube `testTimeout` sin evidencia de que sea la causa. Diagnóstico pendiente: ejecutar la suite repetidamente hasta reproducir y capturar el fallo completo |
 
 ## 6. Historial de cambios
@@ -106,7 +106,18 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | `npx vitest run` | 181/181 |
 | `npm run build` | Correcto |
 | `npm run test:e2e` | 10/10 en 37,3 s |
-| YAML + permisos + fijación a SHA | Correcto: las 3 Actions por workflow parsean, ninguna sin fijar a SHA de 40 hex, ningún `pull_request_target` |
+| YAML + permisos + fijación a SHA | Correcto: los 3 workflows parsean, ninguna Action sin fijar a SHA de 40 hex, ningún `pull_request_target` |
+
+**Verificación remota** — rama `lab/fase-0`, commit `91f8df0`, PR draft [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9):
+
+| Ejecución | Resultado |
+|---|---|
+| CI [`31310321001`](https://github.com/IgnacioR04/RiskCalculator/actions/runs/31310321001) | **success** — `quality` 32 s · `build` 25 s · `e2e-core` 42 s |
+| CodeQL [`31310320982`](https://github.com/IgnacioR04/RiskCalculator/actions/runs/31310320982) | **success** |
+
+El encadenado de jobs quedó demostrado en el runner: `e2e-core` arrancó a las 11:15:32, después de que `build` terminara a las 11:15:30; descargó el artefacto `dist` de ese job y ejecutó **10/10 pruebas en 9,3 s con 2 workers**. Es decir, las pruebas end-to-end corrieron sobre el mismo bundle que auditó `build`, y el `workers: 2` de D9 se confirma también fuera de esta máquina.
+
+`deploy-pages.yml` **no se disparó**, como corresponde: su `workflow_run` se resuelve contra `main`.
 
 Durante la validación se detectó y corrigió un defecto propio: el escalar plegado `>-` del campo `ref` **conservaba saltos de línea** (las líneas de continuación estaban más indentadas que la primera), de modo que GitHub habría recibido un `ref` con retornos dentro. Se dejó en una sola línea y se comprobó por parseo que ya no los contiene.
 
