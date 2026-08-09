@@ -10,7 +10,20 @@ import { useAppStore } from '../state/store'
 
 type DivTab = 'distribucion' | 'concentracion' | 'solapamientos'
 
+/**
+ * Pantalla 05 Diversificación. Sigue siendo su propia ruta mientras dura la
+ * migración al Laboratorio (LAB-106).
+ */
 export function DiversificacionPage() {
+  return <DiversificacionContenido conEncabezado />
+}
+
+/**
+ * Contenido de Diversificación, sin decidir dónde vive. El Laboratorio lo
+ * reutiliza tal cual desde `LabExposureLegacyPage`: una sola implementación,
+ * ningún cálculo duplicado.
+ */
+export function DiversificacionContenido(props: { conEncabezado?: boolean }) {
   const store = useAppStore()
   const currency = store.settings.displayCurrency
   const [tab, setTab] = useState<DivTab>('distribucion')
@@ -40,7 +53,7 @@ export function DiversificacionPage() {
   if (valued.length === 0) {
     return (
       <>
-        <SectionHeader num="05" title="Diversificación" />
+        {props.conEncabezado === true && <SectionHeader num="05" title="Diversificación" />}
         <Card>
           <EmptyState icon="◇" title="Sin posiciones valoradas">
             <p>
@@ -56,7 +69,7 @@ export function DiversificacionPage() {
 
   return (
     <>
-      <SectionHeader num="05" title="Diversificación" />
+      {props.conEncabezado === true && <SectionHeader num="05" title="Diversificación" />}
 
       <Tabs<DivTab>
         label="Apartados de diversificación"
