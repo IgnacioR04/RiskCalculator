@@ -52,7 +52,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 ## Checklist de tareas
 
-- [ ] LAB-101 — Definir contratos de ruta
+- [x] LAB-101 — Definir contratos de ruta *(2026-08-09)* — `src/features/lab/routes/labRoutes.ts`: 16 rutas con ID estable, padre, migas y redirecciones
 - [ ] LAB-102 — Crear LabShell
 - [ ] LAB-103 — Registrar rutas lazy
 - [ ] LAB-104 — Actualizar navegación global
