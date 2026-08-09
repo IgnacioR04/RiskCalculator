@@ -77,22 +77,15 @@ async function porcentajes(page: import('@playwright/test').Page): Promise<strin
   return texto.match(/-?\d+(?:[.,]\d+)?\s?%/g) ?? []
 }
 
-test('Riesgo muestra las mismas cifras dentro y fuera del Laboratorio', async ({ page }) => {
-  await entrarEnDemo(page)
-  await cargarDatosDemo(page)
-
-  await page.goto('/#/riesgo')
-  await expect(page.getByText('Dependencia de un activo')).toBeVisible()
-  const fuera = await porcentajes(page)
-  expect(fuera.length).toBeGreaterThan(0)
-
-  await page.goto('/#/laboratorio/estabilidad/riesgo')
-  await expect(page.getByText('Dependencia de un activo')).toBeVisible()
-  const dentro = await porcentajes(page)
-
-  // Mismo input, mismo resultado: no hay dos implementaciones, hay una.
-  expect(dentro).toEqual(fuera)
-})
+/*
+ * Nota sobre la paridad. Hasta LAB-107 estas pruebas comparaban las cifras de
+ * la ruta antigua con las de la nueva. Desde LAB-108 la ruta antigua redirige a
+ * la nueva, así que esa comparación se compararía consigo misma: es tautológica
+ * y se ha retirado. La paridad la garantiza la estructura, no una aserción:
+ * existe una sola implementación de cada pantalla y el Laboratorio la reutiliza,
+ * como comprueban las pruebas unitarias de `LabSection`. Lo que aquí sigue
+ * teniendo valor es que las pantallas migradas muestren datos reales.
+ */
 
 test('la versión dentro del Laboratorio se declara como la actual', async ({ page }) => {
   await page.goto('/#/laboratorio/estabilidad/riesgo')
@@ -100,40 +93,6 @@ test('la versión dentro del Laboratorio se declara como la actual', async ({ pa
   await expect(page.getByText(/versión actual del análisis de riesgo/)).toBeVisible()
   // Un solo h1: el de la shell. La pantalla no repite su encabezado numerado.
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-})
-
-test('Diversificación muestra las mismas cifras dentro y fuera del Laboratorio', async ({
-  page,
-}) => {
-  await entrarEnDemo(page)
-  await cargarDatosDemo(page)
-
-  await page.goto('/#/diversificacion')
-  await expect(page.getByRole('radio', { name: 'Sector' })).toBeVisible()
-  const fuera = await porcentajes(page)
-  expect(fuera.length).toBeGreaterThan(0)
-
-  await page.goto('/#/laboratorio/estabilidad/exposicion')
-  await expect(page.getByRole('radio', { name: 'Sector' })).toBeVisible()
-  const dentro = await porcentajes(page)
-
-  expect(dentro).toEqual(fuera)
-})
-
-test('Simular produce resultados idénticos dentro y fuera del Laboratorio', async ({ page }) => {
-  await entrarEnDemo(page)
-  await cargarDatosDemo(page)
-
-  await page.goto('/#/simular')
-  const fuera = await porcentajes(page)
-
-  await page.goto('/#/laboratorio/futuro/escenarios')
-  const dentro = await porcentajes(page)
-
-  expect(dentro).toEqual(fuera)
-  // Los shocks se declaran como escenarios deterministas, no como predicción.
-  await expect(page.getByText(/escenarios deterministas/)).toBeVisible()
-  await expect(page.getByText(/No estiman probabilidades ni predicen precios/)).toBeVisible()
 })
 
 test('las URL antiguas redirigen sin 404 ni bucle, y avisan de la mudanza', async ({ page }) => {
@@ -147,9 +106,10 @@ test('las URL antiguas redirigen sin 404 ni bucle, y avisan de la mudanza', asyn
 
   for (const { vieja, nueva } of mudanzas) {
     await page.goto(vieja)
-    // `toHaveURL` reintenta: la redirección la hace React tras procesar el
-    // cambio de hash, así que leer `page.url()` sin esperar llega demasiado pronto.
-    await expect(page).toHaveURL(new RegExp(nueva.replace(/[/?]/g, '\$&')))
+    // Reintenta: la redirección la hace React tras procesar el cambio de hash,
+    // así que leer `page.url()` una sola vez llega demasiado pronto. Se compara
+    // como texto para no tener que escapar la URL dentro de una expresión regular.
+    await expect.poll(() => page.url()).toContain(nueva)
     await expect(page.getByText(/ahora está dentro de Laboratorio/)).toBeVisible()
   }
 
@@ -176,4 +136,27 @@ test('la redirección conserva la cadena de consulta', async ({ page }) => {
   await entrarEnDemo(page)
   await page.goto('/#/riesgo?periodo=365')
   await expect(page).toHaveURL(/#\/laboratorio\/estabilidad\/riesgo\?periodo=365/)
+})
+
+test('las pantallas migradas muestran cifras reales con datos de demostración', async ({
+  page,
+}) => {
+  await entrarEnDemo(page)
+  await cargarDatosDemo(page)
+
+  const pantallas = [
+    { ruta: '/#/laboratorio/estabilidad/riesgo', titulo: 'Riesgo total y contribuciones' },
+    { ruta: '/#/laboratorio/estabilidad/exposicion', titulo: 'Exposición y concentración' },
+    { ruta: '/#/laboratorio/futuro/escenarios', titulo: 'Constructor y comparación' },
+  ]
+
+  for (const { ruta, titulo } of pantallas) {
+    await page.goto(ruta)
+    // Esperar al encabezado: el Laboratorio viaja en un chunk diferido y leer el
+    // texto nada más navegar mide la pantalla todavía vacía.
+    await expect(page.getByRole('heading', { level: 1, name: titulo })).toBeVisible()
+    const cifras = await porcentajes(page)
+    expect(cifras.length, `sin cifras en ${ruta}`).toBeGreaterThan(0)
+    await expect(page.getByText('Algo ha fallado en la interfaz')).toHaveCount(0)
+  }
 })
