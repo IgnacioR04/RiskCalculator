@@ -10,7 +10,7 @@
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
 | Fase activa | **Fase 1 — Shell y migración de navegación** |
-| Tarea activa | Ninguna — `LAB-101` terminada. Siguiente: `LAB-102` (LabShell) |
+| Tarea activa | Ninguna — `LAB-102` terminada. Siguiente: `LAB-103` (registrar rutas lazy) |
 | Última puerta superada | **G0**, el 2026-08-09, sobre `569e2a8` |
 | Última actualización | 2026-08-09 |
 

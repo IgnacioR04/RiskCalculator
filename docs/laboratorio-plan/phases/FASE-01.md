@@ -53,7 +53,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 ## Checklist de tareas
 
 - [x] LAB-101 — Definir contratos de ruta *(2026-08-09)* — `src/features/lab/routes/labRoutes.ts`: 16 rutas con ID estable, padre, migas y redirecciones
-- [ ] LAB-102 — Crear LabShell
+- [x] LAB-102 — Crear LabShell *(2026-08-09)* — cabecera de contexto, áreas, subnavegación responsive y migas; 17 pruebas
 - [ ] LAB-103 — Registrar rutas lazy
 - [ ] LAB-104 — Actualizar navegación global
 - [ ] LAB-105 — Adaptar Riesgo dentro de Estabilidad
