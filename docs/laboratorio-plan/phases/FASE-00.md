@@ -56,7 +56,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-003 — Separar CI de despliegue *(2026-08-08)* — jobs `quality`, `build` y `e2e-core`; Playwright sirve el build
 - [x] LAB-004 — Endurecer GitHub Actions *(2026-08-08)* — Actions fijadas a SHA, permisos mínimos por job y despliegue condicionado al SHA validado por CI. Cierra D2
 - [ ] LAB-005 — Añadir metadatos de build
-- [ ] LAB-006 — Crear feature flags tipadas
+- [x] LAB-006 — Crear feature flags tipadas *(2026-08-09)* — catálogo cerrado de 9 capacidades, default seguro y `isFeatureEnabled`
 - [x] LAB-007 — Baseline E2E de rutas actuales *(2026-08-09)* — `e2e/navigation-current.spec.ts` y helpers compartidos; 22 pruebas E2E en escritorio y móvil
 - [ ] LAB-008 — Presupuesto de bundle y lazy loading baseline
 
