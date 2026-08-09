@@ -9,7 +9,8 @@
 |---|---|
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
-| Tarea activa | Ninguna. **G0 superada**; la Fase 1 queda autorizada pero **no iniciada** |
+| Fase activa | **Fase 1 — Shell y migración de navegación** |
+| Tarea activa | Ninguna — `LAB-101` terminada. Siguiente: `LAB-102` (LabShell) |
 | Última puerta superada | **G0**, el 2026-08-09, sobre `569e2a8` |
 | Última actualización | 2026-08-09 |
 
@@ -111,6 +112,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | D5 | El router es `HashRouter` con redirecciones legacy ya implementadas | La migración de navegación parte de URLs con `#`, no de un diseño nuevo |
 | D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
 | D8 | ~~El arnés E2E levanta `npm run dev` y el timeout queda al borde del arranque en frío~~ **Resuelta el 2026-08-08 por `LAB-003`** | Playwright sirve ahora el build con `vite preview`. Las pruebas bajaron de 6,8–29,5 s a 0,7–2,4 s |
+| D12 | El plan sitúa las flags en `src/lib/features/flags.ts` (LAB-006) y los contratos de ruta en `src/features/lab/…` (LAB-101): **dos carpetas «features» distintas**, una dentro de `lib/` y otra en la raíz de `src/` | Se han seguido ambas rutas literalmente, como se hizo con `__tests__`. Conviene unificar antes de que la Fase 1 llene `src/features/`; es una decisión de estructura, no funcional |
 | D11 | La revisión previa a la fusión detectó riesgos abiertos que **no** se corrigen en la Fase 0: `e2e/` y `playwright.config.ts` no se lintan ni se comprueban de tipos (`lint` es `eslint src` y los `tsconfig` solo incluyen `src`); `seriesCache.test.ts` restaura `vi.useFakeTimers()` dentro del `it` y no en un `afterEach`; el `asyncUtilTimeout` de Testing Library sigue en 1 s pese a que D10 concluyó que el problema es la saturación de CPU; y la conversión FX de series históricas (`convertDemoPriceSeries`) no tiene fixture ni aparece declarada como hueco en `golden-fixtures.md` | Ninguno bloquea G0. El primero es el más relevante: el entregable que sostiene el criterio de rutas es justo el código que las puertas de calidad no revisan |
 | D9 | El número de workers por defecto de Playwright (4) satura esta máquina: acciones de ~1 s agotaban el timeout de 30 s. Medido: 1 worker 10/10 · 2 workers 10/10 · 4 workers 6/10 | Fijado `workers: 2`. **Confirmado en CI**: 10/10 en 9,3 s en el runner. Si algún día resultara conservador, subir con medición, no a ojo |
 | D10 | ~~Fallo intermitente de la suite unitaria bajo carga~~ **Diagnosticada y resuelta el 2026-08-09** | Reproducida de forma determinista bajo carga de CPU y corregida en `vite.config.ts`. Diagnóstico completo abajo |
@@ -130,6 +132,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-09 | **Fase 1 iniciada.** `LAB-101` terminada: contratos de ruta con las 16 rutas del documento 01, ID estable, padre, migas y las tres redirecciones. Registrada D12. |
 | 2026-08-09 | **G0 superada.** Protección de `main` aplicada, PR #9 fusionada en `569e2a8`, encadenado CI→despliegue demostrado en producción y smoke test del sitio publicado correcto. La Fase 1 queda autorizada y **sin iniciar**. |
 
 ## 6 bis-0. Última tarea cerrada — LAB-007
