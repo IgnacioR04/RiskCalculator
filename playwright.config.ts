@@ -35,6 +35,10 @@ export default defineConfig({
     command: process.env.CI
       ? 'npm run preview -- --host 127.0.0.1 --port 4173 --strictPort'
       : 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort',
+    // El Laboratorio se despliega por capacidades, así que hay que encenderlo
+    // para poder ejercitarlo. En CI el build lo hace el job `build`, que lee
+    // esta misma variable del workflow.
+    env: { VITE_LAB_FLAGS: 'labShell' },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     // El build local cabe de sobra aquí; el servidor en sí arranca en ~1 s.

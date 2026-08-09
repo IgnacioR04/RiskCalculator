@@ -10,7 +10,7 @@
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
 | Fase activa | **Fase 1 — Shell y migración de navegación** |
-| Tarea activa | Ninguna — `LAB-102` terminada. Siguiente: `LAB-103` (registrar rutas lazy) |
+| Tarea activa | Ninguna — `LAB-103` terminada. Siguiente: `LAB-104` (Laboratorio en la navegación global) |
 | Última puerta superada | **G0**, el 2026-08-09, sobre `569e2a8` |
 | Última actualización | 2026-08-09 |
 
@@ -107,7 +107,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | D1 | ~~El paquete del plan vive en `Markovitz/`~~ **Resuelta el 2026-08-08** | El plan está en `docs/laboratorio-plan/` con `phases/`, y `CLAUDE.md` en la raíz. La copia antigua de `Markovitz/` se ha eliminado: fuente de verdad única. Nada está aún commiteado |
 | D7 | `sharpeRatio` con volatilidad nula y `correlation` frente a serie constante devuelven `reason: 'insufficient_data'` con `observations: 40 ≥ required: 30`, estado internamente contradictorio | Detectado en la revisión de LAB-002. La métrica no está indefinida por muestra, sino por división por cero. Merece una razón propia; fuera del alcance de LAB-002 |
 | D2 | ~~`deploy-pages.yml` no dependía de CI~~ **Resuelta el 2026-08-08 por `LAB-004`** | El despliegue se dispara por `workflow_run` tras CI en verde sobre `main` y publica `workflow_run.head_sha`. Surte efecto **solo cuando el workflow esté en `main`** |
-| D3 | `LoginGate` cubre toda la app: ninguna ruta es accesible sin sesión demo o Supabase | Choca con «funciones esenciales sin cuenta». Decisión de producto pendiente |
+| D3 | ~~`LoginGate` cubre toda la app~~ **Resuelta el 2026-08-09 por decisión del propietario** | El Laboratorio es accesible **sin cuenta**: el router pasa a estar por encima de `LoginGate`, que deja pasar los prefijos públicos sin dejar de inicializar caché y sesión. El resto de la aplicación sigue tras la puerta; quien quiera sincronizar entra desde Perfil |
 | D4 | Segundo destino de despliegue (`vercel.json`, `DEPLOY_TARGET`) no contemplado en el plan | Validar cambios de `base` y rutas en ambos destinos |
 | D5 | El router es `HashRouter` con redirecciones legacy ya implementadas | La migración de navegación parte de URLs con `#`, no de un diseño nuevo |
 | D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
@@ -132,6 +132,8 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-09 | `LAB-103` terminada. El Laboratorio ya es navegable en `/laboratorio/*`, en un chunk diferido y tras la capacidad `labShell`. Por decisión del propietario, **accesible sin cuenta**: cierra D3. |
+| 2026-08-09 | `LAB-102` terminada. Shell del Laboratorio con cabecera de contexto, áreas, subnavegación responsive y migas. |
 | 2026-08-09 | **Fase 1 iniciada.** `LAB-101` terminada: contratos de ruta con las 16 rutas del documento 01, ID estable, padre, migas y las tres redirecciones. Registrada D12. |
 | 2026-08-09 | **G0 superada.** Protección de `main` aplicada, PR #9 fusionada en `569e2a8`, encadenado CI→despliegue demostrado en producción y smoke test del sitio publicado correcto. La Fase 1 queda autorizada y **sin iniciar**. |
 

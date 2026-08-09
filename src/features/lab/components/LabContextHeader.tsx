@@ -75,7 +75,11 @@ export function LabContextHeader(props: LabContextHeaderProps) {
   const c = props.context ?? {}
 
   return (
-    <header className="lab-context" aria-label="Contexto del análisis">
+    /* `section` etiquetada y no `header`: dentro de la shell global el `header`
+       queda anidado en otro elemento seccionador y deja de ser landmark
+       `banner`, así que su rol dependería de dónde se monte. `region` es
+       estable en cualquier anidamiento. */
+    <section className="lab-context" aria-label="Contexto del análisis">
       <dl className="lab-context__campos">
         <Campo label="Cartera">{c.portfolioName ?? <Pendiente />}</Campo>
         <Campo label="Valoración">
@@ -109,6 +113,6 @@ export function LabContextHeader(props: LabContextHeaderProps) {
           Actualizar análisis
         </button>
       </div>
-    </header>
+    </section>
   )
 }

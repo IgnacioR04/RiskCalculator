@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppShell } from './components/shell/AppShell'
+import { isFeatureEnabled } from './lib/features/flags'
 import { lazyWithReload } from './lib/lazyChunk'
 
 /* Carga diferida por página: mantiene el build dividido por rutas. */
@@ -29,9 +30,17 @@ const ImportarPage = lazyWithReload(() =>
 const PerfilPage = lazyWithReload(() =>
   import('./pages/PerfilPage').then((module) => ({ default: module.PerfilPage })),
 )
+/* El Laboratorio entero viaja en un chunk aparte: no toca el arranque de la
+   aplicación mientras la capacidad esté apagada. */
+const LabSection = lazyWithReload(() =>
+  import('./features/lab/LabSection').then((module) => ({ default: module.LabSection })),
+)
 
 export function App() {
   const location = useLocation()
+  // Capacidad, no autorización: decide si el Laboratorio se muestra. Apagada,
+  // sus rutas no existen y un enlace guardado aterriza en el resumen.
+  const laboratorioVisible = isFeatureEnabled('labShell')
 
   return (
     <AppShell>
@@ -50,6 +59,10 @@ export function App() {
             <Route path="/simular" element={<SimularPage />} />
             <Route path="/importar" element={<ImportarPage />} />
             <Route path="/perfil" element={<PerfilPage />} />
+            <Route
+              path="/laboratorio/*"
+              element={laboratorioVisible ? <LabSection /> : <Navigate to="/resumen" replace />}
+            />
 
             {/* Rutas anteriores: se conservan para no romper enlaces guardados. */}
             <Route path="/portfolio" element={<Navigate to="/cartera" replace />} />
