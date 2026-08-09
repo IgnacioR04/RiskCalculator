@@ -10,8 +10,8 @@
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
 | Fase activa | **Fase 1 — Shell y migración de navegación** |
-| Tarea activa | Ninguna — `LAB-109` terminada. Siguiente: `LAB-110` (E2E de migración), que cierra **G1** |
-| Última puerta superada | **G0**, el 2026-08-09, sobre `569e2a8` |
+| Tarea activa | Ninguna. **Fase 1 completa y G1 superada.** La Fase 2 queda autorizada y no iniciada |
+| Última puerta superada | **G1**, el 2026-08-10 |
 | Última actualización | 2026-08-09 |
 
 ## 2. Estado por fase y puerta
@@ -19,7 +19,7 @@
 | Fase | Objetivo | Puerta | Estado | Fecha de cierre |
 |---:|---|---|---|---|
 | 0 | Base, contratos y calidad | G0 | **Superada** | 2026-08-09 |
-| 1 | Shell y migración de navegación | G1 | Pendiente | — |
+| 1 | Shell y migración de navegación | G1 | **Superada** | 2026-08-10 |
 | 2 | IPS, restricciones y calidad de datos | G2 | Pendiente | — |
 | 3 | Refactor y ampliación de estabilidad | G3 | Pendiente | — |
 | 4 | Exposición, look-through y dependencia | G4 | Pendiente | — |
@@ -72,6 +72,19 @@ El hash del bundle no cambió respecto al despliegue anterior (`index-Cz6I4xU_.j
 La evidencia del segundo criterio cubre el canal de **GitHub Pages**. El repositorio reconoce un segundo destino (divergencia D4: `vercel.json` y la bifurcación `DEPLOY_TARGET` de `vite.config.ts`), y **desde el repositorio no puede comprobarse** si hay un proyecto de Vercel conectado ni si su integración con Git está condicionada a CI: `vercel.json` es solo una reescritura para SPA y ningún workflow lo gobierna. Si ese destino estuviera activo, desplegaría en cada push sin esperar a CI. **G0 se declara sobre el canal de Pages**; comprobar Vercel exige entrar en su panel y queda como riesgo abierto.
 
 Quedan además tres tareas de Fase 0 **fuera del criterio de G0**, que no la bloquean: `LAB-005` (metadatos de build), `LAB-006` (feature flags tipadas) y `LAB-008` (presupuesto de bundle).
+
+## 2 ter. Acta de la puerta G1 — **SUPERADA**
+
+Cerrada el 2026-08-10, con las diez tareas de la Fase 1 terminadas.
+
+| Criterio G1 | Estado | Evidencia |
+|---|---|---|
+| Todos los recorridos actuales siguen disponibles | **Cumplido** | `lab-shell.spec.ts` recorre las nueve secciones y las tres URL antiguas; el menú «Más» del móvil cubre además un hueco anterior |
+| Rutas nuevas están lazy-loaded | **Cumplido** | El Laboratorio viaja en un chunk propio (`LabSection`), cargado bajo demanda; no toca el arranque |
+| No se han cambiado resultados numéricos | **Cumplido** | Las tres pantallas migradas **reutilizan la misma implementación**, no una copia: no hay dos cálculos que puedan divergir. Los 27 fixtures dorados de `LAB-002` siguen en verde |
+| Escritorio y móvil pasan E2E | **Cumplido** | 58 pruebas en los dos proyectos de Playwright, sobre el build real |
+
+**Nota honesta sobre la paridad.** Hasta `LAB-107` una E2E comparaba las cifras de la ruta antigua con las de la nueva. Desde `LAB-108` la antigua redirige a la nueva, así que esa comparación se compararía consigo misma: se retiró por tautológica en vez de dejarla dando una falsa sensación de cobertura. La garantía real es estructural —una sola implementación por pantalla— y se apoya en las unitarias de `LabSection` y en los fixtures dorados.
 
 ## 3. Tareas de la fase activa (Fase 0)
 
@@ -132,6 +145,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-10 | **G1 superada.** `LAB-110` cierra la Fase 1 con una E2E de migración de ocho casos. La Fase 2 queda autorizada y sin iniciar. |
 | 2026-08-10 | `LAB-109` terminada. Portada con las dos mitades y el estado real de la cartera. **No muestra hallazgos**: las conclusiones las producen los motores de la Fase 3, e insinuarlas ahora sería inventar. Una prueba comprueba que sin cartera no aparece ningún dígito. |
 | 2026-08-10 | `LAB-108` terminada. Las tres URL antiguas redirigen al Laboratorio conservando la cadena de consulta, con aviso cerrable y sin bucle al volver atrás. Con la capacidad apagada siguen sirviendo la pantalla de siempre. |
 | 2026-08-09 | `LAB-107` terminada. El simulador vive en Escenarios, con los shocks declarados como deterministas y sin añadir Monte Carlo. Tres pantallas migradas: Riesgo, Exposición y Escenarios. |
