@@ -3197,3 +3197,31 @@ small {
 .mobile-mas > ul a:hover {
   background: var(--surface-inset);
 }
+
+/* Portada del Laboratorio: las dos mitades (LAB-109). */
+.lab-mundos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.lab-mundo {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.lab-mundo:hover {
+  border-color: var(--border-strong);
+}
+
+.lab-mundo h2 {
+  margin: 0 0 var(--space-1);
+  font: 500 var(--fs-card-title) / 1.2 var(--font-ui);
+}
+
+.lab-mundo__pregunta {
+  margin: 0 0 var(--space-2);
+  font: 600 var(--fs-kpi) / 1.3 var(--font-figures);
+  color: var(--text-primary);
+}
