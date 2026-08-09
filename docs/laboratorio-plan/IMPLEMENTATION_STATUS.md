@@ -81,7 +81,7 @@ Quedan además tres tareas de Fase 0 **fuera del criterio de G0**, que no la blo
 | LAB-003 — Separar CI de despliegue | **Terminada** (2026-08-08) | Jobs `quality`, `build` y `e2e-core`; Playwright sirve el build. Cierra D8 |
 | LAB-004 — Endurecer GitHub Actions | **Terminada** (2026-08-08) | Ocho Actions fijadas a SHA, permisos mínimos por job, despliegue por `workflow_run` sobre el SHA validado. Cierra D2 |
 | LAB-005 — Metadatos de build | Pendiente | Depende de LAB-003 |
-| LAB-006 — Feature flags tipadas | Pendiente | Dependencia satisfecha (LAB-001); lista para empezar |
+| LAB-006 — Feature flags tipadas | **Terminada** (2026-08-09) | `src/lib/features/flags.ts` con las 9 capacidades del documento 03, default seguro y 17 pruebas. Nada la consume aún: la primera será `labShell` en la Fase 1 |
 | LAB-007 — Baseline E2E de rutas actuales | **Terminada** (2026-08-09) | `e2e/navigation-current.spec.ts` + `e2e/helpers.ts`. Las ocho rutas, redirecciones legacy, modo sin Supabase, rail y barra móvil |
 | LAB-008 — Presupuesto de bundle y lazy loading baseline | Pendiente | Depende de LAB-003 |
 
@@ -129,6 +129,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | D10 reproducida de forma determinista bajo carga de CPU, diagnosticada como coste de arranque y corregida en `vite.config.ts`. |
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
+| 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
 | 2026-08-09 | **G0 superada.** Protección de `main` aplicada, PR #9 fusionada en `569e2a8`, encadenado CI→despliegue demostrado en producción y smoke test del sitio publicado correcto. La Fase 1 queda autorizada y **sin iniciar**. |
 
 ## 6 bis-0. Última tarea cerrada — LAB-007
