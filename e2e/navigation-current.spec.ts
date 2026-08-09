@@ -38,7 +38,8 @@ test('todas las rutas cargan con su encabezado numerado y sin error fatal', asyn
     await test.step(`${seccion.num} ${seccion.titulo}`, async () => {
       // Navegación directa por URL con hash: es lo que hace un enlace guardado.
       await page.goto(seccion.ruta)
-      await expect(page.getByRole('heading', { name: seccion.titulo, level: 1 })).toBeVisible()
+      const esperado = 'destino' in seccion ? seccion.destino : seccion.titulo
+      await expect(page.getByRole('heading', { name: esperado, level: 1 })).toBeVisible()
       await expect(page.getByText(TEXTO_ERROR_FATAL)).toHaveCount(0)
     })
   }
@@ -60,7 +61,9 @@ test('la shell mantiene el landmark de navegación en todas las rutas', async ({
   expect(SECCIONES).toHaveLength(9)
   for (const seccion of SECCIONES) {
     await page.goto(seccion.ruta)
-    await expect(page.getByRole('navigation', { name: landmark })).toBeVisible()
+    // `exact` importa: la subnavegación del Laboratorio se llama «Secciones de
+    // …» y por subcadena colisionaría con el rail.
+    await expect(page.getByRole('navigation', { name: landmark, exact: true })).toBeVisible()
   }
 })
 
@@ -72,9 +75,11 @@ test('las rutas antiguas siguen redirigiendo a su sección actual', async ({ pag
   await expect(page.getByRole('heading', { name: 'Cartera', level: 1 })).toBeVisible()
   expect(page.url()).toContain('#/cartera')
 
+  // `/escenarios` apuntaba a `/simular`, que ahora vive en el Laboratorio.
   await page.goto('/#/escenarios')
-  await expect(page.getByRole('heading', { name: 'Simular', level: 1 })).toBeVisible()
-  expect(page.url()).toContain('#/simular')
+  await expect(
+    page.getByRole('heading', { name: 'Constructor y comparación', level: 1 }),
+  ).toBeVisible()
 
   // Una ruta inexistente aterriza en el resumen en lugar de dejar la app vacía.
   await page.goto('/#/ruta-que-no-existe')
@@ -120,7 +125,8 @@ test('el rail de escritorio abre todas las secciones', async ({ page, isMobile }
     await page
       .getByRole('link', { name: `${seccion.num} ${seccion.titulo}`, exact: true })
       .click()
-    await expect(page.getByRole('heading', { name: seccion.titulo, level: 1 })).toBeVisible()
+    const esperado = 'destino' in seccion ? seccion.destino : seccion.titulo
+    await expect(page.getByRole('heading', { name: esperado, level: 1 })).toBeVisible()
   }
 })
 

@@ -50,7 +50,11 @@ test('la diversificación reparte por varias dimensiones', async ({ page }) => {
   await enterDemo(page)
   await page.getByRole('button', { name: 'Cargar datos de demostración' }).click()
   await goToSection(page, '05', 'Diversificación', 'Reparto')
-  await expect(page.getByRole('heading', { name: 'Diversificación', level: 1 })).toBeVisible()
+  // Migrada al Laboratorio (LAB-106): la entrada sigue igual, el encabezado es
+  // ya el de su nuevo sitio.
+  await expect(
+    page.getByRole('heading', { name: 'Exposición y concentración', level: 1 }),
+  ).toBeVisible()
   await expect(page.getByRole('radio', { name: 'Sector' })).toBeVisible()
   await page.getByRole('tab', { name: 'Concentración' }).click()
   await expect(page.getByText('Nº efectivo de activos')).toBeVisible()

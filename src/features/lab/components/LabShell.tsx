@@ -20,6 +20,7 @@ import {
   type LabArea,
   type LabRouteId,
 } from '../routes/labRoutes'
+import { AvisoMigracion } from './AvisoMigracion'
 import { LabContextHeader, type LabContextHeaderProps } from './LabContextHeader'
 
 interface AreaDef {
@@ -81,6 +82,8 @@ export function LabShell(props: LabShellProps) {
           })}
         </ol>
       </nav>
+
+      <AvisoMigracion />
 
       <LabContextHeader {...propsDeContexto} />
 
