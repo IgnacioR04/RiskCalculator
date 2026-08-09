@@ -88,10 +88,10 @@ describe('LabSection · portadas informativas', () => {
     expect(screen.getByText(/versión actual del reparto de la cartera/)).toBeInTheDocument()
   })
 
-  it('la portada del Laboratorio no promete una fase concreta', () => {
+  it('la portada ya no es un placeholder: presenta las dos mitades (LAB-109)', () => {
     montarEn('/laboratorio')
-    expect(screen.getByText('Laboratorio todavía no está construido.')).toBeInTheDocument()
-    expect(screen.queryByText(/Esta pantalla llega con/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/todavía no está construido/)).not.toBeInTheDocument()
+    expect(screen.getByText('¿Qué tengo y qué puede hacerme daño?')).toBeInTheDocument()
   })
 
   it('toda ruta estática mantiene la shell alrededor', () => {

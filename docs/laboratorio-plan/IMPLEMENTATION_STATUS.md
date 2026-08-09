@@ -10,7 +10,7 @@
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
 | Fase activa | **Fase 1 — Shell y migración de navegación** |
-| Tarea activa | Ninguna — `LAB-108` terminada. Siguiente: `LAB-109` (portada del Laboratorio) |
+| Tarea activa | Ninguna — `LAB-109` terminada. Siguiente: `LAB-110` (E2E de migración), que cierra **G1** |
 | Última puerta superada | **G0**, el 2026-08-09, sobre `569e2a8` |
 | Última actualización | 2026-08-09 |
 
@@ -132,6 +132,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-10 | `LAB-109` terminada. Portada con las dos mitades y el estado real de la cartera. **No muestra hallazgos**: las conclusiones las producen los motores de la Fase 3, e insinuarlas ahora sería inventar. Una prueba comprueba que sin cartera no aparece ningún dígito. |
 | 2026-08-10 | `LAB-108` terminada. Las tres URL antiguas redirigen al Laboratorio conservando la cadena de consulta, con aviso cerrable y sin bucle al volver atrás. Con la capacidad apagada siguen sirviendo la pantalla de siempre. |
 | 2026-08-09 | `LAB-107` terminada. El simulador vive en Escenarios, con los shocks declarados como deterministas y sin añadir Monte Carlo. Tres pantallas migradas: Riesgo, Exposición y Escenarios. |
 | 2026-08-09 | `LAB-106` terminada. Diversificación se ve dentro del Laboratorio como **Exposición**, reutilizando la misma implementación. Paridad comprobada en E2E. |

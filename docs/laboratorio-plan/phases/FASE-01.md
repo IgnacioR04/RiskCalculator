@@ -60,7 +60,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-106 — Adaptar Diversificación *(2026-08-09)* — mapeada a Exposición; misma implementación, paridad comprobada en E2E
 - [x] LAB-107 — Adaptar Simular *(2026-08-09)* — alojado en Escenarios; shocks etiquetados como deterministas, sin Monte Carlo
 - [x] LAB-108 — Crear redirecciones legacy *(2026-08-10)* — las tres URL antiguas redirigen conservando la consulta, con aviso cerrable y sin bucle
-- [ ] LAB-109 — Portada inicial del Laboratorio
+- [x] LAB-109 — Portada inicial del Laboratorio *(2026-08-10)* — dos mitades, estado real de la cartera y estado vacío con demo/importar/manual. Sin hallazgos simulados
 - [ ] LAB-110 — E2E de migración
 
 ---
