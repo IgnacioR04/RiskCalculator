@@ -3146,3 +3146,54 @@ small {
     width: 100%;
   }
 }
+
+/* Menú «Más» de la barra inferior (LAB-104). En la barra solo caben cinco
+   destinos; el resto vive aquí para que ninguna sección quede sin entrada
+   visible en móvil. `details` nativo: accesible por teclado sin JS. */
+.mobile-mas {
+  position: relative;
+}
+
+.mobile-mas > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  font: 400 var(--fs-aux) / 1.2 var(--font-ui);
+  color: var(--text-tertiary);
+}
+
+.mobile-mas > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-mas[open] > summary {
+  color: var(--brand-primary);
+}
+
+.mobile-mas > ul {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 70;
+  min-width: 190px;
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-popover);
+}
+
+.mobile-mas > ul a {
+  display: block;
+  padding: var(--space-2);
+  border-radius: var(--radius-control);
+  font: 400 var(--fs-body) / 1.4 var(--font-ui);
+  color: var(--text-body);
+  text-decoration: none;
+}
+
+.mobile-mas > ul a:hover {
+  background: var(--surface-inset);
+}

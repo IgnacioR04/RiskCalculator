@@ -12,11 +12,12 @@ export const SECCIONES = [
   { num: '01', titulo: 'Resumen', ruta: '/#/resumen', movil: 'Resumen' },
   { num: '02', titulo: 'Calculadora', ruta: '/#/calculadora', movil: 'Calcular' },
   { num: '03', titulo: 'Cartera', ruta: '/#/cartera', movil: 'Cartera' },
-  { num: '04', titulo: 'Riesgo', ruta: '/#/riesgo', movil: 'Riesgo' },
+  { num: '04', titulo: 'Riesgo', ruta: '/#/riesgo' },
   { num: '05', titulo: 'Diversificación', ruta: '/#/diversificacion' },
   { num: '06', titulo: 'Simular', ruta: '/#/simular' },
   { num: '07', titulo: 'Importar', ruta: '/#/importar' },
   { num: '08', titulo: 'Perfil', ruta: '/#/perfil', movil: 'Perfil' },
+  { num: '09', titulo: 'Laboratorio', ruta: '/#/laboratorio', movil: 'Lab' },
 ] as const
 
 /** Texto del fallback del ErrorBoundary: si aparece, el render ha fallado. */

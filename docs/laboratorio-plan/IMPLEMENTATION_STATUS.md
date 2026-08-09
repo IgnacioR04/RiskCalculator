@@ -10,7 +10,7 @@
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
 | Fase activa | **Fase 1 — Shell y migración de navegación** |
-| Tarea activa | Ninguna — `LAB-103` terminada. Siguiente: `LAB-104` (Laboratorio en la navegación global) |
+| Tarea activa | Ninguna — `LAB-104` terminada. Siguiente: `LAB-105` (Riesgo dentro de Estabilidad) |
 | Última puerta superada | **G0**, el 2026-08-09, sobre `569e2a8` |
 | Última actualización | 2026-08-09 |
 
@@ -132,6 +132,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-09 | `LAB-104` terminada. Laboratorio entra en el rail y sustituye a Riesgo en la barra móvil, según §3.1. Se añade un menú «Más» que cierra un hueco **anterior**: Diversificación, Simular e Importar ya solo eran alcanzables por URL en móvil. |
 | 2026-08-09 | `LAB-103` terminada. El Laboratorio ya es navegable en `/laboratorio/*`, en un chunk diferido y tras la capacidad `labShell`. Por decisión del propietario, **accesible sin cuenta**: cierra D3. |
 | 2026-08-09 | `LAB-102` terminada. Shell del Laboratorio con cabecera de contexto, áreas, subnavegación responsive y migas. |
 | 2026-08-09 | **Fase 1 iniciada.** `LAB-101` terminada: contratos de ruta con las 16 rutas del documento 01, ID estable, padre, migas y las tres redirecciones. Registrada D12. |
