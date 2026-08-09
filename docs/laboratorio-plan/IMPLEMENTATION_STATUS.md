@@ -71,7 +71,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
 | D8 | ~~El arnés E2E levanta `npm run dev` y el timeout queda al borde del arranque en frío~~ **Resuelta el 2026-08-08 por `LAB-003`** | Playwright sirve ahora el build con `vite preview`. Las pruebas bajaron de 6,8–29,5 s a 0,7–2,4 s |
 | D9 | El número de workers por defecto de Playwright (4) satura esta máquina: acciones de ~1 s agotaban el timeout de 30 s. Medido: 1 worker 10/10 · 2 workers 10/10 · 4 workers 6/10 | Fijado `workers: 2`. **Confirmado en CI**: 10/10 en 9,3 s en el runner. Si algún día resultara conservador, subir con medición, no a ojo |
-| D10 | Fallo **intermitente** de la suite unitaria bajo carga. Historial: 153/154 (LAB-001, identificado como `ImportarPage > nada se escribe hasta que se confirma`, timeout de 5 s, y pasa aislado en 169 ms) · 180/181 en una pasada de LAB-003 **cuya identidad no se pudo capturar** · 181/181 en las tres pasadas posteriores, incluida la de LAB-004 | **Sigue bloqueando el primer criterio de G0** («unit tests pasan en CI»): no se ha corregido, solo no se ha reproducido. **Causa no confirmada**: no se sube `testTimeout` sin evidencia de que sea la causa. Diagnóstico pendiente: ejecutar la suite repetidamente hasta reproducir y capturar el fallo completo |
+| D10 | ~~Fallo intermitente de la suite unitaria bajo carga~~ **Diagnosticada y resuelta el 2026-08-09** | Reproducida de forma determinista bajo carga de CPU y corregida en `vite.config.ts`. Diagnóstico completo abajo |
 
 ## 6. Historial de cambios
 
@@ -84,6 +84,29 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-08 | `LAB-003` terminada. CI en tres jobs con `quality` y `e2e-core` como checks requeridos, y Playwright sirviendo el build. Cierra D8; registra D9 y D10. El despliegue **sigue sin depender de CI**: eso es `LAB-004`. |
 | 2026-08-08 | Publicada la rama `lab/fase-0` en el remoto con los cuatro commits previos. |
 | 2026-08-08 | `LAB-004` terminada. Ocho Actions fijadas a SHA, permisos mínimos por job y despliegue condicionado al SHA que CI validó. Cierra D2. Con esto G0 solo espera a `LAB-007` y a resolver D10. |
+
+## 6 bis-A. Diagnóstico de D10 (cerrada el 2026-08-09)
+
+**Prueba afectada**: `src/pages/ImportarPage.test.tsx > ImportarPage > nada se escribe hasta que se confirma`.
+
+**Descartado por inspección.** La prueba es **enteramente síncrona**: no tiene `await`, `waitFor`, `userEvent`, temporizadores ni mocks que restaurar. `ImportarPage` no contiene `useEffect`, `fetch` ni temporizadores. El único estado compartido es el store, que `beforeEach` reinicia por completo, y la prueba es la primera del archivo, así que no depende del orden. Los avisos de `act(...)` proceden del `.click()` en crudo: son higiene de test, no un cuelgue.
+
+**Reproducción determinista.** La duración de la *misma* prueba, con el *mismo* código y entrada, escala de forma monótona con la carga de CPU:
+
+| Condición | Duración | Resultado |
+|---|---:|---|
+| Máquina ociosa (4 pasadas) | 148 · 150 · 167 · 190 ms | pasa |
+| Máquina con trabajo de fondo | 3903 ms | pasa |
+| Carga deliberada, 8 procesos | 4434 ms | pasa |
+| **Carga deliberada, 16 procesos** | **7499 ms** | **falla: «Test timed out in 5000ms»** |
+
+**Causa raíz.** No es una carrera: es el **coste único de arranque** que absorbe la primera prueba de un archivo de componente —el primer render de React y la primera pasada por `schema.ts` y `convert.ts`—. La prueba siguiente del mismo archivo hace **estrictamente más trabajo** (valida, confirma la importación y comprueba que no se duplica) y tarda **41-55 ms bajo esa misma carga de 16 procesos**. El coste no está en lo que la prueba comprueba, sino en calentar el módulo. Con la CPU saturada, ese arranque cruza el umbral de 5 s que Vitest trae por defecto para pruebas de lógica pura.
+
+**Corrección**: `testTimeout: 20_000` en el bloque `test` de `vite.config.ts`, con la medición anotada. No se relaja ninguna aserción y un cuelgue real seguiría detectándose, porque nunca terminaría.
+
+**Verificación**: con la **misma carga de 16 procesos** que provocó el fallo, la prueba pasa en 5016 ms y la suite da 181/181. Con el umbral anterior habría vuelto a fallar, porque 5016 ms > 5000 ms.
+
+**Observación no aplicada**: el pool de hilos (`--pool=threads`) recorta la suite de 6,96 s a 4,77 s en reposo. Atenúa la sensibilidad, pero no es la causa y cambia el aislamiento entre archivos, así que se deja fuera de este arreglo.
 
 ## 6 bis. Última tarea cerrada — LAB-004
 
