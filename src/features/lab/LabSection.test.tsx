@@ -76,6 +76,12 @@ describe('LabSection · portadas informativas', () => {
     expect(screen.getByText(/versión actual del análisis de riesgo/)).toBeInTheDocument()
   })
 
+  it('Exposición tampoco es una portada: muestra Diversificación (LAB-106)', () => {
+    montarEn(labPath('lab.stability.exposure'))
+    expect(screen.queryByText(/todavía no está construido/)).not.toBeInTheDocument()
+    expect(screen.getByText(/versión actual del reparto de la cartera/)).toBeInTheDocument()
+  })
+
   it('la portada del Laboratorio no promete una fase concreta', () => {
     montarEn('/laboratorio')
     expect(screen.getByText('Laboratorio todavía no está construido.')).toBeInTheDocument()

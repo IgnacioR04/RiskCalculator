@@ -101,3 +101,21 @@ test('la versión dentro del Laboratorio se declara como la actual', async ({ pa
   // Un solo h1: el de la shell. La pantalla no repite su encabezado numerado.
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
 })
+
+test('Diversificación muestra las mismas cifras dentro y fuera del Laboratorio', async ({
+  page,
+}) => {
+  await entrarEnDemo(page)
+  await cargarDatosDemo(page)
+
+  await page.goto('/#/diversificacion')
+  await expect(page.getByRole('radio', { name: 'Sector' })).toBeVisible()
+  const fuera = await porcentajes(page)
+  expect(fuera.length).toBeGreaterThan(0)
+
+  await page.goto('/#/laboratorio/estabilidad/exposicion')
+  await expect(page.getByRole('radio', { name: 'Sector' })).toBeVisible()
+  const dentro = await porcentajes(page)
+
+  expect(dentro).toEqual(fuera)
+})
