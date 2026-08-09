@@ -1,0 +1,28 @@
+{
+  // Las pruebas end-to-end y su configuración quedaban fuera de toda puerta:
+  // Playwright transpila TypeScript sin comprobar tipos, así que un error solo
+  // aparecía al ejecutar, con un mensaje que no lo delataba. Se comprueban con
+  // la misma severidad que la aplicación (divergencia D11).
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
+    "target": "ES2023",
+    // DOM porque los callbacks que Playwright evalúa corren en el navegador.
+    "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "types": ["node"],
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "include": ["e2e", "playwright.config.ts"]
+}
