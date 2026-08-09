@@ -100,3 +100,12 @@ export const IconBuscar = (p: IconProps) => (
     <line x1="16.5" y1="16.5" x2="21" y2="21" />
   </Svg>
 )
+
+/** 09 Laboratorio — matraz: analizar, no operar. */
+export const IconLaboratorio = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 3h6" />
+    <path d="M10 3v6.5L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.5V3" />
+    <path d="M7.5 14h9" />
+  </Svg>
+)

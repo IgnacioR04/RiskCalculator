@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import type { Currency } from '../../lib/domain'
 import { endDemoSession, getDemoSession } from '../../lib/demoAuth'
+import { isFeatureEnabled } from '../../lib/features/flags'
 import { signOutAndClearCloudSession } from '../../lib/sync'
 import { useAppStore } from '../../state/store'
 import { MOBILE_SECTIONS, SECTIONS, sectionByPath } from './sections'
@@ -35,13 +36,22 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
     .sort()
     .at(-1)
 
+  // Visibilidad por capacidad, no permiso: una sección apagada no se ofrece,
+  // pero lo que protege datos sigue estando en Supabase.
+  const seccionesVisibles = SECTIONS.filter(
+    (s) => s.feature === undefined || isFeatureEnabled(s.feature),
+  )
+  const seccionesFueraDelMovil = seccionesVisibles.filter(
+    (s) => !MOBILE_SECTIONS.includes(s.path),
+  )
+
   return (
     <div className="app-shell">
       <nav className="app-rail" aria-label="Secciones">
         <NavLink to="/resumen" className="rail-logo" aria-label="RiskCalculator, ir al resumen">
           R
         </NavLink>
-        {SECTIONS.map((s) => {
+        {seccionesVisibles.map((s) => {
           const Icon = s.icon
           return (
             <NavLink
@@ -125,15 +135,32 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
       </div>
 
       <nav className="mobile-nav" aria-label="Navegacion principal">
-        {SECTIONS.filter((s) => MOBILE_SECTIONS.includes(s.path)).map((s) => {
-          const Icon = s.icon
-          return (
-            <NavLink key={s.path} to={s.path} className={({ isActive }) => (isActive ? 'active' : undefined)}>
-              <Icon />
-              {s.short}
-            </NavLink>
-          )
-        })}
+        {seccionesVisibles
+          .filter((s) => MOBILE_SECTIONS.includes(s.path))
+          .map((s) => {
+            const Icon = s.icon
+            return (
+              <NavLink key={s.path} to={s.path} className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <Icon />
+                {s.short}
+              </NavLink>
+            )
+          })}
+
+        {/* En la barra inferior no caben las nueve secciones. Sin este menú,
+            las que quedan fuera solo serían alcanzables escribiendo la URL. */}
+        {seccionesFueraDelMovil.length > 0 && (
+          <details className="mobile-mas">
+            <summary>Más</summary>
+            <ul>
+              {seccionesFueraDelMovil.map((s) => (
+                <li key={s.path}>
+                  <NavLink to={s.path}>{s.title}</NavLink>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </nav>
     </div>
   )

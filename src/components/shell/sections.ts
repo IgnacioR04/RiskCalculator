@@ -4,11 +4,13 @@
  * aparece al principio de cada pantalla.
  */
 import type { ComponentType, SVGProps } from 'react'
+import type { LabFeature } from '../../lib/features/flags'
 import {
   IconCalculadora,
   IconCartera,
   IconDiversificacion,
   IconImportar,
+  IconLaboratorio,
   IconPerfil,
   IconResumen,
   IconRiesgo,
@@ -25,6 +27,11 @@ export interface SectionDef {
   /** Descripción del tooltip del rail. */
   desc: string
   icon: ComponentType<SVGProps<SVGSVGElement>>
+  /**
+   * Capacidad que debe estar activa para mostrar el destino. Ausente ⇒ siempre
+   * visible. Es visibilidad, no permiso.
+   */
+  feature?: LabFeature
 }
 
 export const SECTIONS: SectionDef[] = [
@@ -92,10 +99,30 @@ export const SECTIONS: SectionDef[] = [
     desc: 'Perfil de riesgo, preferencias y tus datos.',
     icon: IconPerfil,
   },
+  /*
+   * El Laboratorio entra al final y no tras Cartera, aunque el documento de
+   * producto lo situé ahí: renumerar 04–08 ahora rompería el encabezado
+   * numerado de cinco pantallas por un orden que va a cambiar igualmente.
+   * Cuando LAB-105 a LAB-107 absorban Riesgo, Diversificación y Simular dentro
+   * del Laboratorio, la numeración se rehace de una vez y sin churn.
+   */
+  {
+    num: '09',
+    path: '/laboratorio',
+    title: 'Laboratorio',
+    short: 'Lab',
+    desc: 'Estabilidad de la cartera, escenarios y oportunidades.',
+    icon: IconLaboratorio,
+    feature: 'labShell',
+  },
 ]
 
-/** Secciones que aparecen en la navegación inferior del móvil (5 máximo). */
-export const MOBILE_SECTIONS = ['/resumen', '/calculadora', '/cartera', '/riesgo', '/perfil']
+/**
+ * Secciones de la navegación inferior del móvil (5 máximo), según §3.1 del
+ * documento de producto. El Laboratorio sustituye a Riesgo, que pasa a vivir
+ * dentro de él; Riesgo sigue accesible desde el rail, el menú «Más» y su URL.
+ */
+export const MOBILE_SECTIONS = ['/resumen', '/calculadora', '/cartera', '/laboratorio', '/perfil']
 
 export function sectionByPath(pathname: string): SectionDef | undefined {
   return SECTIONS.find((s) => pathname.startsWith(s.path))

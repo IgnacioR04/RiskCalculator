@@ -7,7 +7,7 @@ import {
 } from './helpers'
 
 /**
- * Baseline de navegación de las ocho superficies actuales (LAB-007).
+ * Baseline de navegación de las superficies actuales (LAB-007).
  *
  * Existe para que la migración de navegación de la Fase 1 no rompa ninguna
  * pantalla en silencio: aquí se congela lo que hoy funciona. No comprueba
@@ -25,14 +25,14 @@ function vigilarErrores(page: Page): string[] {
   return errores
 }
 
-test('las ocho rutas cargan con su encabezado numerado y sin error fatal', async ({ page }) => {
+test('todas las rutas cargan con su encabezado numerado y sin error fatal', async ({ page }) => {
   const errores = vigilarErrores(page)
   await entrarEnDemo(page)
   await cargarDatosDemo(page)
 
   // Fijar el recuento primero: si no, una lista vacía recorrería cero rutas y
   // la prueba pasaría sin comprobar nada.
-  expect(SECCIONES).toHaveLength(8)
+  expect(SECCIONES).toHaveLength(9)
 
   for (const seccion of SECCIONES) {
     await test.step(`${seccion.num} ${seccion.titulo}`, async () => {
@@ -57,7 +57,7 @@ test('la shell mantiene el landmark de navegación en todas las rutas', async ({
   // accesibilidad a la vez, porque el otro queda oculto por CSS.
   const landmark = isMobile ? 'Navegacion principal' : 'Secciones'
 
-  expect(SECCIONES).toHaveLength(8)
+  expect(SECCIONES).toHaveLength(9)
   for (const seccion of SECCIONES) {
     await page.goto(seccion.ruta)
     await expect(page.getByRole('navigation', { name: landmark })).toBeVisible()
@@ -110,16 +110,35 @@ test('la navegación inferior del móvil abre sus cinco secciones', async ({ pag
   }
 })
 
-test('el rail de escritorio abre las ocho secciones', async ({ page, isMobile }) => {
+test('el rail de escritorio abre todas las secciones', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Solo aplica al proyecto de escritorio: en móvil no hay rail')
 
   await entrarEnDemo(page)
 
-  expect(SECCIONES).toHaveLength(8)
+  expect(SECCIONES).toHaveLength(9)
   for (const seccion of SECCIONES) {
     await page
       .getByRole('link', { name: `${seccion.num} ${seccion.titulo}`, exact: true })
       .click()
     await expect(page.getByRole('heading', { name: seccion.titulo, level: 1 })).toBeVisible()
+  }
+})
+
+test('el menú «Más» del móvil da entrada a las secciones fuera de la barra', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'Solo aplica al proyecto móvil: en escritorio hay rail lateral')
+
+  await entrarEnDemo(page)
+
+  // Riesgo sale de la barra inferior al entrar Laboratorio (§3.1). Debe seguir
+  // teniendo una entrada visible: si no, quedaría solo accesible por URL.
+  const fueraDeLaBarra = SECCIONES.filter((s) => !('movil' in s))
+  expect(fueraDeLaBarra.length).toBeGreaterThan(0)
+
+  await page.getByRole('group').getByText('Más').click()
+  for (const seccion of fueraDeLaBarra) {
+    await expect(page.getByRole('link', { name: seccion.titulo, exact: true })).toBeVisible()
   }
 })
