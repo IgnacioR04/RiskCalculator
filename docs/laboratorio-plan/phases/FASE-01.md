@@ -56,7 +56,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-102 — Crear LabShell *(2026-08-09)* — cabecera de contexto, áreas, subnavegación responsive y migas; 17 pruebas
 - [x] LAB-103 — Registrar rutas lazy *(2026-08-09)* — `/laboratorio/*` en un chunk diferido, portadas informativas y **acceso sin cuenta** (cierra D3)
 - [x] LAB-104 — Actualizar navegación global *(2026-08-09)* — Laboratorio en rail y barra móvil, y menú «Más» para que ninguna sección quede sin entrada visible
-- [ ] LAB-105 — Adaptar Riesgo dentro de Estabilidad
+- [x] LAB-105 — Adaptar Riesgo dentro de Estabilidad *(2026-08-09)* — misma implementación reutilizada; paridad numérica comprobada en E2E
 - [ ] LAB-106 — Adaptar Diversificación
 - [ ] LAB-107 — Adaptar Simular
 - [ ] LAB-108 — Crear redirecciones legacy

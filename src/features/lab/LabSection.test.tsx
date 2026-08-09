@@ -61,13 +61,19 @@ describe('LabSection · rutas desconocidas', () => {
 
 describe('LabSection · portadas informativas', () => {
   it('dice que la pantalla no está construida, sin mostrar cifras', () => {
-    montarEn(labPath('lab.stability.risk'))
+    montarEn(labPath('lab.stability.dependence'))
     expect(
-      screen.getByText('Riesgo total y contribuciones todavía no está construido.'),
+      screen.getByText('Correlaciones, clusters y factores todavía no está construido.'),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/las métricas de estabilidad, con paridad demostrada/),
     ).toBeInTheDocument()
+  })
+
+  it('Riesgo ya no es una portada: muestra la pantalla migrada (LAB-105)', () => {
+    montarEn(labPath('lab.stability.risk'))
+    expect(screen.queryByText(/todavía no está construido/)).not.toBeInTheDocument()
+    expect(screen.getByText(/versión actual del análisis de riesgo/)).toBeInTheDocument()
   })
 
   it('la portada del Laboratorio no promete una fase concreta', () => {

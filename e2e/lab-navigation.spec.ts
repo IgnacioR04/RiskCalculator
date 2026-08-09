@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { cargarDatosDemo, entrarEnDemo } from './helpers'
 
 /**
  * Rutas del Laboratorio (LAB-103).
@@ -68,4 +69,35 @@ test('el resto de la aplicación sigue pidiendo acceso', async ({ page }) => {
 
   // Cartera no es pública: la puerta sigue en su sitio.
   await expect(page.getByRole('button', { name: 'Probar la aplicación' })).toBeVisible()
+})
+
+/** Porcentajes visibles en la página, en orden de aparición. */
+async function porcentajes(page: import('@playwright/test').Page): Promise<string[]> {
+  const texto = await page.locator('body').innerText()
+  return texto.match(/-?\d+(?:[.,]\d+)?\s?%/g) ?? []
+}
+
+test('Riesgo muestra las mismas cifras dentro y fuera del Laboratorio', async ({ page }) => {
+  await entrarEnDemo(page)
+  await cargarDatosDemo(page)
+
+  await page.goto('/#/riesgo')
+  await expect(page.getByText('Dependencia de un activo')).toBeVisible()
+  const fuera = await porcentajes(page)
+  expect(fuera.length).toBeGreaterThan(0)
+
+  await page.goto('/#/laboratorio/estabilidad/riesgo')
+  await expect(page.getByText('Dependencia de un activo')).toBeVisible()
+  const dentro = await porcentajes(page)
+
+  // Mismo input, mismo resultado: no hay dos implementaciones, hay una.
+  expect(dentro).toEqual(fuera)
+})
+
+test('la versión dentro del Laboratorio se declara como la actual', async ({ page }) => {
+  await page.goto('/#/laboratorio/estabilidad/riesgo')
+
+  await expect(page.getByText(/versión actual del análisis de riesgo/)).toBeVisible()
+  // Un solo h1: el de la shell. La pantalla no repite su encabezado numerado.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
 })
