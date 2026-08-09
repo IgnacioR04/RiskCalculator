@@ -9,6 +9,7 @@ import {
   labChildren,
   labPath,
   labRedirectFor,
+  labRelativePath,
   labRoutesByArea,
   type LabRouteId,
 } from './labRoutes'
@@ -99,6 +100,27 @@ describe('generación de paths', () => {
 
   it('ignora parámetros sobrantes en una ruta estática', () => {
     expect(labPath('lab.home', { runId: 'x' })).toBe('/laboratorio')
+  })
+})
+
+describe('paths relativos', () => {
+  it('la portada es la ruta índice', () => {
+    expect(labRelativePath('lab.home')).toBe('')
+  })
+
+  it('quitan el prefijo del Laboratorio sin dejar barra inicial', () => {
+    expect(labRelativePath('lab.stability')).toBe('estabilidad')
+    expect(labRelativePath('lab.stability.risk')).toBe('estabilidad/riesgo')
+    expect(labRelativePath('lab.run')).toBe('runs/:runId')
+  })
+
+  it('recomponen el path absoluto al anteponer la raíz', () => {
+    const raiz = LAB_ROUTES['lab.home'].path
+    for (const id of LAB_ROUTE_IDS) {
+      const relativo = labRelativePath(id)
+      const recompuesto = relativo === '' ? raiz : `${raiz}/${relativo}`
+      expect(recompuesto).toBe(LAB_ROUTES[id].path)
+    }
   })
 })
 

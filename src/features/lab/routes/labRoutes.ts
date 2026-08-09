@@ -232,6 +232,18 @@ export function labPath(id: LabRouteId, params?: Readonly<Record<string, string>
   return ruta.path.replace(`:${ruta.param}`, encodeURIComponent(valor))
 }
 
+/**
+ * Path relativo a la portada del Laboratorio, para declarar las rutas anidadas
+ * bajo `/laboratorio/*` sin repetir el prefijo. La portada devuelve cadena
+ * vacía, que es como React Router expresa la ruta índice.
+ */
+export function labRelativePath(id: LabRouteId): string {
+  const raiz = LAB_ROUTES[LAB_ROOT_ID].path
+  const propio = LAB_ROUTES[id].path
+  if (propio === raiz) return ''
+  return propio.slice(raiz.length + 1)
+}
+
 /** Cadena de migas desde la portada hasta la ruta, ambas incluidas. */
 export function labBreadcrumbs(id: LabRouteId): LabRoute[] {
   const cadena: LabRoute[] = []

@@ -25,7 +25,7 @@ describe('LabShell · estructura y landmarks', () => {
     montar({ routeId: 'lab.stability.risk' })
 
     expect(screen.getByRole('navigation', { name: 'Ruta' })).toBeInTheDocument()
-    expect(screen.getByRole('banner', { name: 'Contexto del análisis' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Contexto del análisis' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Áreas del Laboratorio' })).toBeInTheDocument()
     expect(screen.getByRole('main')).toBeInTheDocument()
   })
