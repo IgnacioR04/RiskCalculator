@@ -1,58 +1,14 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { entrarEnDemo as enterDemo, irASeccion as goToSection } from './helpers'
 
 /**
  * Flujos principales sobre el shell de ocho secciones. Los enlaces del rail
  * exponen su nombre accesible como «NN Título» (p. ej. «02 Calculadora»), y
  * cada pantalla abre con su encabezado numerado, que es el h1 de la vista.
+ *
+ * La cobertura de que las ocho rutas cargan vive en `navigation-current.spec.ts`
+ * (LAB-007); aquí se comprueban comportamientos de producto concretos.
  */
-async function enterDemo(page: Page) {
-  await page.goto('/')
-  const demoTab = page.getByRole('tab', { name: 'Demo' })
-  if (await demoTab.isVisible()) {
-    await demoTab.click()
-  }
-  await page.getByLabel('Usuario de prueba').fill('admin1')
-  await page.getByLabel('Contraseña').fill('1234')
-  await page.getByRole('button', { name: 'Probar la aplicación' }).click()
-  await expect(page.getByRole('heading', { name: 'Resumen', level: 1 })).toBeVisible()
-}
-
-/**
- * Navega a una sección. En escritorio se usa el rail, cuyo nombre accesible es
- * «NN Título». En móvil el rail se sustituye por una barra inferior de cinco
- * iconos con etiqueta corta; las secciones que no caben ahí se abren por su
- * ruta, que es exactamente lo que hace un usuario con un enlace guardado.
- */
-async function goToSection(page: Page, num: string, title: string, mobileLabel?: string) {
-  const rail = page.getByRole('link', { name: `${num} ${title}`, exact: true })
-  if (await rail.isVisible()) {
-    await rail.click()
-    return
-  }
-  if (mobileLabel !== undefined) {
-    const bottom = page.getByRole('link', { name: mobileLabel, exact: true })
-    if (await bottom.isVisible()) {
-      await bottom.click()
-      return
-    }
-  }
-  await page.goto(routeFor(title))
-}
-
-/** Ruta de cada seccion (hash routing). */
-function routeFor(title: string): string {
-  const routes: Record<string, string> = {
-    Resumen: '/#/resumen',
-    Calculadora: '/#/calculadora',
-    Cartera: '/#/cartera',
-    Riesgo: '/#/riesgo',
-    'Diversificación': '/#/diversificacion',
-    Simular: '/#/simular',
-    Importar: '/#/importar',
-    Perfil: '/#/perfil',
-  }
-  return routes[title] ?? '/#/resumen'
-}
 
 test('calcula recuperación y equilibrio real', async ({ page }) => {
   await enterDemo(page)
