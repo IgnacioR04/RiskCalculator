@@ -9,7 +9,7 @@
 |---|---|
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
-| Tarea activa | Ninguna — `LAB-004` terminada. Para cerrar G0 quedan `LAB-007` (cubrir las ocho rutas) y resolver D10 |
+| Tarea activa | Ninguna — `LAB-007` y D10 terminadas. **G0 cumple sus cuatro criterios en la rama `lab/fase-0`, pero uno no entra en vigor hasta fusionar la PR [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9)**. Ver §2 bis |
 | Última puerta superada | Ninguna (G0 pendiente) |
 | Última actualización | 2026-08-08 |
 
@@ -17,7 +17,7 @@
 
 | Fase | Objetivo | Puerta | Estado | Fecha de cierre |
 |---:|---|---|---|---|
-| 0 | Base, contratos y calidad | G0 | Pendiente | — |
+| 0 | Base, contratos y calidad | G0 | Criterios cumplidos en rama; **pendiente de fusión** | — |
 | 1 | Shell y migración de navegación | G1 | Pendiente | — |
 | 2 | IPS, restricciones y calidad de datos | G2 | Pendiente | — |
 | 3 | Refactor y ampliación de estabilidad | G3 | Pendiente | — |
@@ -30,6 +30,21 @@
 | 10 | Endurecer y lanzar | G10 | Pendiente | — |
 
 Una fase no comienza hasta cumplir su puerta de entrada (dependencias en [00-plan-maestro-laboratorio.md §12](./00-plan-maestro-laboratorio.md)), salvo tareas sin dependencia explícita.
+
+## 2 bis. Evaluación de la puerta G0
+
+Evaluada el 2026-08-09 sobre el commit `4850ff4` de `lab/fase-0`.
+
+| Criterio G0 | Estado | Evidencia |
+|---|---|---|
+| lint, tipos, unit tests, E2E básico y build pasan en CI | **Cumplido** | CI en verde sobre `4850ff4`: `quality`, `build` y `e2e-core`. La inestabilidad D10 está diagnosticada y corregida, no solo ausente |
+| El despliegue no puede adelantarse a CI | **Cumplido en la rama, no en vigor** | `deploy-pages.yml` depende de `workflow_run` de CI y publica el SHA validado. Pero `workflow_run` se resuelve contra la rama por defecto: **mientras la PR no se fusione, en `main` sigue activo el despliegue por `push`** |
+| Los cálculos actuales tienen fixtures de paridad | **Cumplido** | `LAB-002`: 27 pruebas doradas sobre `src/lib/finance/`, con valores derivados analíticamente y revisión cuantitativa independiente |
+| Las rutas actuales están cubiertas | **Cumplido** | `LAB-007`: las ocho rutas, redirecciones antiguas, modo sin Supabase, rail y barra móvil. 22 pruebas E2E, verificadas también en CI |
+
+**G0 no se declara superada.** Tres criterios están respaldados por evidencia sin reservas; el segundo depende de una fusión que esta sesión no puede hacer. En el momento en que la PR [#9](https://github.com/IgnacioR04/RiskCalculator/pull/9) entre en `main`, el cuarto queda cumplido y G0 puede darse por superada sin trabajo adicional.
+
+Quedan además tres tareas de Fase 0 **fuera del criterio de G0**, que no la bloquean: `LAB-005` (metadatos de build), `LAB-006` (feature flags tipadas) y `LAB-008` (presupuesto de bundle).
 
 ## 3. Tareas de la fase activa (Fase 0)
 
@@ -84,6 +99,8 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-08 | `LAB-003` terminada. CI en tres jobs con `quality` y `e2e-core` como checks requeridos, y Playwright sirviendo el build. Cierra D8; registra D9 y D10. El despliegue **sigue sin depender de CI**: eso es `LAB-004`. |
 | 2026-08-08 | Publicada la rama `lab/fase-0` en el remoto con los cuatro commits previos. |
 | 2026-08-08 | `LAB-004` terminada. Ocho Actions fijadas a SHA, permisos mínimos por job y despliegue condicionado al SHA que CI validó. Cierra D2. Con esto G0 solo espera a `LAB-007` y a resolver D10. |
+| 2026-08-09 | D10 reproducida de forma determinista bajo carga de CPU, diagnosticada como coste de arranque y corregida en `vite.config.ts`. |
+| 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. G0 queda con sus cuatro criterios cumplidos en rama, pendiente solo de fusionar la PR #9 para que el encadenado del despliegue entre en vigor. |
 
 ## 6 bis-0. Última tarea cerrada — LAB-007
 
