@@ -9,7 +9,7 @@
 |---|---|
 | Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
 | Fase activa | Fase 0 — Base, contratos y calidad |
-| Tarea activa | Ninguna — `LAB-003` terminada. Siguiente para cerrar G0: `LAB-004` (encadenar el despliegue al SHA validado) y después `LAB-007` |
+| Tarea activa | Ninguna — `LAB-004` terminada. Para cerrar G0 quedan `LAB-007` (cubrir las ocho rutas) y resolver D10 |
 | Última puerta superada | Ninguna (G0 pendiente) |
 | Última actualización | 2026-08-08 |
 
@@ -38,7 +38,7 @@ Una fase no comienza hasta cumplir su puerta de entrada (dependencias en [00-pla
 | LAB-001 — Baseline y ADR de arquitectura | **Terminada** (2026-08-08) | Entrega `docs/adr/ADR-001-lab-architecture.md` y `docs/lab/current-baseline.md`. Sin cambios de código |
 | LAB-002 — Fixtures financieros dorados | **Terminada** (2026-08-08) | 27 pruebas doradas sobre `src/lib/finance/`. Documentación en `docs/lab/golden-fixtures.md` |
 | LAB-003 — Separar CI de despliegue | **Terminada** (2026-08-08) | Jobs `quality`, `build` y `e2e-core`; Playwright sirve el build. Cierra D8 |
-| LAB-004 — Endurecer GitHub Actions | Pendiente | Dependencia satisfecha. **Contiene el criterio G0 que falta**: su paso 4 hace el despliegue dependiente del SHA validado |
+| LAB-004 — Endurecer GitHub Actions | **Terminada** (2026-08-08) | Ocho Actions fijadas a SHA, permisos mínimos por job, despliegue por `workflow_run` sobre el SHA validado. Cierra D2 |
 | LAB-005 — Metadatos de build | Pendiente | Depende de LAB-003 |
 | LAB-006 — Feature flags tipadas | Pendiente | Dependencia satisfecha (LAB-001); lista para empezar |
 | LAB-007 — Baseline E2E de rutas actuales | Pendiente | Depende de LAB-003 |
@@ -64,14 +64,14 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 |---|---|---|
 | D1 | ~~El paquete del plan vive en `Markovitz/`~~ **Resuelta el 2026-08-08** | El plan está en `docs/laboratorio-plan/` con `phases/`, y `CLAUDE.md` en la raíz. La copia antigua de `Markovitz/` se ha eliminado: fuente de verdad única. Nada está aún commiteado |
 | D7 | `sharpeRatio` con volatilidad nula y `correlation` frente a serie constante devuelven `reason: 'insufficient_data'` con `observations: 40 ≥ required: 30`, estado internamente contradictorio | Detectado en la revisión de LAB-002. La métrica no está indefinida por muestra, sino por división por cero. Merece una razón propia; fuera del alcance de LAB-002 |
-| D2 | `ci.yml` ya existe con todas las puertas; lo que falta es que `deploy-pages.yml` **dependa** de CI | `LAB-003` debe reformularse: encadenar despliegue a CI, no crear CI |
+| D2 | ~~`deploy-pages.yml` no dependía de CI~~ **Resuelta el 2026-08-08 por `LAB-004`** | El despliegue se dispara por `workflow_run` tras CI en verde sobre `main` y publica `workflow_run.head_sha`. Surte efecto **solo cuando el workflow esté en `main`** |
 | D3 | `LoginGate` cubre toda la app: ninguna ruta es accesible sin sesión demo o Supabase | Choca con «funciones esenciales sin cuenta». Decisión de producto pendiente |
 | D4 | Segundo destino de despliegue (`vercel.json`, `DEPLOY_TARGET`) no contemplado en el plan | Validar cambios de `base` y rutas en ambos destinos |
 | D5 | El router es `HashRouter` con redirecciones legacy ya implementadas | La migración de navegación parte de URLs con `#`, no de un diseño nuevo |
 | D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
 | D8 | ~~El arnés E2E levanta `npm run dev` y el timeout queda al borde del arranque en frío~~ **Resuelta el 2026-08-08 por `LAB-003`** | Playwright sirve ahora el build con `vite preview`. Las pruebas bajaron de 6,8–29,5 s a 0,7–2,4 s |
 | D9 | El número de workers por defecto de Playwright (4) satura esta máquina: acciones de ~1 s agotaban el timeout de 30 s. Medido: 1 worker 10/10 · 2 workers 10/10 · 4 workers 6/10 | Fijado `workers: 2`. Si en los runners de CI resultara conservador, subir con medición, no a ojo |
-| D10 | La suite unitaria tiene un fallo **intermitente** bajo carga: una prueba de 181 falló en una pasada y las dos siguientes dieron 181/181. No se pudo capturar su identidad en esa ejecución; la firma coincide con `ImportarPage > nada se escribe hasta que se confirma`, que agota el `testTimeout` de 5 s por defecto | **Bloquea el primer criterio de G0** («unit tests pasan en CI»). Arreglo propuesto: subir `testTimeout` en el bloque `test` de `vite.config.ts`, o eliminar la espera real de esa prueba. No incluido en `LAB-003`, que no toca `vite.config.ts` |
+| D10 | Fallo **intermitente** de la suite unitaria bajo carga. Historial: 153/154 (LAB-001, identificado como `ImportarPage > nada se escribe hasta que se confirma`, timeout de 5 s, y pasa aislado en 169 ms) · 180/181 en una pasada de LAB-003 **cuya identidad no se pudo capturar** · 181/181 en las tres pasadas posteriores, incluida la de LAB-004 | **Sigue bloqueando el primer criterio de G0** («unit tests pasan en CI»): no se ha corregido, solo no se ha reproducido. **Causa no confirmada**: no se sube `testTimeout` sin evidencia de que sea la causa. Diagnóstico pendiente: ejecutar la suite repetidamente hasta reproducir y capturar el fallo completo |
 
 ## 6. Historial de cambios
 
@@ -82,8 +82,44 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-08 | `LAB-002` terminada. Fixtures dorados y prueba de paridad de 27 casos sobre `src/lib/finance/`. Revisión cuantitativa independiente superada tras corregir cuatro debilidades. Registrada D7. Sin cambios en código de producción. |
 | 2026-08-08 | Eliminada la copia obsoleta del plan en `Markovitz/`. `docs/laboratorio-plan/` queda como fuente de verdad única (cierra D1). |
 | 2026-08-08 | `LAB-003` terminada. CI en tres jobs con `quality` y `e2e-core` como checks requeridos, y Playwright sirviendo el build. Cierra D8; registra D9 y D10. El despliegue **sigue sin depender de CI**: eso es `LAB-004`. |
+| 2026-08-08 | Publicada la rama `lab/fase-0` en el remoto con los cuatro commits previos. |
+| 2026-08-08 | `LAB-004` terminada. Ocho Actions fijadas a SHA, permisos mínimos por job y despliegue condicionado al SHA que CI validó. Cierra D2. Con esto G0 solo espera a `LAB-007` y a resolver D10. |
 
-## 6 bis. Última tarea cerrada — LAB-003
+## 6 bis. Última tarea cerrada — LAB-004
+
+**Archivos** (4): los tres workflows y `docs/runbooks/pages-deploy-failure.md` (nuevo).
+
+**Qué cambia**
+
+- **Cadena de suministro**: las ocho Actions quedan fijadas a SHA completo de 40 hex con su versión semántica anotada (`actions/checkout` v4.4.0, `setup-node` v4.4.0, `upload-artifact` v4.6.2, `download-artifact` v4.3.0, `configure-pages` v5.0.0, `upload-pages-artifact` v3.0.1, `deploy-pages` v4.0.5, `codeql-action` v3.37.6). SHA revalidados contra la API pública inmediatamente antes de aplicarlos. `persist-credentials: false` en todos los checkouts.
+- **Permisos mínimos**: `deploy-pages.yml` pasa a `permissions: {}` a nivel de workflow; el job de build pide `contents: read` y solo el de deploy pide `pages: write` e `id-token: write`. Antes ambos heredaban los tres permisos.
+- **Despliegue condicionado (criterio G0)**: `deploy-pages.yml` deja de dispararse por `push`. Escucha `workflow_run` de CI sobre `main`, exige `conclusion == 'success'` y hace checkout de `workflow_run.head_sha`, no de la punta de `main`.
+- **Redespliegue manual**: `workflow_dispatch` con input obligatorio `sha`, documentado en el runbook.
+- Concurrencia de Pages conservada (`group: pages`, sin cancelación).
+
+**Pruebas**
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run lint` | Correcto |
+| `npm run typecheck` | Correcto |
+| `npx vitest run` | 181/181 |
+| `npm run build` | Correcto |
+| `npm run test:e2e` | 10/10 en 37,3 s |
+| YAML + permisos + fijación a SHA | Correcto: las 3 Actions por workflow parsean, ninguna sin fijar a SHA de 40 hex, ningún `pull_request_target` |
+
+Durante la validación se detectó y corrigió un defecto propio: el escalar plegado `>-` del campo `ref` **conservaba saltos de línea** (las líneas de continuación estaban más indentadas que la primera), de modo que GitHub habría recibido un `ref` con retornos dentro. Se dejó en una sola línea y se comprobó por parseo que ya no los contiene.
+
+**Limitaciones**
+
+- El encadenado `workflow_run` **solo surte efecto cuando `deploy-pages.yml` esté en la rama por defecto**. Mientras viva en `lab/fase-0`, el despliegue encadenado no se activa. No es un fallo.
+- El redespliegue manual **no puede comprobar** que el SHA aportado pasara CI: es responsabilidad de quien lo lanza. Documentado en el runbook.
+- No se actualizan versiones mayores de Actions (van varias por detrás, p. ej. `checkout` v4 frente a v7). Fuera de alcance; Dependabot ya vigila `github-actions`.
+- El build de Pages no es byte a byte el artefacto que audita CI: usa `DEPLOY_TARGET=gh-pages` y las variables públicas de Supabase. Es el mismo commit, reconstruido para su destino.
+
+**Rollback**: revertir el commit devuelve el despliegue al disparo por `push`.
+
+## 6 ter. Tarea anterior — LAB-003
 
 **Archivos** (3):
 

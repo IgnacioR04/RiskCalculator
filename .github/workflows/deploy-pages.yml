@@ -1,47 +1,84 @@
 name: Deploy a GitHub Pages
 
+# El despliegue ya no se dispara por `push`: espera a que CI termine en verde
+# sobre `main` y publica exactamente ese commit. Así un push que rompa las
+# pruebas no puede llegar a producción adelantándose a la validación.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
+  # Redespliegue manual de un commit bueno conocido. Ver
+  # docs/runbooks/pages-deploy-failure.md
   workflow_dispatch:
+    inputs:
+      sha:
+        description: SHA completo a redesplegar (debe haber pasado CI)
+        required: true
+        type: string
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+# Sin permisos por defecto: cada job declara solo lo que necesita.
+permissions: {}
 
-# Un solo despliegue en curso; no cancela el que ya esté publicando.
+# Un solo despliegue en curso; no cancela el que ya esté publicando, para no
+# dejar Pages a medias.
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
   build:
+    # Solo se construye lo que CI validó. En el redespliegue manual, el operador
+    # es quien aporta un SHA ya validado.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # El SHA exacto que pasó CI, no la punta de main: entre la validación
+          # y el despliegue main puede haber avanzado con commits sin validar.
+          # En una sola línea a propósito: plegar la expresión con `>-` conserva
+          # los saltos de línea y GitHub recibiría el `ref` con retornos dentro.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.sha || github.event.workflow_run.head_sha }}
+          # No dejar el token en .git/config del runner.
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
+
+      # Este build no es el mismo artefacto que audita CI: Pages necesita el
+      # subpath /RiskCalculator/ y las variables públicas de Supabase. Es el
+      # mismo commit, reconstruido para su destino.
       - name: Build para Pages (subpath /RiskCalculator/)
         run: npm run build
         env:
           DEPLOY_TARGET: gh-pages
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: dist
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
