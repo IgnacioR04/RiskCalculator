@@ -9,7 +9,7 @@
 | Importancia | CRÍTICA |
 | Sensibilidad | ALTA |
 | Esfuerzo predeterminado | high |
-| Entrada/autorización | Inicio autorizado. No pasar a Fase 1 hasta documentar G0 como superada. |
+| Entrada/autorización | Inicio autorizado. **G0 superada el 2026-08-09** sobre `569e2a8`; la Fase 1 queda autorizada. Acta y evidencia en [IMPLEMENTATION_STATUS.md §2 bis](../IMPLEMENTATION_STATUS.md). |
 | Funcionalidad a posponer | No añadir funcionalidades del Laboratorio. |
 
 ## Política de esfuerzo
@@ -82,12 +82,16 @@ Crear una red de seguridad antes de tocar navegación o cálculos. No cambia la 
 - feature flags;
 - baseline E2E y numérico.
 
-## Puerta G0
+## Puerta G0 — **SUPERADA el 2026-08-09**
 
-- lint, tipos, unit tests, E2E básico y build pasan en CI;
-- deploy no puede adelantarse a CI;
-- cálculos actuales tienen fixtures de paridad;
-- rutas actuales están cubiertas.
+- lint, tipos, unit tests, E2E básico y build pasan en CI; ✅
+- deploy no puede adelantarse a CI; ✅ *(canal GitHub Pages; ver riesgo abierto sobre Vercel)*
+- cálculos actuales tienen fixtures de paridad; ✅
+- rutas actuales están cubiertas. ✅
+
+Acta con evidencia verificable —ejecuciones de CI y Pages, protección de `main` y smoke test del sitio publicado— en [IMPLEMENTATION_STATUS.md §2 bis](../IMPLEMENTATION_STATUS.md).
+
+Quedan pendientes, **sin bloquear la puerta**, `LAB-005`, `LAB-006` y `LAB-008`.
 
 ### LAB-001 — Registrar baseline y ADR de arquitectura
 

@@ -6,6 +6,21 @@
 > **Esta configuración es manual y remota**: se aplica en GitHub, no desde el repositorio.
 > Requiere permisos de administración y **no** la realiza ninguna tarea automáticamente.
 
+## 0. Estado actual — aplicada el 2026-08-09
+
+Verificado por lectura de la API (`GET /repos/{owner}/{repo}/branches/main/protection`):
+
+| Regla | Valor |
+|---|---|
+| Checks requeridos | `quality`, `e2e-core` |
+| Comprobaciones estrictas (rama al día con `main`) | Sí |
+| Aplicable a administradores (`enforce_admins`) | **Sí** |
+| Aprobaciones requeridas | 0 — repositorio individual; los cambios siguen pasando por PR |
+| Force push a `main` | Prohibido |
+| Borrado de `main` | Prohibido |
+
+Antes no existía ninguna protección ni ruleset: `main` aceptaba push directo y force push.
+
 ## 1. Checks a exigir hoy
 
 En *Settings → Branches → Branch protection rules* para `main`, activar
