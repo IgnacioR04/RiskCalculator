@@ -41,7 +41,7 @@ Una fase no comienza hasta cumplir su puerta de entrada (dependencias en [00-pla
 | LAB-004 — Endurecer GitHub Actions | **Terminada** (2026-08-08) | Ocho Actions fijadas a SHA, permisos mínimos por job, despliegue por `workflow_run` sobre el SHA validado. Cierra D2 |
 | LAB-005 — Metadatos de build | Pendiente | Depende de LAB-003 |
 | LAB-006 — Feature flags tipadas | Pendiente | Dependencia satisfecha (LAB-001); lista para empezar |
-| LAB-007 — Baseline E2E de rutas actuales | Pendiente | Depende de LAB-003 |
+| LAB-007 — Baseline E2E de rutas actuales | **Terminada** (2026-08-09) | `e2e/navigation-current.spec.ts` + `e2e/helpers.ts`. Las ocho rutas, redirecciones legacy, modo sin Supabase, rail y barra móvil |
 | LAB-008 — Presupuesto de bundle y lazy loading baseline | Pendiente | Depende de LAB-003 |
 
 ## 4. Decisiones abiertas registradas
@@ -84,6 +84,27 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-08 | `LAB-003` terminada. CI en tres jobs con `quality` y `e2e-core` como checks requeridos, y Playwright sirviendo el build. Cierra D8; registra D9 y D10. El despliegue **sigue sin depender de CI**: eso es `LAB-004`. |
 | 2026-08-08 | Publicada la rama `lab/fase-0` en el remoto con los cuatro commits previos. |
 | 2026-08-08 | `LAB-004` terminada. Ocho Actions fijadas a SHA, permisos mínimos por job y despliegue condicionado al SHA que CI validó. Cierra D2. Con esto G0 solo espera a `LAB-007` y a resolver D10. |
+
+## 6 bis-0. Última tarea cerrada — LAB-007
+
+**Archivos** (3): `e2e/navigation-current.spec.ts` (nuevo), `e2e/helpers.ts` (nuevo), `e2e/core-flows.spec.ts` (pasa a usar los helpers, sin cambiar ninguna aserción).
+
+**Cobertura añadida**, toda contra el build servido con `vite preview` y sin variables de Supabase:
+
+| Prueba | Qué protege |
+|---|---|
+| Las ocho rutas cargan con su encabezado numerado | Cada ruta con `HashRouter`, su `h1`, ausencia del fallback del `ErrorBoundary` y cero excepciones no capturadas |
+| Landmark de navegación en todas las rutas | La shell sigue exponiendo su `nav`: `Secciones` en escritorio, `Navegacion principal` en móvil |
+| Rutas antiguas | `/#/portfolio` → Cartera, `/#/escenarios` → Simular y una ruta inexistente → Resumen |
+| Modo local sin cuenta | Sin Supabase no se ofrece registro ni inicio de sesión, solo la puerta de demostración |
+| Barra inferior del móvil | Las cinco secciones de `MOBILE_SECTIONS` abren su pantalla |
+| Rail de escritorio | Las ocho secciones abren su pantalla |
+
+Las dos últimas se excluyen mutuamente por viewport con `test.skip(isMobile)`, de ahí que cada ejecución muestre 2 pruebas saltadas: son las que no aplican a ese proyecto.
+
+**Total E2E**: 22 pruebas (11 por proyecto), 20 ejecutadas y 2 saltadas por diseño, en 25 s con 2 workers.
+
+**Corrección durante el desarrollo**: la primera versión asumía que el landmark `Secciones` existía también en móvil. Falla real capturada: el rail queda oculto por CSS y sale del árbol de accesibilidad, así que en móvil el landmark es `Navegacion principal`. Corregido diferenciando por `isMobile`.
 
 ## 6 bis-A. Diagnóstico de D10 (cerrada el 2026-08-09)
 
