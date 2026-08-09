@@ -76,6 +76,12 @@ describe('LabSection · portadas informativas', () => {
     expect(screen.getByText(/versión actual del análisis de riesgo/)).toBeInTheDocument()
   })
 
+  it('Escenarios muestra el simulador actual (LAB-107)', () => {
+    montarEn(labPath('lab.future.scenarios'))
+    expect(screen.queryByText(/todavía no está construido/)).not.toBeInTheDocument()
+    expect(screen.getByText(/versión actual del simulador/)).toBeInTheDocument()
+  })
+
   it('Exposición tampoco es una portada: muestra Diversificación (LAB-106)', () => {
     montarEn(labPath('lab.stability.exposure'))
     expect(screen.queryByText(/todavía no está construido/)).not.toBeInTheDocument()
