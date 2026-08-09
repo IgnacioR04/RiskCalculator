@@ -65,6 +65,10 @@ jobs:
       # variables VITE_* de Pages se inyectan solo en el workflow de despliegue.
       - name: Build de producción
         run: npm run build
+        env:
+          # El Laboratorio se despliega por capacidades. Se enciende aquí para
+          # que `e2e-core` pueda ejercitarlo sobre este mismo bundle.
+          VITE_LAB_FLAGS: labShell
 
       - name: Auditoría de secretos en el bundle
         run: |

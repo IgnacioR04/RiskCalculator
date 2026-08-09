@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
+import { LAB_ROUTES } from '../features/lab/routes/labRoutes'
 import {
   checkDemoCredentials,
   DEMO_HINT,
@@ -11,8 +13,24 @@ import { activateGuestCache, activateUserCache, pullFromCloud, startAutoSync, st
 
 type AccessMode = 'login' | 'signup' | 'reset' | 'update-password' | 'demo'
 
+/**
+ * Rutas que no exigen cuenta. El Laboratorio es una herramienta de análisis
+ * sobre datos locales o de demostración: pedir credenciales para mirarlo
+ * contradice el requisito de que las funciones esenciales funcionen sin
+ * registro. La sesión se sigue inicializando igual, y quien quiera sincronizar
+ * entra desde Perfil.
+ */
+const PREFIJOS_PUBLICOS = [LAB_ROUTES['lab.home'].path]
+
+function esRutaPublica(pathname: string): boolean {
+  return PREFIJOS_PUBLICOS.some(
+    (prefijo) => pathname === prefijo || pathname.startsWith(`${prefijo}/`),
+  )
+}
+
 export function LoginGate(props: { children: ReactNode }) {
   const configured = isSupabaseConfigured()
+  const location = useLocation()
   const [allowed, setAllowed] = useState(false)
   const [checking, setChecking] = useState(true)
   const [checkingText, setCheckingText] = useState('Comprobando tu sesión...')
@@ -201,7 +219,9 @@ export function LoginGate(props: { children: ReactNode }) {
       </div>
     )
   }
-  if (allowed) return <>{props.children}</>
+  // Con sesión, o en una ruta pública, se entra. La caché local ya está
+  // activada por el efecto de arriba en ambos casos.
+  if (allowed || esRutaPublica(location.pathname)) return <>{props.children}</>
 
   return (
     <div className="login-screen">
