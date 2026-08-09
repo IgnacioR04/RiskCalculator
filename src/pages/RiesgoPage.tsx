@@ -37,7 +37,23 @@ function levelGlyph(level: RiskLevel): string {
   return level === 'ok' ? '●' : level === 'warn' ? '▲' : level === 'high' ? '■' : '—'
 }
 
+/**
+ * Pantalla 04 Riesgo. Sigue siendo su propia ruta mientras dura la migración
+ * al Laboratorio (LAB-105).
+ */
 export function RiesgoPage() {
+  return <RiesgoContenido conEncabezado />
+}
+
+/**
+ * Contenido de Riesgo, sin decidir dónde vive. El Laboratorio lo reutiliza tal
+ * cual desde `LabRiskLegacyPage`, de modo que **no hay lógica duplicada** y la
+ * paridad numérica es por construcción, no por copia.
+ *
+ * `conEncabezado` existe solo para no pintar dos títulos: dentro del
+ * Laboratorio el encabezado lo pone la shell.
+ */
+export function RiesgoContenido(props: { conEncabezado?: boolean }) {
   const store = useAppStore()
   const currency = store.settings.displayCurrency
   const [tab, setTab] = useState<RiskTab>('resumen')
@@ -134,7 +150,7 @@ export function RiesgoPage() {
   if (valued.length === 0) {
     return (
       <>
-        <SectionHeader num="04" title="Riesgo" />
+        {props.conEncabezado === true && <SectionHeader num="04" title="Riesgo" />}
         <Card>
           <EmptyState icon="◇" title="Sin posiciones valoradas">
             <p>
@@ -149,7 +165,7 @@ export function RiesgoPage() {
 
   return (
     <>
-      <SectionHeader num="04" title="Riesgo" />
+      {props.conEncabezado === true && <SectionHeader num="04" title="Riesgo" />}
 
       <Tabs<RiskTab>
         label="Apartados de riesgo"

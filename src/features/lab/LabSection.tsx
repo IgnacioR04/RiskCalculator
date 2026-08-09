@@ -9,15 +9,29 @@
  * nada mientras las pantallas son portadas informativas, y sí ensuciaría el
  * manifiesto; cuando una pantalla traiga su propio motor, se separa entonces.
  */
+import type { ReactElement } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LabPlaceholderPage } from './pages/LabPlaceholderPage'
-import { LAB_ROUTE_IDS, LAB_ROUTES, labRelativePath } from './routes/labRoutes'
+import { LabRiskLegacyPage } from './pages/LabRiskLegacyPage'
+import { LAB_ROUTE_IDS, LAB_ROUTES, labRelativePath, type LabRouteId } from './routes/labRoutes'
+
+/**
+ * Pantallas ya migradas. El resto muestra su portada informativa hasta que su
+ * fase las construya.
+ */
+const PANTALLAS: Partial<Record<LabRouteId, ReactElement>> = {
+  'lab.stability.risk': <LabRiskLegacyPage />,
+}
 
 export function LabSection() {
   return (
     <Routes>
       {LAB_ROUTE_IDS.map((id) => (
-        <Route key={id} path={labRelativePath(id)} element={<LabPlaceholderPage routeId={id} />} />
+        <Route
+          key={id}
+          path={labRelativePath(id)}
+          element={PANTALLAS[id] ?? <LabPlaceholderPage routeId={id} />}
+        />
       ))}
       {/* Una subruta desconocida vuelve a la portada del Laboratorio, no a la
           de la aplicación: el usuario sigue donde quería estar. */}
