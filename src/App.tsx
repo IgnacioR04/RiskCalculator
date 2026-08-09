@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppShell } from './components/shell/AppShell'
+import { RedireccionLegacy } from './features/lab/components/RedireccionLegacy'
 import { isFeatureEnabled } from './lib/features/flags'
 import { lazyWithReload } from './lib/lazyChunk'
 
@@ -54,9 +55,39 @@ export function App() {
             <Route path="/resumen" element={<ResumenPage />} />
             <Route path="/calculadora" element={<CalculadoraPage />} />
             <Route path="/cartera" element={<PortfolioPage />} />
-            <Route path="/riesgo" element={<RiesgoPage />} />
-            <Route path="/diversificacion" element={<DiversificacionPage />} />
-            <Route path="/simular" element={<SimularPage />} />
+            {/* Las tres herramientas migradas conservan su URL: con el
+                Laboratorio activo redirigen a su nuevo sitio; con la capacidad
+                apagada siguen sirviendo la pantalla de siempre. */}
+            <Route
+              path="/riesgo"
+              element={
+                laboratorioVisible ? (
+                  <RedireccionLegacy destino="lab.stability.risk" />
+                ) : (
+                  <RiesgoPage />
+                )
+              }
+            />
+            <Route
+              path="/diversificacion"
+              element={
+                laboratorioVisible ? (
+                  <RedireccionLegacy destino="lab.stability.exposure" />
+                ) : (
+                  <DiversificacionPage />
+                )
+              }
+            />
+            <Route
+              path="/simular"
+              element={
+                laboratorioVisible ? (
+                  <RedireccionLegacy destino="lab.future.scenarios" />
+                ) : (
+                  <SimularPage />
+                )
+              }
+            />
             <Route path="/importar" element={<ImportarPage />} />
             <Route path="/perfil" element={<PerfilPage />} />
             <Route

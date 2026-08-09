@@ -61,7 +61,7 @@ test('una subruta inexistente vuelve a la portada del Laboratorio', async ({ pag
   await page.goto('/#/laboratorio/seccion-que-no-existe')
 
   await expect(page.getByRole('heading', { level: 1, name: 'Laboratorio' })).toBeVisible()
-  expect(page.url()).toContain('#/laboratorio')
+  await expect(page).toHaveURL(/#\/laboratorio$/)
 })
 
 test('el resto de la aplicación sigue pidiendo acceso', async ({ page }) => {
@@ -134,4 +134,46 @@ test('Simular produce resultados idénticos dentro y fuera del Laboratorio', asy
   // Los shocks se declaran como escenarios deterministas, no como predicción.
   await expect(page.getByText(/escenarios deterministas/)).toBeVisible()
   await expect(page.getByText(/No estiman probabilidades ni predicen precios/)).toBeVisible()
+})
+
+test('las URL antiguas redirigen sin 404 ni bucle, y avisan de la mudanza', async ({ page }) => {
+  const mudanzas = [
+    { vieja: '/#/riesgo', nueva: '#/laboratorio/estabilidad/riesgo' },
+    { vieja: '/#/diversificacion', nueva: '#/laboratorio/estabilidad/exposicion' },
+    { vieja: '/#/simular', nueva: '#/laboratorio/futuro/escenarios' },
+  ]
+
+  await entrarEnDemo(page)
+
+  for (const { vieja, nueva } of mudanzas) {
+    await page.goto(vieja)
+    // `toHaveURL` reintenta: la redirección la hace React tras procesar el
+    // cambio de hash, así que leer `page.url()` sin esperar llega demasiado pronto.
+    await expect(page).toHaveURL(new RegExp(nueva.replace(/[/?]/g, '\$&')))
+    await expect(page.getByText(/ahora está dentro de Laboratorio/)).toBeVisible()
+  }
+
+  // El aviso se puede cerrar y no vuelve solo.
+  await page.getByRole('button', { name: 'Entendido' }).click()
+  await expect(page.getByText(/ahora está dentro de Laboratorio/)).toHaveCount(0)
+})
+
+test('volver atrás desde una URL antigua no rebota', async ({ page }) => {
+  await entrarEnDemo(page)
+  await page.goto('/#/cartera')
+  await expect(page.getByRole('heading', { name: 'Cartera', level: 1 })).toBeVisible()
+
+  await page.goto('/#/riesgo')
+  await expect(page).toHaveURL(/#\/laboratorio\/estabilidad\/riesgo/)
+
+  // `replace` deja fuera la ruta vieja del historial: atrás vuelve a Cartera y
+  // no al redirector, que reenviaría otra vez y atraparía al usuario.
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Cartera', level: 1 })).toBeVisible()
+})
+
+test('la redirección conserva la cadena de consulta', async ({ page }) => {
+  await entrarEnDemo(page)
+  await page.goto('/#/riesgo?periodo=365')
+  await expect(page).toHaveURL(/#\/laboratorio\/estabilidad\/riesgo\?periodo=365/)
 })
