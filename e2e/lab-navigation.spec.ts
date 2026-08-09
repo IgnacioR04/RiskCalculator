@@ -119,3 +119,19 @@ test('Diversificación muestra las mismas cifras dentro y fuera del Laboratorio'
 
   expect(dentro).toEqual(fuera)
 })
+
+test('Simular produce resultados idénticos dentro y fuera del Laboratorio', async ({ page }) => {
+  await entrarEnDemo(page)
+  await cargarDatosDemo(page)
+
+  await page.goto('/#/simular')
+  const fuera = await porcentajes(page)
+
+  await page.goto('/#/laboratorio/futuro/escenarios')
+  const dentro = await porcentajes(page)
+
+  expect(dentro).toEqual(fuera)
+  // Los shocks se declaran como escenarios deterministas, no como predicción.
+  await expect(page.getByText(/escenarios deterministas/)).toBeVisible()
+  await expect(page.getByText(/No estiman probabilidades ni predicen precios/)).toBeVisible()
+})

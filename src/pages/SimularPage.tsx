@@ -20,7 +20,20 @@ const INPUT_LABEL: Record<string, string> = {
   budget: 'Presupuesto',
 }
 
+/**
+ * Pantalla 06 Simular. Sigue siendo su propia ruta mientras dura la migración
+ * al Laboratorio (LAB-107).
+ */
 export function SimularPage() {
+  return <SimularContenido conEncabezado />
+}
+
+/**
+ * Contenido de Simular, sin decidir dónde vive. El Laboratorio lo reutiliza tal
+ * cual desde `LabScenariosLegacyPage`: una sola implementación, resultados
+ * idénticos en ambas rutas.
+ */
+export function SimularContenido(props: { conEncabezado?: boolean }) {
   const store = useAppStore()
   const view = useMemo(
     () =>
@@ -51,7 +64,7 @@ export function SimularPage() {
 
   return (
     <>
-      <SectionHeader num="06" title="Simular" />
+      {props.conEncabezado === true && <SectionHeader num="06" title="Simular" />}
       <p className="muted">
         Cálculos «qué pasaría si» sobre tu cartera: shocks deterministas y simulaciones de
         aportación. No son predicciones y no ejecutan ninguna operación.
