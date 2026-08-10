@@ -27,8 +27,19 @@ import {
   DEMO_QUOTES,
   DEMO_TRANSACTIONS,
 } from './demoData'
+import {
+  createLabProfileActions,
+  initialLabProfileState,
+  migrateLabProfile,
+  type LabProfileActions,
+  type LabProfileState,
+} from './slices/labProfileSlice'
 
-const STORE_VERSION = 2
+/**
+ * v3 (LAB-204): aparece la política de inversión del Laboratorio. El perfil
+ * antiguo se conserva intacto y de él se deriva un borrador; nada se pierde.
+ */
+const STORE_VERSION = 3
 export const GUEST_CACHE_NAME = 'riskcalculator-v1:guest'
 
 export function userCacheName(userId: string): string {
@@ -45,7 +56,7 @@ export interface CloudSyncState {
   lastSyncedAt: string | null
 }
 
-interface AppState {
+interface AppState extends LabProfileState, LabProfileActions {
   settings: Settings
   accounts: BrokerAccount[]
   assets: Asset[]
@@ -165,7 +176,11 @@ export function migratePersistedState(persistedState: unknown, version: number):
     return persistedState
   }
 
-  return normalizePersistedState(persistedState)
+  const normalizado = normalizePersistedState(persistedState) as PersistedAppState
+
+  // v2 → v3: se deriva el borrador de política del perfil antiguo. El perfil
+  // sigue donde estaba: la migración añade, no sustituye.
+  return version < 3 ? migrateLabProfile(normalizado) : normalizado
 }
 
 function normalizePersistedState(persistedState: unknown): unknown {
@@ -190,6 +205,8 @@ export const useAppStore = create<AppState>()(
       riskResults: [],
       demoLoaded: false,
       cloudSync: initialCloudSync,
+      ...initialLabProfileState,
+      ...createLabProfileActions(set),
 
       setDisplayCurrency: (currency) =>
         set((s) => ({ settings: { ...s.settings, displayCurrency: currency } })),
@@ -275,6 +292,7 @@ export const useAppStore = create<AppState>()(
           riskProfile: null,
           riskResults: [],
           demoLoaded: false,
+          ...initialLabProfileState,
         }),
     }),
     {
@@ -294,6 +312,9 @@ export const useAppStore = create<AppState>()(
         riskProfile: state.riskProfile,
         riskResults: state.riskResults,
         demoLoaded: state.demoLoaded,
+        labPolicyDraft: state.labPolicyDraft,
+        labPolicyActive: state.labPolicyActive,
+        labPolicyDerivedFromLegacy: state.labPolicyDerivedFromLegacy,
       }),
       migrate: migratePersistedState,
       merge: (persistedState, currentState) => ({

@@ -56,7 +56,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-201 — ADR del modelo IPS *(2026-08-10)* — `RiskBand` de 5 bandas, tres dimensiones separadas, riesgo efectivo, conflicto y caducidad de 12 meses
 - [x] LAB-202 — Tipos y schemas IPS *(2026-08-10)* — dominio puro y validación en frontera; 25 pruebas
 - [x] LAB-203 — Motor de riesgo efectivo y conflictos *(2026-08-10)* — función pura y determinista, códigos estables y tabla de las 25 combinaciones
-- [ ] LAB-204 — Slice local de IPS y migración
+- [x] LAB-204 — Slice local de IPS y migración *(2026-08-10)* — `STORE_VERSION` 2→3 con migrador explícito; el perfil antiguo se conserva y de él se deriva un borrador
 - [ ] LAB-205 — Migraciones SQL de IPS
 - [ ] LAB-206 — Tipos de base de datos y repositorio IPS
 - [ ] LAB-207 — Asistente IPS: objetivos y horizonte
