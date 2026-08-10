@@ -10,7 +10,7 @@
 | Commit base de la Fase 0 | `c807281` |
 | Último commit en `main` | `b02017d` |
 | Fase activa | **Fase 2 — IPS, restricciones y calidad de datos** |
-| Tarea activa | Ninguna — `LAB-202` terminada. Siguiente: `LAB-203` (motor de riesgo efectivo y conflictos) |
+| Tarea activa | Ninguna — `LAB-203` terminada. Siguiente: `LAB-204` (slice local de IPS y migración) |
 | Última puerta superada | **G1**, el 2026-08-10 |
 | Última actualización | 2026-08-10 |
 
@@ -152,6 +152,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-10 | `LAB-203` terminada. Motor de riesgo efectivo puro y determinista, con códigos de razón estables. El conflicto se distingue del error, y ninguna de sus cinco salidas sube el riesgo. La fecha entra como argumento: sin reloj implícito, el resultado se reproduce meses después. |
 | 2026-08-10 | `LAB-202` terminada. Dominio puro y validación en frontera de la IPS. El esquema **impide estructuralmente** que exista riesgo efectivo sin capacidad medida, y rechaza NaN, infinitos y pesos fuera de 0–1. |
 | 2026-08-10 | **Fase 2 iniciada.** `LAB-201` cierra por ADR-002 dos decisiones que el plan dejaba abiertas: la escala de bandas de riesgo (cinco, ordinales) y la validez temporal de la IPS (doce meses). Separa tolerancia, capacidad y necesidad, y fija que **la capacidad nunca se deduce de la tolerancia**. |
 | 2026-08-10 | **G1 superada.** `LAB-110` cierra la Fase 1 con una E2E de migración de ocho casos. La Fase 2 queda autorizada y sin iniciar. |
