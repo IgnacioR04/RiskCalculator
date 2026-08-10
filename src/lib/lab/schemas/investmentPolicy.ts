@@ -59,11 +59,38 @@ export const riskBandSchema = z.union([
 
 /* ── Evaluación ───────────────────────────────────────────────────────────── */
 
-export const toleranceAssessmentSchema = z.object({
-  answers: z.record(z.string(), z.string()),
-  band: riskBandSchema,
-  assessedAt: instanteIso,
-})
+/**
+ * La banda es opcional y su fecha también: un cuestionario a medias no produce
+ * una preferencia. Si hay banda, hay fecha —un resultado sin fecha no se puede
+ * caducar—, y eso lo asegura el refinamiento.
+ */
+export const toleranceAssessmentSchema = z
+  .object({
+    answers: z.record(z.string(), z.string()),
+    band: riskBandSchema.optional(),
+    assessedAt: instanteIso.optional(),
+    source: z.enum(['cuestionario', 'perfil-anterior']).optional(),
+  })
+  .refine((tolerancia) => tolerancia.band === undefined || tolerancia.assessedAt !== undefined, {
+    message: 'Una banda de tolerancia necesita la fecha en que se evaluó',
+    path: ['assessedAt'],
+  })
+  .refine((tolerancia) => tolerancia.source === undefined || tolerancia.band !== undefined, {
+    message: 'Una procedencia sin banda no describe nada',
+    path: ['source'],
+  })
+
+/** Conocimientos declarados. No entra en el riesgo efectivo (ADR-002 §3). */
+export const knowledgeAssessmentSchema = z
+  .object({
+    answers: z.record(z.string(), z.string()),
+    level: z.enum(['basico', 'medio', 'avanzado']).optional(),
+    assessedAt: instanteIso.optional(),
+  })
+  .refine((conocimiento) => conocimiento.level === undefined || conocimiento.assessedAt !== undefined, {
+    message: 'Un nivel de conocimientos necesita la fecha en que se evaluó',
+    path: ['assessedAt'],
+  })
 
 export const capacityAssessmentSchema = z
   .object({
@@ -100,6 +127,7 @@ export const riskAssessmentSchema = z.object({
   tolerance: toleranceAssessmentSchema,
   capacity: capacityAssessmentSchema,
   need: needAssessmentSchema.optional(),
+  knowledge: knowledgeAssessmentSchema.optional(),
 })
 
 /* ── Objetivos y restricciones ────────────────────────────────────────────── */
@@ -226,10 +254,12 @@ export const investmentPolicySchema = investmentPolicyBase
   )
   .refine(
     (policy) =>
-      policy.effectiveRisk === undefined || policy.assessment.capacity.band !== undefined,
+      policy.effectiveRisk === undefined ||
+      (policy.assessment.capacity.band !== undefined &&
+        policy.assessment.tolerance.band !== undefined),
     {
       message:
-        'No puede haber riesgo efectivo sin capacidad medida: la capacidad no se deduce de la tolerancia',
+        'No puede haber riesgo efectivo sin capacidad medida y tolerancia declarada: la capacidad no se deduce de la tolerancia, ni al revés',
       path: ['effectiveRisk'],
     },
   )
@@ -274,7 +304,10 @@ export function emptyPolicyDraft(id: string, effectiveFrom: string): InvestmentP
     effectiveFrom,
     baseCurrency: 'EUR',
     assessment: {
-      tolerance: { answers: {}, band: 3, assessedAt: `${effectiveFrom}T00:00:00Z` },
+      // Sin banda de tolerancia: nadie ha contestado todavía. Un 3 «provisional»
+      // acabaría entrando en `min()` y produciendo un riesgo efectivo que nadie
+      // ha declarado.
+      tolerance: { answers: {} },
       capacity: {},
     },
     effectiveRiskRuleVersion: EFFECTIVE_RISK_RULE_VERSION,

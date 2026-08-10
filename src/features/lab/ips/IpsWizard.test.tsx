@@ -9,11 +9,13 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { InvestmentPolicy } from '../../../lib/lab/domain/investmentPolicy'
+import type { InvestmentPolicy, RiskBand } from '../../../lib/lab/domain/investmentPolicy'
+import { KNOWLEDGE_QUESTIONS } from '../../../lib/lab/analytics/knowledgeLevel'
+import { TOLERANCE_QUESTIONS } from '../../../lib/lab/analytics/toleranceBand'
 import { GUEST_CACHE_NAME, useAppStore } from '../../../state/store'
 import { initialLabProfileState } from '../../../state/slices/labProfileSlice'
 import { PerfilPage } from '../../../pages/PerfilPage'
-import { IpsWizard } from './IpsWizard'
+import { IpsWizard, PASOS } from './IpsWizard'
 import { horizonteSugerido } from './steps/HorizonStep'
 
 function reiniciarEstado() {
@@ -101,8 +103,8 @@ describe('IpsWizard · navegación por pasos', () => {
     render(<IpsWizard />)
     const pasos = screen.getByRole('navigation', { name: 'Pasos del asistente' })
 
-    expect(within(pasos).getAllByRole('button')).toHaveLength(2)
-    expect(within(pasos).getByText(/Situación, tolerancia y restricciones/)).toBeInTheDocument()
+    expect(within(pasos).getAllByRole('button')).toHaveLength(PASOS.length)
+    expect(within(pasos).getByText(/Necesidad, restricciones y revisión/)).toBeInTheDocument()
   })
 
   it('no crea ninguna política por el mero hecho de abrirlo', () => {
@@ -353,7 +355,7 @@ describe('IpsWizard · resumen del estado incompleto', () => {
     render(<IpsWizard />)
 
     expect(screen.getByText('Ningún objetivo declarado.')).toBeInTheDocument()
-    const pendiente = screen.getByText(/Para medir tu capacidad/)
+    const pendiente = screen.getByText(/Capacidad de asumir pérdidas/)
     for (const hecho of [
       'el horizonte',
       'el colchón de liquidez',
@@ -375,9 +377,13 @@ describe('IpsWizard · resumen del estado incompleto', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
     await user.type(screen.getByLabelText('Años hasta necesitar el dinero'), '9')
 
-    const pendiente = screen.getByText(/Para medir tu capacidad/)
+    const pendiente = screen.getByText(/Capacidad de asumir pérdidas/)
     expect(pendiente).not.toHaveTextContent('el horizonte')
     expect(pendiente).toHaveTextContent('el colchón de liquidez')
+    // «a, b, c y d», no cuatro «y» encadenadas.
+    expect(pendiente.textContent).toContain(
+      'el colchón de liquidez, la estabilidad de tus ingresos, las personas a tu cargo y el peso',
+    )
   })
 })
 
@@ -415,6 +421,240 @@ describe('IpsWizard · el borrador sobrevive a una recarga', () => {
     render(<IpsWizard pasoInicial="horizonte" />)
     expect(screen.getByLabelText('Años hasta necesitar el dinero')).toHaveValue('6')
     expect(borrador()?.goals[0]?.name).toBe('Entrada de una casa')
+  })
+})
+
+/* ── Situación y liquidez (paso 3) ────────────────────────────────────────── */
+
+describe('IpsWizard · situación y liquidez', () => {
+  it('guarda los cuatro hechos que faltaban, y el porcentaje como fracción', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="situacion" />)
+
+    await user.type(screen.getByLabelText('Meses de gastos cubiertos por tu colchón'), '6')
+    await user.click(screen.getByRole('radio', { name: /Estables/ }))
+    await user.type(screen.getByLabelText('Personas que dependen económicamente de ti'), '2')
+    await user.type(
+      screen.getByLabelText('Porcentaje de tu patrimonio que representa esta cartera'),
+      '20',
+    )
+
+    const capacidad = borrador()?.assessment.capacity
+    expect(capacidad?.emergencyFundMonths).toBe(6)
+    expect(capacidad?.incomeStability).toBe('estable')
+    expect(capacidad?.dependents).toBe(2)
+    // Se pregunta en %, se guarda en fracción: el error de dos órdenes es el
+    // clásico de este campo.
+    expect(capacidad?.shareOfNetWorth).toBe(0.2)
+  })
+
+  it('«no lo sé» retira el dato en vez de dejar un valor medio', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="situacion" />)
+
+    await user.click(screen.getByRole('radio', { name: /Variables/ }))
+    expect(borrador()?.assessment.capacity.incomeStability).toBe('variable')
+
+    await user.click(screen.getByRole('radio', { name: 'No lo sé todavía' }))
+    expect(borrador()?.assessment.capacity.incomeStability).toBeUndefined()
+    expect('incomeStability' in (borrador()?.assessment.capacity ?? {})).toBe(false)
+  })
+
+  it('un valor fuera de rango deja el dato sin declarar y lo dice', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="situacion" />)
+    const campo = screen.getByLabelText('Personas que dependen económicamente de ti')
+
+    await user.type(campo, '2')
+    expect(borrador()?.assessment.capacity.dependents).toBe(2)
+
+    await user.clear(campo)
+    await user.type(campo, '99')
+    expect(campo).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toBeVisible()
+    expect(borrador()?.assessment.capacity.dependents).toBeUndefined()
+  })
+
+  it('cada pregunta explica para qué se usa', () => {
+    render(<IpsWizard pasoInicial="situacion" />)
+    expect(screen.getAllByText('¿Por qué se pregunta esto?').length).toBeGreaterThanOrEqual(4)
+  })
+})
+
+/* ── Tolerancia (paso 4) ──────────────────────────────────────────────────── */
+
+/** Contesta las cinco preguntas eligiendo siempre la opción de esa banda. */
+async function contestarTolerancia(
+  user: ReturnType<typeof userEvent.setup>,
+  bandas: readonly RiskBand[],
+) {
+  for (const [indice, pregunta] of TOLERANCE_QUESTIONS.entries()) {
+    const opcion = pregunta.options.find((o) => o.band === bandas[indice])
+    const grupo = screen.getByRole('group', { name: new RegExp(escapar(pregunta.text)) })
+    await user.click(within(grupo).getByRole('radio', { name: opcion!.label }))
+  }
+}
+
+function escapar(texto: string): string {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+describe('IpsWizard · tolerancia', () => {
+  it('no trae ninguna opción marcada: un valor por defecto sería una sugerencia', () => {
+    render(<IpsWizard pasoInicial="tolerancia" />)
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio).not.toBeChecked()
+    }
+  })
+
+  it('cada pregunta es un grupo con su enunciado y su explicación', () => {
+    render(<IpsWizard pasoInicial="tolerancia" />)
+    for (const pregunta of TOLERANCE_QUESTIONS) {
+      expect(
+        screen.getByRole('group', { name: new RegExp(escapar(pregunta.text)) }),
+      ).toBeInTheDocument()
+    }
+    expect(screen.getAllByText('¿Por qué se pregunta esto?')).toHaveLength(
+      TOLERANCE_QUESTIONS.length,
+    )
+  })
+
+  it('con las cinco contestadas guarda la mediana, no la media', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="tolerancia" />)
+
+    // Media 2,6 · mediana 1. Si apareciera un 3, sería una media redondeada.
+    await contestarTolerancia(user, [1, 1, 1, 5, 5])
+
+    expect(borrador()?.assessment.tolerance.band).toBe(1)
+  })
+
+  it('con cuatro de cinco no hay banda todavía', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="tolerancia" />)
+
+    for (const pregunta of TOLERANCE_QUESTIONS.slice(0, 4)) {
+      const grupo = screen.getByRole('group', { name: new RegExp(escapar(pregunta.text)) })
+      await user.click(within(grupo).getByRole('radio', { name: pregunta.options[2]!.label }))
+    }
+
+    expect(borrador()?.assessment.tolerance.band).toBeUndefined()
+    expect(screen.getByText(/Falta 1 pregunta por contestar/)).toBeInTheDocument()
+  })
+
+  it('«prefiero no responder» deja la pregunta sin contestar', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="tolerancia" />)
+
+    await contestarTolerancia(user, [3, 3, 3, 3, 3])
+    expect(borrador()?.assessment.tolerance.band).toBe(3)
+
+    const primera = TOLERANCE_QUESTIONS[0]!
+    const grupo = screen.getByRole('group', { name: new RegExp(escapar(primera.text)) })
+    await user.click(within(grupo).getByRole('radio', { name: 'Prefiero no responder' }))
+
+    expect(borrador()?.assessment.tolerance.band).toBeUndefined()
+    expect(borrador()?.effectiveRisk).toBeUndefined()
+  })
+})
+
+/* ── Conocimientos (paso 5) ───────────────────────────────────────────────── */
+
+describe('IpsWizard · conocimientos', () => {
+  it('guarda el nivel sin tocar ninguna banda de riesgo', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="conocimientos" />)
+
+    for (const pregunta of KNOWLEDGE_QUESTIONS) {
+      const grupo = screen.getByRole('group', { name: new RegExp(escapar(pregunta.text)) })
+      const opcion = pregunta.options.find((o) => o.level === 'medio')!
+      await user.click(within(grupo).getByRole('radio', { name: opcion.label }))
+    }
+
+    expect(borrador()?.assessment.knowledge?.level).toBe('medio')
+    expect(borrador()?.assessment.tolerance.band).toBeUndefined()
+    expect(borrador()?.assessment.capacity.band).toBeUndefined()
+    expect(borrador()?.effectiveRisk).toBeUndefined()
+  })
+
+  it('dice en pantalla que no cambia el riesgo efectivo', () => {
+    render(<IpsWizard pasoInicial="conocimientos" />)
+    expect(screen.getByText(/Saber más no permite perder más/)).toBeInTheDocument()
+  })
+})
+
+/* ── Criterio de aceptación: la capacidad no se autocompleta ──────────────── */
+
+describe('IpsWizard · la capacidad no se autocompleta', () => {
+  it('declarar una tolerancia alta no produce ninguna banda de capacidad', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="tolerancia" />)
+
+    await contestarTolerancia(user, [5, 5, 5, 5, 5])
+
+    expect(borrador()?.assessment.tolerance.band).toBe(5)
+    expect(borrador()?.assessment.capacity.band).toBeUndefined()
+    expect(borrador()?.effectiveRisk).toBeUndefined()
+    expect(screen.getByText(/no se puede calcular todavía/)).toBeInTheDocument()
+  })
+
+  it('con los cinco hechos y las cinco respuestas, el riesgo efectivo es el menor', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="horizonte" />)
+
+    await user.type(screen.getByLabelText('Años hasta necesitar el dinero'), '20')
+
+    await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
+    await user.type(screen.getByLabelText('Meses de gastos cubiertos por tu colchón'), '12')
+    await user.click(screen.getByRole('radio', { name: /Estables/ }))
+    await user.type(screen.getByLabelText('Personas que dependen económicamente de ti'), '0')
+    await user.type(
+      screen.getByLabelText('Porcentaje de tu patrimonio que representa esta cartera'),
+      '5',
+    )
+    // Todos los hechos en su mejor caso: capacidad 5 y ninguno limitando.
+    expect(borrador()?.assessment.capacity.band).toBe(5)
+    expect(borrador()?.effectiveRisk).toBeUndefined()
+    expect(screen.getByText(/Ninguno de los cinco datos la limita/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
+    await contestarTolerancia(user, [2, 2, 2, 2, 2])
+
+    expect(borrador()?.assessment.tolerance.band).toBe(2)
+    expect(borrador()?.effectiveRisk).toBe(2)
+  })
+
+  it('retirar un hecho borra la banda de capacidad y el riesgo efectivo', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="situacion" />)
+
+    useAppStore.setState({
+      labPolicyDraft: null,
+    })
+    cleanup()
+
+    render(<IpsWizard pasoInicial="tolerancia" />)
+    await contestarTolerancia(user, [4, 4, 4, 4, 4])
+    cleanup()
+
+    render(<IpsWizard pasoInicial="horizonte" />)
+    await user.type(screen.getByLabelText('Años hasta necesitar el dinero'), '20')
+    cleanup()
+
+    render(<IpsWizard pasoInicial="situacion" />)
+    await user.type(screen.getByLabelText('Meses de gastos cubiertos por tu colchón'), '12')
+    await user.click(screen.getByRole('radio', { name: /Estables/ }))
+    await user.type(screen.getByLabelText('Personas que dependen económicamente de ti'), '0')
+    const peso = screen.getByLabelText('Porcentaje de tu patrimonio que representa esta cartera')
+    await user.type(peso, '5')
+
+    expect(borrador()?.assessment.capacity.band).toBe(5)
+    expect(borrador()?.effectiveRisk).toBe(4)
+
+    await user.clear(peso)
+
+    expect(borrador()?.assessment.capacity.band).toBeUndefined()
+    expect(borrador()?.effectiveRisk).toBeUndefined()
   })
 })
 

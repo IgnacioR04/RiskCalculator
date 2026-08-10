@@ -42,13 +42,32 @@ export type PolicyStatus = 'draft' | 'active' | 'superseded'
 
 /**
  * Tolerancia: qué está **dispuesto** a soportar. Es una preferencia declarada.
+ *
+ * `band` es opcional por el mismo motivo que en la capacidad (LAB-208): un
+ * cuestionario a medias no da una preferencia, da un hueco. Un valor central
+ * puesto «mientras tanto» acabaría entrando en `min()` y produciendo un riesgo
+ * efectivo que nadie ha declarado.
  */
 export interface ToleranceAssessment {
   /** Respuestas del cuestionario de actitud, por identificador de pregunta. */
   readonly answers: Readonly<Record<string, string>>
-  readonly band: RiskBand
-  readonly assessedAt: string
+  /** Solo se rellena con el cuestionario completo, o al migrar un perfil anterior. */
+  readonly band?: RiskBand
+  readonly assessedAt?: string
+  /** De dónde salió la banda. Sin banda no hay procedencia. */
+  readonly source?: ToleranceSource
 }
+
+/**
+ * Procedencia de la banda de tolerancia.
+ *
+ * Hace falta distinguirlas porque se recalculan de forma distinta: la del
+ * cuestionario se rehace en cada cambio, y la que viene del perfil anterior no
+ * puede recalcularse —sus preguntas eran otras—, así que se conserva hasta que
+ * el cuestionario nuevo dé un resultado. Sin esta marca, empezar a rellenar el
+ * asistente borraría en silencio lo que la migración había traído.
+ */
+export type ToleranceSource = 'cuestionario' | 'perfil-anterior'
 
 /**
  * Capacidad: qué **puede** soportar sin romper su plan. Son hechos objetivos.
@@ -72,6 +91,18 @@ export interface CapacityAssessment {
 }
 
 /**
+ * Cambio sobre los hechos de capacidad.
+ *
+ * Existe aparte de `Partial<CapacityAssessment>` porque aquí `undefined` es un
+ * valor con significado —«retira este dato»— y no la ausencia de la clave. Con
+ * `exactOptionalPropertyTypes` esa diferencia importa, y conviene que importe:
+ * retirar un hecho declarado es una acción, no un descuido.
+ */
+export type CapacityFactsUpdate = {
+  readonly [K in keyof CapacityAssessment]?: CapacityAssessment[K] | undefined
+}
+
+/**
  * Necesidad: qué riesgo exigiría alcanzar los objetivos. Se **deriva**, no se
  * pregunta, y nunca sube el riesgo efectivo (ADR-002 §3).
  */
@@ -82,10 +113,37 @@ export interface NeedAssessment {
   readonly assessedAt: string
 }
 
+/**
+ * Conocimientos y experiencia declarados (LAB-208).
+ *
+ * **No entra en el riesgo efectivo.** ADR-002 §3 fija `min(tolerancia,
+ * capacidad)` y esta cuarta dimensión no aparece ahí: saber más no permite
+ * perder más, y saber menos no reduce lo que alguien puede permitirse perder.
+ * Sirve para avisar cuando un producto es más complejo que la experiencia
+ * declarada, que es uno de los conflictos del documento de producto (§8.3).
+ */
+export interface KnowledgeAssessment {
+  readonly answers: Readonly<Record<string, string>>
+  readonly level?: KnowledgeLevel
+  readonly assessedAt?: string
+}
+
+/** Escala ordinal de conocimientos. Se compara; no se promedia. */
+export type KnowledgeLevel = 'basico' | 'medio' | 'avanzado'
+
+export const KNOWLEDGE_LEVELS: readonly KnowledgeLevel[] = ['basico', 'medio', 'avanzado']
+
+export const KNOWLEDGE_LEVEL_INFO: Readonly<Record<KnowledgeLevel, string>> = {
+  basico: 'Poca o ninguna experiencia invirtiendo.',
+  medio: 'Alguna experiencia con productos habituales.',
+  avanzado: 'Experiencia amplia, incluidos productos complejos.',
+}
+
 export interface RiskAssessment {
   readonly tolerance: ToleranceAssessment
   readonly capacity: CapacityAssessment
   readonly need?: NeedAssessment
+  readonly knowledge?: KnowledgeAssessment
 }
 
 /* ── Objetivos ────────────────────────────────────────────────────────────── */

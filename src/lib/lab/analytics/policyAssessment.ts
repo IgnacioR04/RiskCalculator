@@ -20,8 +20,10 @@ import {
  * texto, y un cambio de redacción no debe alterar el código.
  */
 export type PolicyReasonCode =
-  /** No se puede calcular el riesgo efectivo. */
+  /** No se puede calcular el riesgo efectivo: falta capacidad. */
   | 'capacity_missing'
+  /** No se puede calcular el riesgo efectivo: falta tolerancia declarada. */
+  | 'tolerance_missing'
   /** La necesidad supera lo que tolerancia y capacidad permiten. */
   | 'need_exceeds_effective'
   /** La capacidad limita por debajo de la tolerancia. */
@@ -103,15 +105,17 @@ export function missingCapacityFacts(
 /**
  * Riesgo efectivo: `min(tolerancia, capacidad)`.
  *
- * Devuelve `null` si la capacidad no está resuelta. No se sustituye por la
- * tolerancia, no se estima y no se asume un valor por defecto: es el criterio
- * de aceptación de ADR-002 y el error que este modelo existe para evitar.
+ * Devuelve `null` si **cualquiera** de las dos falta. Ninguna sustituye a la
+ * otra, no se estiman y no se asume un valor por defecto: es el criterio de
+ * aceptación de ADR-002 y el error que este modelo existe para evitar.
  */
 export function computeEffectiveRisk(assessment: RiskAssessment): RiskBand | null {
+  const tolerancia = assessment.tolerance.band
+  if (tolerancia === undefined) return null
   const capacidad = assessment.capacity.band
   if (capacidad === undefined) return null
   if (missingCapacityFacts(assessment.capacity).length > 0) return null
-  return Math.min(assessment.tolerance.band, capacidad) as RiskBand
+  return Math.min(tolerancia, capacidad) as RiskBand
 }
 
 /** Meses completos entre dos fechas `YYYY-MM-DD`. Negativo si la segunda es anterior. */
@@ -137,9 +141,15 @@ export function assessPolicy(policy: InvestmentPolicy, today: string): PolicyAss
   const effectiveRisk = computeEffectiveRisk(policy.assessment)
 
   if (effectiveRisk === null) {
-    codigos.push('capacity_missing')
+    // Los dos motivos se informan por separado: «falta capacidad» y «falta
+    // tolerancia» se arreglan en pasos distintos del asistente, y pueden faltar
+    // las dos a la vez.
+    if (policy.assessment.capacity.band === undefined || faltan.length > 0) {
+      codigos.push('capacity_missing')
+    }
+    if (policy.assessment.tolerance.band === undefined) codigos.push('tolerance_missing')
   } else {
-    const tolerancia = policy.assessment.tolerance.band
+    const tolerancia = policy.assessment.tolerance.band as RiskBand
     const capacidad = policy.assessment.capacity.band as RiskBand
     if (capacidad < tolerancia) codigos.push('capacity_limits_tolerance')
     else if (capacidad > tolerancia) codigos.push('tolerance_limits_capacity')
