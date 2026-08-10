@@ -10,7 +10,7 @@
 | Commit base de la Fase 0 | `c807281` |
 | Último commit en `main` | `b02017d` |
 | Fase activa | **Fase 2 — IPS, restricciones y calidad de datos** |
-| Tarea activa | Ninguna — `LAB-201` terminada. Siguiente: `LAB-202` (tipos y schemas IPS) |
+| Tarea activa | Ninguna — `LAB-202` terminada. Siguiente: `LAB-203` (motor de riesgo efectivo y conflictos) |
 | Última puerta superada | **G1**, el 2026-08-10 |
 | Última actualización | 2026-08-10 |
 
@@ -131,6 +131,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | D5 | El router es `HashRouter` con redirecciones legacy ya implementadas | La migración de navegación parte de URLs con `#`, no de un diseño nuevo |
 | D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
 | D8 | ~~El arnés E2E levanta `npm run dev` y el timeout queda al borde del arranque en frío~~ **Resuelta el 2026-08-08 por `LAB-003`** | Playwright sirve ahora el build con `vite preview`. Las pruebas bajaron de 6,8–29,5 s a 0,7–2,4 s |
+| D13 | El plan añade una **tercera** carpeta de código del Laboratorio: `src/lib/lab/` (LAB-202), junto a `src/lib/features/` (LAB-006) y `src/features/lab/` (LAB-101) | Se siguen las rutas del plan al pie de la letra, pero conviven tres raíces para lo mismo. Unificar es una decisión de estructura pendiente; no afecta al comportamiento |
 | D12 | El plan sitúa las flags en `src/lib/features/flags.ts` (LAB-006) y los contratos de ruta en `src/features/lab/…` (LAB-101): **dos carpetas «features» distintas**, una dentro de `lib/` y otra en la raíz de `src/` | Se han seguido ambas rutas literalmente, como se hizo con `__tests__`. Conviene unificar antes de que la Fase 1 llene `src/features/`; es una decisión de estructura, no funcional |
 | D11 | **Resuelta en parte el 2026-08-09**: `e2e/` y `playwright.config.ts` ya se lintan y comprueban de tipos con `tsconfig.e2e.json`, con la misma severidad que la aplicación; se verificó que ambas puertas atrapan un error deliberado. Quedan abiertos: `seriesCache.test.ts` restaura `vi.useFakeTimers()` dentro del `it` y no en un `afterEach`; el `asyncUtilTimeout` de Testing Library sigue en 1 s pese a que D10 concluyó que el problema es la saturación de CPU; y la conversión FX de series históricas (`convertDemoPriceSeries`) no tiene fixture ni aparece declarada como hueco en `golden-fixtures.md` | Ninguno bloquea G0. El primero es el más relevante: el entregable que sostiene el criterio de rutas es justo el código que las puertas de calidad no revisan |
 | D9 | El número de workers por defecto de Playwright (4) satura esta máquina: acciones de ~1 s agotaban el timeout de 30 s. Medido: 1 worker 10/10 · 2 workers 10/10 · 4 workers 6/10 | Fijado `workers: 2`. **Confirmado en CI**: 10/10 en 9,3 s en el runner. Si algún día resultara conservador, subir con medición, no a ojo |
@@ -151,6 +152,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-10 | `LAB-202` terminada. Dominio puro y validación en frontera de la IPS. El esquema **impide estructuralmente** que exista riesgo efectivo sin capacidad medida, y rechaza NaN, infinitos y pesos fuera de 0–1. |
 | 2026-08-10 | **Fase 2 iniciada.** `LAB-201` cierra por ADR-002 dos decisiones que el plan dejaba abiertas: la escala de bandas de riesgo (cinco, ordinales) y la validez temporal de la IPS (doce meses). Separa tolerancia, capacidad y necesidad, y fija que **la capacidad nunca se deduce de la tolerancia**. |
 | 2026-08-10 | **G1 superada.** `LAB-110` cierra la Fase 1 con una E2E de migración de ocho casos. La Fase 2 queda autorizada y sin iniciar. |
 | 2026-08-10 | `LAB-109` terminada. Portada con las dos mitades y el estado real de la cartera. **No muestra hallazgos**: las conclusiones las producen los motores de la Fase 3, e insinuarlas ahora sería inventar. Una prueba comprueba que sin cartera no aparece ningún dígito. |
