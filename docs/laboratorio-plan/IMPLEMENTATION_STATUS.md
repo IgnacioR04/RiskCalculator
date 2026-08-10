@@ -7,12 +7,12 @@
 
 | Campo | Valor |
 |---|---|
-| Commit base | `c807281ae33d81dfe075f62a9fca98b88602a6f0` (`main`, sincronizada con `origin/main`) |
-| Fase activa | Fase 0 — Base, contratos y calidad |
-| Fase activa | **Fase 1 — Shell y migración de navegación** |
-| Tarea activa | Ninguna. **Fase 1 completa y G1 superada.** La Fase 2 queda autorizada y no iniciada |
+| Commit base de la Fase 0 | `c807281` |
+| Último commit en `main` | `b02017d` |
+| Fase activa | **Fase 2 — IPS, restricciones y calidad de datos** |
+| Tarea activa | Ninguna — `LAB-201` terminada. Siguiente: `LAB-202` (tipos y schemas IPS) |
 | Última puerta superada | **G1**, el 2026-08-10 |
-| Última actualización | 2026-08-09 |
+| Última actualización | 2026-08-10 |
 
 ## 2. Estado por fase y puerta
 
@@ -86,7 +86,12 @@ Cerrada el 2026-08-10, con las diez tareas de la Fase 1 terminadas.
 
 **Nota honesta sobre la paridad.** Hasta `LAB-107` una E2E comparaba las cifras de la ruta antigua con las de la nueva. Desde `LAB-108` la antigua redirige a la nueva, así que esa comparación se compararía consigo misma: se retiró por tautológica en vez de dejarla dando una falsa sensación de cobertura. La garantía real es estructural —una sola implementación por pantalla— y se apoya en las unitarias de `LabSection` y en los fixtures dorados.
 
-## 3. Tareas de la fase activa (Fase 0)
+## 3. Tareas de la Fase 0
+
+> Los checklists vivos de cada fase están en [`phases/`](./phases/). Aquí se conserva el
+> detalle de la Fase 0 por ser la que fija la red de seguridad; el de la Fase 1 está en
+> [`phases/FASE-01.md`](./phases/FASE-01.md) y el de la Fase 2 en
+> [`phases/FASE-02.md`](./phases/FASE-02.md).
 
 | Tarea | Estado | Notas |
 |---|---|---|
@@ -108,6 +113,7 @@ Ninguna resuelta todavía. Ver [README.md §5](./README.md) para la lista comple
 | ADR | Título | Estado | Fecha |
 |---|---|---|---|
 | ADR-001 | Arquitectura del Laboratorio y límites entre navegador, Supabase y cálculo | Aceptado | 2026-08-08 |
+| ADR-002 | Modelo de política de inversión y regla de riesgo efectiva | Aceptado | 2026-08-10 |
 
 Ubicación: `docs/adr/` en la raíz del repositorio. Lista objetivo completa en [00-plan-maestro-laboratorio.md §17](./00-plan-maestro-laboratorio.md).
 
@@ -145,6 +151,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-10 | **Fase 2 iniciada.** `LAB-201` cierra por ADR-002 dos decisiones que el plan dejaba abiertas: la escala de bandas de riesgo (cinco, ordinales) y la validez temporal de la IPS (doce meses). Separa tolerancia, capacidad y necesidad, y fija que **la capacidad nunca se deduce de la tolerancia**. |
 | 2026-08-10 | **G1 superada.** `LAB-110` cierra la Fase 1 con una E2E de migración de ocho casos. La Fase 2 queda autorizada y sin iniciar. |
 | 2026-08-10 | `LAB-109` terminada. Portada con las dos mitades y el estado real de la cartera. **No muestra hallazgos**: las conclusiones las producen los motores de la Fase 3, e insinuarlas ahora sería inventar. Una prueba comprueba que sin cartera no aparece ningún dígito. |
 | 2026-08-10 | `LAB-108` terminada. Las tres URL antiguas redirigen al Laboratorio conservando la cadena de consulta, con aviso cerrable y sin bucle al volver atrás. Con la capacidad apagada siguen sirviendo la pantalla de siempre. |
