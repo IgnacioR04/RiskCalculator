@@ -191,16 +191,42 @@ select is(
 
 -- ── Sin sesión ─────────────────────────────────────────────────────────────
 -- El rol anónimo es el que usa cualquiera con la anon key, que es pública.
+--
+-- La protección aquí es más fuerte de lo que cabría esperar: `anon` no tiene
+-- ni siquiera GRANT sobre estas tablas, así que Postgres le deniega el acceso
+-- **antes** de evaluar ninguna política. Por eso se espera una excepción 42501
+-- y no un resultado vacío: un resultado vacío significaría que llegó a
+-- consultar la tabla y la RLS lo filtró; esto ni siquiera la alcanza.
 
 reset role;
 set local role anon;
 select set_config('request.jwt.claims', null, true);
 
-select is((select count(*)::int from public.profiles), 0, 'sin sesión no se ve ningún perfil');
-select is((select count(*)::int from public.assets), 0, 'sin sesión no se ve ningún activo');
-select is((select count(*)::int from public.transactions), 0, 'sin sesión no se ve ninguna operación');
-select is((select count(*)::int from public.scenarios), 0, 'sin sesión no se ve ningún escenario');
-select is((select count(*)::int from public.broker_accounts), 0, 'sin sesión no se ve ninguna cuenta');
+select throws_ok(
+  $$select id from public.profiles$$,
+  '42501', null,
+  'sin sesión no se puede ni leer profiles'
+);
+select throws_ok(
+  $$select id from public.assets$$,
+  '42501', null,
+  'sin sesión no se puede ni leer assets'
+);
+select throws_ok(
+  $$select id from public.transactions$$,
+  '42501', null,
+  'sin sesión no se puede ni leer transactions'
+);
+select throws_ok(
+  $$select id from public.scenarios$$,
+  '42501', null,
+  'sin sesión no se puede ni leer scenarios'
+);
+select throws_ok(
+  $$select id from public.broker_accounts$$,
+  '42501', null,
+  'sin sesión no se puede ni leer broker_accounts'
+);
 
 select throws_ok(
   $$insert into public.assets (user_id, symbol, name, asset_type, quote_currency)
