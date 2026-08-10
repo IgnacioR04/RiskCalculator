@@ -96,6 +96,28 @@ describe('sin capacidad medida no hay riesgo efectivo', () => {
     }
   })
 
+  it('tampoco sustituye la tolerancia por la capacidad (LAB-208)', () => {
+    for (const capacidad of RISK_BANDS) {
+      const conCapacidad = politica({ tolerancia: 3, capacidad })
+      const sinTolerancia: InvestmentPolicy = {
+        ...conCapacidad,
+        assessment: { ...conCapacidad.assessment, tolerance: { answers: {} } },
+      }
+      const r = assessPolicy(sinTolerancia, HOY)
+      expect(computeEffectiveRisk(sinTolerancia.assessment)).toBeNull()
+      expect(r.reasonCodes).toContain('tolerance_missing')
+      expect(r.reasonCodes).not.toContain('capacity_missing')
+      expect(r.personalizationAllowed).toBe(false)
+    }
+  })
+
+  it('cuando faltan las dos, lo dice de las dos', () => {
+    const vacia = emptyPolicyDraft('ips-vacia', HOY)
+    const r = assessPolicy(vacia, HOY)
+    expect(r.reasonCodes).toContain('capacity_missing')
+    expect(r.reasonCodes).toContain('tolerance_missing')
+  })
+
   it('una banda de capacidad sin sus hechos tampoco cuenta', () => {
     const rota = politica({ tolerancia: 4 })
     const conBandaSuelta: InvestmentPolicy = {

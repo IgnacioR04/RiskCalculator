@@ -3394,3 +3394,73 @@ small {
   font: 400 var(--fs-body) / 1.5 var(--font-ui);
   color: var(--text-body);
 }
+
+/* Cuestionarios del asistente: tolerancia y conocimientos (LAB-208). */
+.ips-preguntas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ips-pregunta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+}
+
+.ips-pregunta > legend {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font: 400 var(--fs-body) / 1.4 var(--font-ui);
+  color: var(--text-primary);
+}
+
+.ips-pregunta__num {
+  font: 600 var(--fs-aux) var(--font-figures);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.ips-pregunta label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font: 400 var(--fs-body) / 1.4 var(--font-ui);
+  color: var(--text-body);
+}
+
+/* «Prefiero no responder» no es una opción más de la escala: se separa para que
+   no se lea como el punto medio de las anteriores. */
+.ips-sin-respuesta {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-width) dashed var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.ips-porque {
+  margin-bottom: var(--space-2);
+}
+
+.ips-porque > summary {
+  font: 400 var(--fs-aux) var(--font-ui);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ips-porque > summary:hover {
+  color: var(--text-body);
+}

@@ -71,6 +71,10 @@ export function deriveLabPolicyFromLegacy(profile: RiskProfile | null): Investme
         answers: profile.answers,
         band,
         assessedAt: profile.completedAt,
+        // La procedencia importa: esta banda no sale del cuestionario nuevo y
+        // no puede recalcularse desde estas respuestas, así que el motor de
+        // derivación la respeta en vez de borrarla (LAB-208).
+        source: 'perfil-anterior',
       },
       // Capacidad vacía a propósito: el perfil antiguo nunca la midió, y
       // deducirla de la tolerancia es justo lo que ADR-002 prohíbe.
