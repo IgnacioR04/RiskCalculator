@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { Card, Note, SectionHeader, Segmented } from '../components/ui'
+import { IpsWizard } from '../features/lab/ips/IpsWizard'
 import type { Currency, RiskCategory, RiskResult } from '../lib/domain'
+import { isFeatureEnabled } from '../lib/features/flags'
 import { formatDateTime, formatMoney } from '../lib/format'
 import { providerStatus } from '../lib/market/service'
 import { authRedirectUrl, getSupabase, isSupabaseConfigured } from '../lib/supabase'
@@ -189,6 +191,8 @@ export function PerfilPage() {
         )}
       </Card>
 
+      <PoliticaInversionCard />
+
       <RiskResultsCard />
 
       <Card title="Proveedores de datos de mercado">
@@ -272,6 +276,30 @@ export function PerfilPage() {
         se incluyen.
       </Note>
     </>
+  )
+}
+
+/* ── Política de inversión (asistente del Laboratorio) ── */
+
+/**
+ * El asistente de IPS vive aquí, en la sección de Perfil, y no en una ruta
+ * propia del Laboratorio: el contrato de rutas de LAB-102 no tiene ninguna para
+ * un wizard, y la especificación de producto titula esta sección «Perfil e IPS».
+ * Inventar una ruta fuera del contrato sería más ruido que utilidad.
+ *
+ * Detrás de `labIpsV2`, que es visibilidad y no permiso: lo que protege datos
+ * sigue estando en la RLS de Supabase.
+ */
+function PoliticaInversionCard() {
+  if (!isFeatureEnabled('labIpsV2')) return null
+
+  return (
+    <Card
+      title="Política de inversión"
+      sub="Objetivos y horizonte. Convive con el perfil de arriba; no lo sustituye todavía."
+    >
+      <IpsWizard />
+    </Card>
   )
 }
 
