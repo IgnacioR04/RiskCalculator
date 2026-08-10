@@ -3225,3 +3225,172 @@ small {
   font: 600 var(--fs-kpi) / 1.3 var(--font-figures);
   color: var(--text-primary);
 }
+
+/* ── Asistente de política de inversión (LAB-207) ────────────────────────── */
+
+.ips-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Los pasos son navegación, no pestañas: llevan aria-current="step" y el
+   contenido cambia en el sitio, sin cambiar de ruta. */
+.ips-pasos ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ips-paso {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  font: 400 var(--fs-aux) var(--font-ui);
+  color: var(--text-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ips-paso:hover {
+  border-color: var(--border-strong);
+}
+
+/* El paso actual no se distingue solo por color: cambia el grosor del borde y
+   el número queda en la tinta de marca. */
+.ips-paso.actual {
+  border-color: var(--brand-primary);
+  color: var(--text-primary);
+}
+
+.ips-paso.actual .ips-paso__num {
+  background: var(--brand-primary);
+  color: var(--app-bg);
+}
+
+.ips-paso.pendiente {
+  color: var(--text-secondary);
+  border-style: dashed;
+  cursor: default;
+}
+
+.ips-paso__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-chip);
+  background: var(--surface-raised);
+  font: 600 var(--fs-aux) var(--font-figures);
+  font-variant-numeric: tabular-nums;
+}
+
+.ips-paso-titulo {
+  margin: 0;
+  font: 500 var(--fs-card-title) / 1.2 var(--font-ui);
+  color: var(--text-primary);
+}
+
+.ips-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ips-goals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ips-goal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ips-fieldset,
+.ips-prioridad {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.ips-fieldset > legend,
+.ips-prioridad > legend {
+  padding: 0;
+  font: var(--fw-control) var(--fs-label) var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.ips-prioridad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.ips-prioridad > legend {
+  margin-bottom: var(--space-2);
+}
+
+.ips-prioridad label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  flex: 1 1 190px;
+  font: 400 var(--fs-body) / 1.4 var(--font-ui);
+  color: var(--text-body);
+}
+
+.ips-prioridad label > span:last-child {
+  grid-column: 2;
+}
+
+.ips-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.ips-flexibles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+  font: 400 var(--fs-body) / 1.4 var(--font-ui);
+  color: var(--text-body);
+}
+
+.ips-navegacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.ips-wizard .card-title {
+  margin: 0 0 var(--space-2);
+}
+
+.ips-pendientes {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-4);
+  font: 400 var(--fs-body) / 1.5 var(--font-ui);
+  color: var(--text-body);
+}

@@ -10,7 +10,7 @@
 | Commit base de la Fase 0 | `c807281` |
 | Último commit en `main` | `b02017d` |
 | Fase activa | **Fase 2 — IPS, restricciones y calidad de datos** |
-| Tarea activa | Ninguna — `LAB-206` terminada. Siguiente: `LAB-207` (asistente IPS: objetivos y horizonte) |
+| Tarea activa | Ninguna — `LAB-207` terminada. Siguiente: `LAB-208` (asistente IPS: situación y tolerancia) |
 | Última puerta superada | **G1**, el 2026-08-10 |
 | Última actualización | 2026-08-10 |
 
@@ -154,6 +154,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-10 | `LAB-207` terminada. Dos primeros pasos del asistente de IPS (objetivos y horizonte), alojados en la sección Perfil y detrás de `labIpsV2`. El borrador se guarda en cada cambio: comprobado con una recarga real del navegador, no solo en pruebas. El horizonte entra como **hecho de capacidad** y rellenarlo no produce ninguna banda: siguen faltando cuatro hechos y el asistente lo dice en todo momento. 31 pruebas. |
 | 2026-08-10 | `LAB-206` terminada. Repositorio como **única capa** que habla con las tablas de política, con una prueba que recorre el árbol de fuentes para comprobarlo. Todo lo que se lee se valida con zod antes de entrar al dominio. Registradas D14 y D15. |
 | 2026-08-10 | `LAB-205` terminada. Migración **aditiva**: tres tablas nuevas, ninguna de las cuatro anteriores tocada. Dos reglas de ADR-002 bajan a la base: no hay riesgo efectivo sin capacidad medida, y una clave ajena compuesta impide colgar un objetivo de la política de otro usuario. Verificada con 23 aserciones pgTAP: **51 en total entre las dos suites, todas en verde en CI**. |
 | 2026-08-10 | **D6 cerrada.** Arnés de RLS automatizado: `supabase-ci.yml` con pgTAP sobre una base local del runner. El script manual anterior no podía ejecutarse en CI, así que la RLS nunca se comprobaba sola. Se añade también `supabase/config.toml`, que declara `verify_jwt` de la Edge Function en vez de dejarlo al valor por defecto. |
