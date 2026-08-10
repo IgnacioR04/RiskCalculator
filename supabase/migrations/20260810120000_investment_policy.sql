@@ -156,9 +156,24 @@ create trigger portfolio_constraints_set_updated_at
   before update on public.portfolio_constraints
   for each row execute function public.set_updated_at();
 
--- ── RLS: solo el dueño ─────────────────────────────────────────────────────
+-- ── Privilegios y RLS ──────────────────────────────────────────────────────
 -- Mismo patrón que el resto del esquema: políticas `*_own` por `user_id`,
 -- separadas por operación y limitadas al rol `authenticated`.
+--
+-- Los GRANT no son un detalle administrativo: una política RLS no concede
+-- nada, solo restringe lo ya concedido. Sin privilegio de tabla, Postgres
+-- deniega antes de evaluar ninguna política; y al revés, un GRANT olvidado a
+-- `anon` dejaría la tabla expuesta a cualquiera con la clave pública.
+
+revoke all on public.investment_policies from anon;
+revoke all on public.investment_goals from anon;
+revoke all on public.portfolio_constraints from anon;
+
+grant select, insert, update, delete on
+  public.investment_policies,
+  public.investment_goals,
+  public.portfolio_constraints
+to authenticated;
 
 alter table public.investment_policies enable row level security;
 alter table public.investment_goals enable row level security;
