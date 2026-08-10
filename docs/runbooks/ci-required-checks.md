@@ -45,7 +45,7 @@ bloqueado a la espera de un check que nadie publica:
 
 | Check | Cuándo | Tarea |
 |---|---|---|
-| `supabase-tests` | Cuando exista `supabase-ci.yml` con migraciones y pruebas de RLS | Pendiente (divergencia D6) |
+| `supabase-tests` | **Ya existe** (2026-08-10). Marcar como requerido cuando se quiera bloquear cambios de backend sin RLS verificada | Listo para exigirse |
 | `dependency-review` | Al endurecer la cadena de suministro | `LAB-004` |
 | `bundle` | Al fijar el presupuesto de bundle | `LAB-008` |
 
