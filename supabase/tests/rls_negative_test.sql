@@ -37,10 +37,10 @@ values
   ('00000000-0000-4000-8000-00000000001a', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'AAA', 'Activo A', 'stock', 'EUR'),
   ('00000000-0000-4000-8000-00000000001b', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'BBB', 'Activo B', 'stock', 'USD');
 
-insert into public.scenarios (id, user_id, name, payload)
+insert into public.scenarios (id, user_id, name, mode, currency, inputs)
 values
-  ('00000000-0000-4000-8000-00000000002a', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Escenario A', '{}'::jsonb),
-  ('00000000-0000-4000-8000-00000000002b', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Escenario B', '{}'::jsonb);
+  ('00000000-0000-4000-8000-00000000002a', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Escenario A', 'restore', 'EUR', '{}'::jsonb),
+  ('00000000-0000-4000-8000-00000000002b', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Escenario B', 'breakeven', 'USD', '{}'::jsonb);
 
 -- El trigger de alta debe haber creado ambos perfiles.
 select is(
@@ -147,8 +147,8 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$insert into public.scenarios (user_id, name, payload)
-    values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Suplantado', '{}'::jsonb)$$,
+  $$insert into public.scenarios (user_id, name, mode, currency, inputs)
+    values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Suplantado', 'restore', 'EUR', '{}'::jsonb)$$,
   '42501',
   null,
   'A no puede insertar un escenario a nombre de B'
