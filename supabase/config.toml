@@ -1,0 +1,53 @@
+# Configuración de la CLI de Supabase (cierre de D6).
+#
+# Hasta ahora el repositorio no tenía este archivo, así que el comportamiento
+# local dependía de los valores por defecto de la versión de CLI instalada y
+# `verify_jwt` de la Edge Function quedaba asumido en vez de declarado.
+#
+# Sirve para levantar Postgres en local y en CI y ejecutar las pruebas de RLS.
+# No contiene secretos: las claves de servicio viven fuera del repositorio.
+
+project_id = "riskcalculator"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+# La interfaz gráfica no aporta nada en CI y ahorra arrancar un contenedor.
+[studio]
+enabled = false
+
+[inbucket]
+enabled = false
+
+[storage]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:5173"
+additional_redirect_urls = ["http://127.0.0.1:4173"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+# Declarado explícitamente: la Edge Function exige un JWT válido. La función
+# solo comprueba que la cabecera `Authorization` empiece por `Bearer`, así que
+# la verificación real depende de esta línea. Dejarlo al valor por defecto era
+# confiar en que nadie desplegara con `--no-verify-jwt`.
+[functions.market-proxy]
+verify_jwt = true

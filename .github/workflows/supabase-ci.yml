@@ -1,0 +1,56 @@
+name: Supabase
+
+# Cierre de D6: hasta ahora la RLS solo podía comprobarse a mano, así que
+# ninguna tarea podía declararla verificada. Este workflow levanta Postgres,
+# aplica las migraciones desde cero y ejecuta las pruebas negativas con pgTAP.
+#
+# No toca ningún proyecto real: la base es local al runner y desaparece con él.
+# No usa secretos ni credenciales de Supabase.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/supabase-ci.yml'
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/supabase-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Check candidato a requerido en branch protection cuando cambie el backend.
+  # Ver docs/runbooks/ci-required-checks.md
+  supabase-tests:
+    name: supabase-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
+        with:
+          version: latest
+
+      # `db start` levanta solo Postgres y aplica las migraciones en orden.
+      # Es bastante más rápido que `supabase start`, que arranca la pila entera.
+      - name: Levantar la base con las migraciones aplicadas
+        run: supabase db start
+
+      - name: Comprobar que las migraciones aplican en limpio
+        run: supabase migration list --local
+
+      - name: Pruebas de RLS con pgTAP
+        run: supabase test db
+
+      - name: Registro de la base si algo falla
+        if: failure()
+        run: supabase status || true

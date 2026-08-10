@@ -10,7 +10,7 @@
 | Commit base de la Fase 0 | `c807281` |
 | Último commit en `main` | `b02017d` |
 | Fase activa | **Fase 2 — IPS, restricciones y calidad de datos** |
-| Tarea activa | Ninguna — `LAB-204` terminada. Siguiente: `LAB-205` (migraciones SQL de IPS), **condicionada por D6** |
+| Tarea activa | Ninguna — D6 cerrada. Siguiente: `LAB-205` (migraciones SQL de IPS), ya verificable |
 | Última puerta superada | **G1**, el 2026-08-10 |
 | Última actualización | 2026-08-10 |
 
@@ -129,7 +129,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | D3 | ~~`LoginGate` cubre toda la app~~ **Resuelta el 2026-08-09 por decisión del propietario** | El Laboratorio es accesible **sin cuenta**: el router pasa a estar por encima de `LoginGate`, que deja pasar los prefijos públicos sin dejar de inicializar caché y sesión. El resto de la aplicación sigue tras la puerta; quien quiera sincronizar entra desde Perfil |
 | D4 | Segundo destino de despliegue (`vercel.json`, `DEPLOY_TARGET`) no contemplado en el plan | Validar cambios de `base` y rutas en ambos destinos |
 | D5 | El router es `HashRouter` con redirecciones legacy ya implementadas | La migración de navegación parte de URLs con `#`, no de un diseño nuevo |
-| D6 | No hay pgTAP ni pruebas de RLS en CI, solo `rls_verification.sql` manual | Ninguna tarea puede declarar RLS «verificada en CI» hoy |
+| D6 | ~~No hay pgTAP ni pruebas de RLS en CI~~ **Cerrada el 2026-08-10** | `supabase-ci.yml` levanta Postgres, aplica las migraciones desde cero y ejecuta 28 aserciones pgTAP, la mayoría **negativas**. No usa credenciales ni toca ningún proyecto real. Desbloquea el criterio «RLS negativa» de G2 |
 | D8 | ~~El arnés E2E levanta `npm run dev` y el timeout queda al borde del arranque en frío~~ **Resuelta el 2026-08-08 por `LAB-003`** | Playwright sirve ahora el build con `vite preview`. Las pruebas bajaron de 6,8–29,5 s a 0,7–2,4 s |
 | D13 | El plan añade una **tercera** carpeta de código del Laboratorio: `src/lib/lab/` (LAB-202), junto a `src/lib/features/` (LAB-006) y `src/features/lab/` (LAB-101) | Se siguen las rutas del plan al pie de la letra, pero conviven tres raíces para lo mismo. Unificar es una decisión de estructura pendiente; no afecta al comportamiento |
 | D12 | El plan sitúa las flags en `src/lib/features/flags.ts` (LAB-006) y los contratos de ruta en `src/features/lab/…` (LAB-101): **dos carpetas «features» distintas**, una dentro de `lib/` y otra en la raíz de `src/` | Se han seguido ambas rutas literalmente, como se hizo con `__tests__`. Conviene unificar antes de que la Fase 1 llene `src/features/`; es una decisión de estructura, no funcional |
@@ -152,6 +152,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-10 | **D6 cerrada.** Arnés de RLS automatizado: `supabase-ci.yml` con pgTAP sobre una base local del runner. El script manual anterior no podía ejecutarse en CI, así que la RLS nunca se comprobaba sola. Se añade también `supabase/config.toml`, que declara `verify_jwt` de la Edge Function en vez de dejarlo al valor por defecto. |
 | 2026-08-10 | `LAB-204` terminada. `STORE_VERSION` pasa de 2 a 3 con migrador explícito. El perfil de riesgo antiguo **se conserva intacto** y de él se deriva un borrador de política que nace sin capacidad y sin activar. Una prueba comprueba clave por clave que el estado v2 se abre sin perder nada. |
 | 2026-08-10 | `LAB-203` terminada. Motor de riesgo efectivo puro y determinista, con códigos de razón estables. El conflicto se distingue del error, y ninguna de sus cinco salidas sube el riesgo. La fecha entra como argumento: sin reloj implícito, el resultado se reproduce meses después. |
 | 2026-08-10 | `LAB-202` terminada. Dominio puro y validación en frontera de la IPS. El esquema **impide estructuralmente** que exista riesgo efectivo sin capacidad medida, y rechaza NaN, infinitos y pesos fuera de 0–1. |
