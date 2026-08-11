@@ -314,6 +314,11 @@ export const useAppStore = create<AppState>()(
         demoLoaded: state.demoLoaded,
         labPolicyDraft: state.labPolicyDraft,
         labPolicyActive: state.labPolicyActive,
+        // Clave nueva en LAB-209. No hace falta subir `STORE_VERSION`: `merge`
+        // esparce lo persistido sobre el estado inicial, así que un estado
+        // guardado antes de existir esta clave conserva su valor por defecto —
+        // una lista vacía— en vez de quedar en `undefined`.
+        labPolicySuperseded: state.labPolicySuperseded,
         labPolicyDerivedFromLegacy: state.labPolicyDerivedFromLegacy,
       }),
       migrate: migratePersistedState,

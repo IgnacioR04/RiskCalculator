@@ -61,7 +61,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-206 — Tipos de base de datos y repositorio IPS *(2026-08-10)* — mapeo validado al leer, versión nueva sin sobrescribir la activa, conflicto de concurrencia tipado
 - [x] LAB-207 — Asistente IPS: objetivos y horizonte *(2026-08-10)* — dos primeros pasos del asistente, borrador guardado en cada cambio y verificado que sobrevive a una recarga real; 31 pruebas
 - [x] LAB-208 — Asistente IPS: situación y tolerancia *(2026-08-10)* — pasos 3 a 5; la banda de capacidad se deriva de los cinco hechos por el techo más bajo, la de tolerancia por la mediana de cinco respuestas, y ninguna se deduce de la otra; 63 pruebas
-- [ ] LAB-209 — Asistente IPS: restricciones y revisión
+- [x] LAB-209 — Asistente IPS: restricciones y revisión *(2026-08-11)* — editor de límites con detección de contradicciones, resumen, confirmación explícita y activación versionada: la vigente es inmutable y editarla abre la versión siguiente; 82 pruebas
 - [ ] LAB-210 — Modelo de calidad de datos
 - [ ] LAB-211 — Adaptadores de calidad para datos actuales
 - [ ] LAB-212 — Página Calidad de datos

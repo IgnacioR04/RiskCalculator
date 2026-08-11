@@ -3464,3 +3464,55 @@ small {
 .ips-porque > summary:hover {
   color: var(--text-body);
 }
+
+/* Restricciones y revisión del asistente (LAB-209). */
+.ips-restricciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ips-resumen {
+  display: grid;
+  grid-template-columns: minmax(160px, auto) 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font: 400 var(--fs-body) / 1.5 var(--font-ui);
+}
+
+.ips-resumen > dt {
+  color: var(--text-secondary);
+}
+
+.ips-resumen > dd {
+  margin: 0;
+  color: var(--text-body);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* En pantalla estrecha la rejilla de dos columnas aprieta demasiado el valor. */
+@media (max-width: 560px) {
+  .ips-resumen {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .ips-resumen > dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+/* La firma es una casilla larga: el texto no debe colgar bajo la marca. */
+.ips-firma {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font: 400 var(--fs-body) / 1.5 var(--font-ui);
+  color: var(--text-body);
+}

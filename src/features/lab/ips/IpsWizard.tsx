@@ -1,9 +1,12 @@
 /**
- * Asistente de política de inversión (LAB-207, LAB-208).
+ * Asistente de política de inversión (LAB-207, LAB-208, LAB-209).
  *
- * De los nueve pasos que describe la especificación de producto (§8.1), aquí
- * están los cinco primeros: objetivos, horizonte, situación y liquidez,
- * tolerancia y conocimientos. Los cuatro últimos llegan en LAB-209.
+ * Cubre ocho de los nueve pasos de la especificación de producto (§8.1):
+ * objetivos, horizonte, situación y liquidez, tolerancia, conocimientos,
+ * restricciones, reglas de mantenimiento y revisión. Falta el 6, «necesidad de
+ * rentabilidad», que **ningún LAB-xxx del backlog reclama**; queda anotado como
+ * divergencia D17 porque sin él la maquinaria de conflicto de ADR-002 §4 no
+ * puede dispararse.
  *
  * Dos decisiones de diseño vienen del plan y conviene no perderlas de vista:
  *
@@ -18,7 +21,7 @@
  * `withDerivedBands`, que es puro y vive fuera de React. Este componente recoge,
  * guarda y explica; no decide nada por su cuenta.
  */
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Card, Note } from '../../../components/ui'
 import { uid } from '../../../lib/domain'
 import {
@@ -29,24 +32,35 @@ import {
   type InvestmentPolicy,
 } from '../../../lib/lab/domain/investmentPolicy'
 import { bindingCapacityFacts } from '../../../lib/lab/analytics/capacityBand'
+import { activationBlockers } from '../../../lib/lab/analytics/policyActivation'
 import { missingCapacityFacts } from '../../../lib/lab/analytics/policyAssessment'
 import { withDerivedBands } from '../../../lib/lab/analytics/policyDerivation'
 import { missingToleranceAnswers } from '../../../lib/lab/analytics/toleranceBand'
 import { emptyPolicyDraft } from '../../../lib/lab/schemas/investmentPolicy'
 import { useAppStore } from '../../../state/store'
+import { ConstraintsStep, describir } from './steps/ConstraintsStep'
 import { GoalsStep } from './steps/GoalsStep'
 import { HorizonStep } from './steps/HorizonStep'
 import { KnowledgeStep } from './steps/KnowledgeStep'
+import { MaintenanceStep } from './steps/MaintenanceStep'
+import { ReviewStep } from './steps/ReviewStep'
 import { SituationStep } from './steps/SituationStep'
 import { ToleranceStep } from './steps/ToleranceStep'
 
-/** Pasos ya implementados. La numeración es la de la especificación (§8.1). */
+/**
+ * Pasos implementados, con la numeración de la especificación (§8.1). El 6 no
+ * está: se salta a propósito y la interfaz lo dice, en vez de renumerar y fingir
+ * que el asistente está completo.
+ */
 export const PASOS = [
   { id: 'objetivos', num: 1, titulo: 'Objetivos' },
   { id: 'horizonte', num: 2, titulo: 'Horizonte' },
   { id: 'situacion', num: 3, titulo: 'Situación y liquidez' },
   { id: 'tolerancia', num: 4, titulo: 'Tolerancia' },
   { id: 'conocimientos', num: 5, titulo: 'Conocimientos' },
+  { id: 'restricciones', num: 7, titulo: 'Restricciones' },
+  { id: 'mantenimiento', num: 8, titulo: 'Mantenimiento' },
+  { id: 'revision', num: 9, titulo: 'Revisión' },
 ] as const
 
 export type PasoId = (typeof PASOS)[number]['id']
@@ -72,9 +86,15 @@ export interface IpsWizardProps {
 
 export function IpsWizard(props: IpsWizardProps = {}) {
   const draft = useAppStore((s) => s.labPolicyDraft)
+  const activa = useAppStore((s) => s.labPolicyActive)
+  const retiradas = useAppStore((s) => s.labPolicySuperseded)
   const derivado = useAppStore((s) => s.labPolicyDerivedFromLegacy)
   const setDraft = useAppStore((s) => s.setLabPolicyDraft)
   const confirmarDerivado = useAppStore((s) => s.confirmDerivedLabPolicy)
+  const confirmarPolitica = useAppStore((s) => s.acknowledgeLabPolicy)
+  const activar = useAppStore((s) => s.activateLabPolicy)
+  const nuevaVersion = useAppStore((s) => s.startNewLabPolicyVersion)
+  const descartarBorrador = useAppStore((s) => s.discardLabPolicyDraft)
 
   const [paso, setPaso] = useState<PasoId>(props.pasoInicial ?? 'objetivos')
 
@@ -91,7 +111,12 @@ export function IpsWizard(props: IpsWizardProps = {}) {
 
   /** Guarda y recalcula lo derivado. Los dos pasos van siempre juntos. */
   function guardar(cambio: Partial<InvestmentPolicy>) {
-    setDraft(withDerivedBands({ ...politica, ...cambio }, ahora))
+    reemplazar({ ...politica, ...cambio })
+  }
+
+  /** Igual, pero sustituyendo la política entera: permite **quitar** claves. */
+  function reemplazar(nueva: InvestmentPolicy) {
+    setDraft(withDerivedBands(nueva, ahora))
   }
 
   function guardarObjetivos(goals: readonly InvestmentGoal[]) {
@@ -115,6 +140,18 @@ export function IpsWizard(props: IpsWizardProps = {}) {
     guardar({ assessment: { ...politica.assessment, knowledge } })
   }
 
+  function firmar(confirmado: boolean) {
+    if (!confirmado) {
+      guardar({ acknowledgements: [] })
+      return
+    }
+    // El borrador tiene que existir en el store antes de poder confirmarlo: si
+    // se ha llegado aquí sin escribir nada, primero se guarda tal cual.
+    if (draft === null) setDraft(withDerivedBands(politica, ahora))
+    confirmarPolitica({ kind: 'perfil-confirmado', acknowledgedAt: ahora })
+  }
+
+  const bloqueos = activationBlockers(politica, { derivedFromLegacy: derivado })
   const faltanHechos = missingCapacityFacts(politica.assessment.capacity)
   const faltanRespuestas = missingToleranceAnswers(politica.assessment.tolerance.answers)
   const limitan = bindingCapacityFacts(politica.assessment.capacity)
@@ -127,8 +164,30 @@ export function IpsWizard(props: IpsWizardProps = {}) {
   const anterior = PASOS[indice - 1]
   const siguiente = PASOS[indice + 1]
 
+  // Con una política vigente y sin borrador abierto, el asistente no se enseña:
+  // la vigente no se edita. Lo que se ofrece es abrir la versión siguiente.
+  if (activa !== null && draft === null) {
+    return (
+      <PoliticaVigente
+        activa={activa}
+        retiradas={retiradas}
+        onNuevaVersion={() => nuevaVersion(uid(), hoy)}
+      />
+    )
+  }
+
   return (
     <section className="ips-wizard" aria-label="Asistente de política de inversión">
+      {activa !== null && (
+        <Note kind="info">
+          Estás editando la <strong>versión {politica.version}</strong>. La versión{' '}
+          {activa.version} sigue vigente y no se toca hasta que actives esta.{' '}
+          <button type="button" className="btn small" onClick={descartarBorrador}>
+            Descartar los cambios
+          </button>
+        </Note>
+      )}
+
       {derivado && (
         <Note kind="warning">
           Este borrador se dedujo de tu perfil de riesgo anterior, que solo preguntaba por tu
@@ -143,28 +202,35 @@ export function IpsWizard(props: IpsWizardProps = {}) {
       <nav className="ips-pasos" aria-label="Pasos del asistente">
         <ol>
           {PASOS.map((p) => (
-            <li key={p.id}>
-              <button
-                type="button"
-                className={p.id === paso ? 'ips-paso actual' : 'ips-paso'}
-                aria-current={p.id === paso ? 'step' : undefined}
-                onClick={() => setPaso(p.id)}
-              >
-                <span className="ips-paso__num" aria-hidden="true">
-                  {p.num}
-                </span>
-                <span>{p.titulo}</span>
-              </button>
-            </li>
+            // El hueco del paso 6 se dibuja en su sitio, entre el 5 y el 7: al
+            // final de la lista parecería un extra y no lo que es, un paso que
+            // falta en medio.
+            <Fragment key={p.id}>
+              {p.num === 7 && (
+                <li>
+                  <span className="ips-paso pendiente">
+                    <span className="ips-paso__num" aria-hidden="true">
+                      6
+                    </span>
+                    <span>Necesidad de rentabilidad (aún no disponible)</span>
+                  </span>
+                </li>
+              )}
+              <li>
+                <button
+                  type="button"
+                  className={p.id === paso ? 'ips-paso actual' : 'ips-paso'}
+                  aria-current={p.id === paso ? 'step' : undefined}
+                  onClick={() => setPaso(p.id)}
+                >
+                  <span className="ips-paso__num" aria-hidden="true">
+                    {p.num}
+                  </span>
+                  <span>{p.titulo}</span>
+                </button>
+              </li>
+            </Fragment>
           ))}
-          <li>
-            <span className="ips-paso pendiente">
-              <span className="ips-paso__num" aria-hidden="true">
-                6–{PASOS_PREVISTOS}
-              </span>
-              <span>Necesidad, restricciones y revisión (aún no disponibles)</span>
-            </span>
-          </li>
         </ol>
       </nav>
 
@@ -196,6 +262,39 @@ export function IpsWizard(props: IpsWizardProps = {}) {
           onChange={guardarConocimientos}
         />
       )}
+      {paso === 'restricciones' && (
+        <ConstraintsStep
+          constraints={politica.constraints}
+          onChange={(constraints) => guardar({ constraints })}
+        />
+      )}
+      {paso === 'mantenimiento' && (
+        <MaintenanceStep
+          rebalancePolicy={politica.rebalancePolicy}
+          liquidityReserveMonths={politica.liquidityReserveMonths}
+          contributionPlan={politica.contributionPlan}
+          baseCurrency={politica.baseCurrency}
+          onRebalanceChange={(rebalancePolicy) => guardar({ rebalancePolicy })}
+          onReserveChange={(meses) => {
+            // Retirar un dato es quitar la clave, no ponerla a `undefined`.
+            const { liquidityReserveMonths: _fuera, ...resto } = politica
+            reemplazar(meses === undefined ? resto : { ...resto, liquidityReserveMonths: meses })
+          }}
+          onContributionChange={(plan) => {
+            const { contributionPlan: _fuera, ...resto } = politica
+            reemplazar(plan === undefined ? resto : { ...resto, contributionPlan: plan })
+          }}
+        />
+      )}
+      {paso === 'revision' && (
+        <ReviewStep
+          policy={politica}
+          blockers={bloqueos}
+          acknowledged={politica.acknowledgements.length > 0}
+          onAcknowledge={firmar}
+          onActivate={() => activar(hoy)}
+        />
+      )}
 
       <div className="ips-navegacion">
         {anterior !== undefined && (
@@ -210,10 +309,14 @@ export function IpsWizard(props: IpsWizardProps = {}) {
         )}
       </div>
 
-      {/* El título va como h4 escrito a mano y no como `title` de la tarjeta:
+      {/* En el paso de revisión no se repite: ese paso ya es el resumen entero,
+          y dos versiones del mismo dato invitan a compararlas.
+
+          El título va como h4 escrito a mano y no como `title` de la tarjeta:
           `Card` emite h2, y aquí eso rompería el orden de encabezados, porque
           el paso actual ya es h3 dentro de la tarjeta que envuelve el
           asistente. */}
+      {paso !== 'revision' && (
       <Card>
         <h4 className="card-title">Dónde estás</h4>
         <ul className="ips-pendientes">
@@ -272,6 +375,73 @@ export function IpsWizard(props: IpsWizardProps = {}) {
           rellenas. Ningún hueco se rellena con un valor medio.
         </p>
       </Card>
+      )}
+    </section>
+  )
+}
+
+/**
+ * Vista de la política vigente. **No es un formulario**: la activa no se edita,
+ * y por eso aquí no hay ni un solo campo. Para cambiar algo se abre una versión
+ * nueva, que nace como borrador y deja la vigente intacta hasta que se active.
+ */
+function PoliticaVigente(props: {
+  readonly activa: InvestmentPolicy
+  readonly retiradas: readonly InvestmentPolicy[]
+  readonly onNuevaVersion: () => void
+}) {
+  const { activa } = props
+  return (
+    <section className="ips-wizard" aria-label="Política de inversión vigente">
+      <Note kind="info">
+        Tienes una política <strong>vigente</strong> (versión {activa.version}, en vigor desde el{' '}
+        {activa.effectiveFrom}). No se edita: los resultados que ya has visto se calcularon con
+        ella, y cambiarla por debajo los dejaría sin explicación.
+      </Note>
+
+      <Card>
+        <h4 className="card-title">Resumen</h4>
+        <ul className="ips-pendientes">
+          <li>
+            Riesgo efectivo:{' '}
+            <strong>
+              {activa.effectiveRisk === undefined
+                ? 'sin calcular'
+                : RISK_BAND_INFO[activa.effectiveRisk].nombre}
+            </strong>
+          </li>
+          <li>
+            {activa.goals.length} {activa.goals.length === 1 ? 'objetivo' : 'objetivos'}:{' '}
+            {activa.goals.map((goal) => goal.name).join(', ')}
+          </li>
+          <li>
+            {activa.constraints.length === 0
+              ? 'Sin restricciones declaradas.'
+              : `Restricciones: ${activa.constraints.map(describir).join(' · ')}`}
+          </li>
+          <li>Próxima revisión: {activa.nextReviewAt ?? 'sin fijar'}</li>
+        </ul>
+      </Card>
+
+      <div className="ips-navegacion">
+        <button type="button" className="btn primary" onClick={props.onNuevaVersion}>
+          Crear una versión nueva
+        </button>
+      </div>
+
+      {props.retiradas.length > 0 && (
+        <Card>
+          <h4 className="card-title">Versiones anteriores</h4>
+          <ul className="ips-pendientes">
+            {props.retiradas.map((politica) => (
+              <li key={politica.id}>
+                Versión {politica.version}, vigente desde el {politica.effectiveFrom}. Se conserva
+                tal como estaba.
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </section>
   )
 }
