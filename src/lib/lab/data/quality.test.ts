@@ -158,8 +158,7 @@ describe('la matriz de umbrales', () => {
     // «universo mínimo definido por factor»: no hay un valor común.
     expect(CALCULATION_REQUIREMENTS.sectorSignal.minObservations).toBeUndefined()
     expect(CALCULATION_REQUIREMENTS.sectorSignal.minCoverage).toBeUndefined()
-    // El look-through da resultado parcial, sin mínimo que cumplir.
-    expect(CALCULATION_REQUIREMENTS.lookThrough.minCoverage).toBeUndefined()
+    expect(CALCULATION_REQUIREMENTS.lookThrough.minObservations).toBeUndefined()
   })
 
   it('todos los cálculos tienen nombre legible y política de incumplimiento', () => {
@@ -275,6 +274,15 @@ describe('evaluación por cálculo', () => {
     const evaluado = evaluateCalculation('lookThrough', { coverage: completa, observations: 1 })
     expect(evaluado.issues).toEqual([])
     expect(evaluado.status).toBe('good')
+  })
+
+  it('el look-through a medias es parcial, nunca suficiente', () => {
+    const aMedias = weightedCoverage([entrada('a', 300, true), entrada('b', 700, false)])
+    const evaluado = evaluateCalculation('lookThrough', { coverage: aMedias })
+    expect(evaluado.status).toBe('partial')
+    // Parcial, pero utilizable: ver dentro de un tercio ya dice algo, siempre
+    // que se diga qué tercio.
+    expect(evaluado.usable).toBe(true)
   })
 
   it('sin cartera que medir se dice, en vez de dar un cero', () => {

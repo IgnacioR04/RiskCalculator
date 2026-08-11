@@ -245,6 +245,19 @@ describe('traducción de la calidad que ya existía', () => {
     expect(r.rows[0]?.status).toBe('insufficient')
   })
 
+  it('un precio de demostración caducado sigue siendo de demostración, no «antiguo»', () => {
+    // Si mandara la antigüedad, la fila diría solo «antiguo» y el dato inventado
+    // pasaría por bueno con actualizarlo.
+    const r = informe({
+      assets: [activo()],
+      quotes: { a1: cotizacion({ quality: 'demo', timestamp: '2020-01-01T00:00:00Z' }) },
+    })
+    expect(r.rows[0]?.price).toBe('demo')
+    expect(r.rows[0]?.issues.map((i) => i.code)).toContain('no_data')
+    expect(r.rows[0]?.issues.map((i) => i.code)).not.toContain('data_stale')
+    expect(r.rows[0]?.status).toBe('insufficient')
+  })
+
   it('sin cotización pero con precio manual, el campo lo dice', () => {
     const r = informe({
       assets: [

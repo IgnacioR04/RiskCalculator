@@ -233,6 +233,23 @@ function estadoDelPrecio(
     return 'missing'
   }
 
+  // El origen se comprueba **antes** que la antigüedad. Un precio de
+  // demostración caducado no es «un precio algo viejo»: no es un precio. Al
+  // revés, la fila diría solo «antiguo» y el dato inventado pasaría por bueno
+  // con actualizarlo, que es justo lo contrario de lo que hace falta.
+  if (cotizacion.quality === 'demo') {
+    issues.push({
+      code: 'no_data',
+      dimension: 'sourceReliability',
+      scope: 'instrument',
+      entityId: posicion.asset.id,
+      severity: 'blocking',
+      messageKey: 'quality.asset.demoPrice',
+      remediation: 'enter_manually',
+    })
+    return 'demo'
+  }
+
   if (esViejo(cotizacion.timestamp, asOf, FRESHNESS_LIMITS.quoteDays)) {
     issues.push({
       code: 'data_stale',
@@ -246,18 +263,6 @@ function estadoDelPrecio(
       remediation: 'update_prices',
     })
     return 'stale'
-  }
-
-  if (cotizacion.quality === 'demo') {
-    issues.push({
-      code: 'no_data',
-      dimension: 'sourceReliability',
-      scope: 'instrument',
-      entityId: posicion.asset.id,
-      severity: 'blocking',
-      messageKey: 'quality.asset.demoPrice',
-      remediation: 'enter_manually',
-    })
   }
 
   return ESTADO_POR_CALIDAD[cotizacion.quality]
