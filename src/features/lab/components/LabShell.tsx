@@ -21,6 +21,7 @@ import {
   type LabRouteId,
 } from '../routes/labRoutes'
 import { AvisoMigracion } from './AvisoMigracion'
+import { useLabContext } from '../context/useLabContext'
 import { LabContextHeader, type LabContextHeaderProps } from './LabContextHeader'
 
 interface AreaDef {
@@ -59,6 +60,7 @@ export function LabShell(props: LabShellProps) {
   // pasar `context={props.context}` inyectaría un `undefined` explícito, que no
   // es lo mismo que omitir la prop.
   const { routeId, children, ...propsDeContexto } = props
+  const contextoReal = useLabContext()
   const rutaActual = LAB_ROUTES[routeId]
   const areaActual = rutaActual.area
   const migas = labBreadcrumbs(routeId)
@@ -85,7 +87,9 @@ export function LabShell(props: LabShellProps) {
 
       <AvisoMigracion />
 
-      <LabContextHeader {...propsDeContexto} />
+      {/* Si la pantalla no pasa contexto, se usa el real (LAB-213). Así una
+          pantalla nueva no puede olvidarse de conectarlo. */}
+      <LabContextHeader {...propsDeContexto} context={propsDeContexto.context ?? contextoReal} />
 
       <nav className="lab-areas" aria-label="Áreas del Laboratorio">
         {AREAS.map((area) => (

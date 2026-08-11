@@ -89,7 +89,9 @@ test('G1 · el modo demo alimenta el Laboratorio', async ({ page }) => {
   await cargarDatosDemo(page)
 
   await page.goto('/#/laboratorio')
-  await expect(page.getByText(/posiciones/)).toBeVisible()
+  // La frase de la portada, no la palabra suelta: desde LAB-213 la cabecera de
+  // contexto también cuenta las posiciones, y las dos apariciones son legítimas.
+  await expect(page.getByText(/Tu cartera tiene \d+ posiciones/)).toBeVisible()
   await expect(page.getByText('Todavía no hay nada que analizar')).toHaveCount(0)
 })
 

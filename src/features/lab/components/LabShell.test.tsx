@@ -124,8 +124,10 @@ describe('LabShell · navegación secundaria', () => {
 describe('LabShell · cabecera de contexto', () => {
   it('declara los huecos sin dato en vez de inventarlos', () => {
     montar({ routeId: 'lab.home' })
-    // Siete campos de contexto, todos sin fuente todavía.
-    expect(screen.getAllByText('No disponible')).toHaveLength(7)
+    // Siete campos. Desde LAB-213 la moneda sí tiene fuente —sale de los
+    // ajustes—, así que quedan seis huecos declarados en vez de inventados.
+    expect(screen.getAllByText('No disponible')).toHaveLength(6)
+    expect(screen.getByText('EUR')).toBeInTheDocument()
   })
 
   it('muestra los datos que sí existen', () => {
