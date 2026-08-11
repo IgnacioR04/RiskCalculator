@@ -117,3 +117,40 @@ export const CALCULATION_LABEL: Readonly<Record<LabCalculation, string>> = {
 export function requirementFor(calculation: LabCalculation): CalculationRequirement {
   return CALCULATION_REQUIREMENTS[calculation]
 }
+
+/* ── Frescura (LAB-211) ───────────────────────────────────────────────────── */
+
+/**
+ * A partir de cuántos días un dato se considera viejo **para analizar**.
+ *
+ * El documento 02 no da estos números, así que son una **convención declarada de
+ * la herramienta**, no una medida. Se escriben aquí, con su porqué, en vez de
+ * quedar escondidos en el adaptador que los usa.
+ *
+ * Cuatro días naturales para precios y cambios: cubren un fin de semana largo.
+ * Un viernes mirado el martes siguiente a un festivo lleva cuatro días sin
+ * cambiar, y no porque el dato esté abandonado, sino porque el mercado estuvo
+ * cerrado. Marcarlo como obsoleto sería ruido, y el ruido enseña a ignorar los
+ * avisos.
+ *
+ * **No confundir con `QUOTE_TTL_MS` de `lib/market/service.ts`**, que son cinco
+ * minutos y responde a otra pregunta: si merece la pena volver a pedir el precio
+ * a la fuente. Un precio de esta mañana está viejo para la caché y perfectamente
+ * vigente para un análisis de cartera. Unificar los dos números sería mezclar
+ * dos decisiones que no tienen nada que ver.
+ *
+ * Se amplía dentro de la versión 1 y no se sube a la 2 porque nada llegó a
+ * evaluarse con la versión anterior: `LAB-210` entregó la matriz sin
+ * consumidores.
+ */
+export const FRESHNESS_LIMITS = {
+  /** Cotización de un instrumento. */
+  quoteDays: 4,
+  /** Tipo de cambio. */
+  fxDays: 4,
+  /**
+   * Última observación de una serie histórica. Más holgado: una serie sirve
+   * para medir la forma del pasado, no para saber cuánto vale hoy la cartera.
+   */
+  historyDays: 7,
+} as const
