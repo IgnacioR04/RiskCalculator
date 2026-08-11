@@ -62,7 +62,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-207 — Asistente IPS: objetivos y horizonte *(2026-08-10)* — dos primeros pasos del asistente, borrador guardado en cada cambio y verificado que sobrevive a una recarga real; 31 pruebas
 - [x] LAB-208 — Asistente IPS: situación y tolerancia *(2026-08-10)* — pasos 3 a 5; la banda de capacidad se deriva de los cinco hechos por el techo más bajo, la de tolerancia por la mediana de cinco respuestas, y ninguna se deduce de la otra; 63 pruebas
 - [x] LAB-209 — Asistente IPS: restricciones y revisión *(2026-08-11)* — editor de límites con detección de contradicciones, resumen, confirmación explícita y activación versionada: la vigente es inmutable y editarla abre la versión siguiente; 82 pruebas
-- [ ] LAB-210 — Modelo de calidad de datos
+- [x] LAB-210 — Modelo de calidad de datos *(2026-08-11)* — ocho dimensiones, cinco estados, cobertura ponderada donde **ausente ≠ cero**, y la matriz de umbrales del documento 02 §8.4 centralizada y versionada; el tipo impide que exista un bloqueo sin acción para desbloquearlo; 39 pruebas
 - [ ] LAB-211 — Adaptadores de calidad para datos actuales
 - [ ] LAB-212 — Página Calidad de datos
 - [ ] LAB-213 — Cabecera de contexto real
