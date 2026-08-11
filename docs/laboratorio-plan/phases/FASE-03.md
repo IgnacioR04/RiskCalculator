@@ -51,11 +51,11 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 ## Checklist de tareas
 
-- [ ] LAB-301 — Inventario del componente histórico
+- [x] LAB-301 — Inventario del componente histórico *(2026-08-11)* — `docs/lab/historical-inventory.md`: cada bloque de las 919 líneas con destino
 - [ ] LAB-302 — Contratos de entrada/salida de estabilidad
-- [ ] LAB-303 — Extraer adquisición histórica
-- [ ] LAB-304 — Extraer alineación y FX
-- [ ] LAB-305 — Componer motor Stability V1
+- [x] LAB-303 — Extraer adquisición histórica *(2026-08-11)* — `lab/stability/acquisition.ts`, lo único que toca red
+- [x] LAB-304 — Extraer alineación y FX *(2026-08-11)* — `lab/stability/fx.ts`, puro y probado con números; un día sin tipo no vale cero
+- [x] LAB-305 — Componer motor Stability V1 *(2026-08-11)* — `lab/stability/twr.ts`; paridad demostrada con los 27 fixtures dorados
 - [ ] LAB-306 — View model y hook de análisis
 - [ ] LAB-307 — Descomponer tarjetas y tablas
 - [ ] LAB-308 — Sustituir HistoricalRiskSection por composición
