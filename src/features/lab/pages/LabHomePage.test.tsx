@@ -53,7 +53,12 @@ describe('portada del Laboratorio', () => {
 
     const posiciones = useAppStore.getState().assets.length
     expect(posiciones).toBeGreaterThan(0)
-    expect(screen.getByText(new RegExp(`${posiciones} posiciones`))).toBeInTheDocument()
+    // Se busca dentro del contenido, no en toda la página: desde LAB-213 la
+    // cabecera de contexto también dice cuántas posiciones hay, y las dos
+    // apariciones son legítimas.
+    expect(
+      within(screen.getByRole('main')).getByText(new RegExp(`${posiciones} posiciones`)),
+    ).toBeInTheDocument()
     expect(screen.queryByText('Todavía no hay nada que analizar')).not.toBeInTheDocument()
   })
 
