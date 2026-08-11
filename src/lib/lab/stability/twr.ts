@@ -91,11 +91,11 @@ export function quantityOn(
 }
 
 export function calculatePortfolioTwr(input: {
-  loaded: AssetSeries[]
+  loaded: readonly AssetSeries[]
   transactions: Transaction[]
   displayCurrency: Currency
   fxRates: FxRate[]
-  downloadedFx: { date: string; rate: number }[]
+  downloadedFx: readonly { date: string; rate: number }[]
   requiredAssetIds: Set<string>
 }): number | null {
   const relevantLoaded = input.loaded.filter((item) =>

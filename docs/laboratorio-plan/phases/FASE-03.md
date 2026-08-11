@@ -56,7 +56,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-303 — Extraer adquisición histórica *(2026-08-11)* — `lab/stability/acquisition.ts`, lo único que toca red
 - [x] LAB-304 — Extraer alineación y FX *(2026-08-11)* — `lab/stability/fx.ts`, puro y probado con números; un día sin tipo no vale cero
 - [x] LAB-305 — Componer motor Stability V1 *(2026-08-11)* — `lab/stability/twr.ts`; paridad demostrada con los 27 fixtures dorados
-- [ ] LAB-306 — View model y hook de análisis
+- [x] LAB-306 — Hook de análisis *(2026-08-11)* — `useStabilityAnalysis`; testigo de petición: una respuesta que llega tarde no pisa a la vigente
 - [ ] LAB-307 — Descomponer tarjetas y tablas
 - [ ] LAB-308 — Sustituir HistoricalRiskSection por composición
 - [x] LAB-309 — Métricas downside y drawdown *(2026-08-11)* — VaR/CVaR históricos y perfil de caída con duración y recuperación; el VaR nunca se llama pérdida máxima
