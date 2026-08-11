@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Asset, Currency, FxRate, Transaction } from '../../lib/domain'
+import type { Asset } from '../../lib/domain'
 import {
   alignReturns,
   annualizedVolatility,
   betaAlpha,
   correlation,
-  dailyReturns,
   maxDrawdown,
   sharpeRatio,
   sortinoRatio,
@@ -16,26 +15,15 @@ import {
   alignManyReturns,
   covarianceMatrix,
   portfolioRisk,
-  timeWeightedReturn,
   tradingDaysForAsset,
   tradingDaysForPortfolio,
-  type TwrPeriod,
 } from '../../lib/finance/portfolioRisk'
-import { dec } from '../../lib/finance/decimal'
-import { convertAmount } from '../../lib/fx'
 import { formatPct } from '../../lib/format'
 import { buildPortfolioView } from '../../lib/portfolio'
-import { coingeckoProvider } from '../../lib/market/coingecko'
 import { historicalFxSeries } from '../../lib/market/service'
-import { twelveDataProvider } from '../../lib/market/twelvedata'
-import {
-  colaCoinGecko,
-  colaTwelveData,
-  escribirSerie,
-  leerSerie,
-} from '../../lib/market/seriesCache'
-import { DEMO_FX_EURUSD } from '../../state/demoData'
-import { getDemoHistoricalSeries, hasDemoHistoricalSeries } from '../../state/demoHistory'
+import { fetchSeries } from '../../lib/lab/stability/acquisition'
+import { hasDemoHistoricalSeries } from '../../state/demoHistory'
+import { calculatePortfolioTwr } from '../../lib/lab/stability/twr'
 import { useAppStore } from '../../state/store'
 import { RiskMatrix } from '../charts/RiskMatrix'
 import { RiskContributionChart } from '../charts/RiskContributionChart'
@@ -50,247 +38,6 @@ interface AssetSeries {
   series: SeriesPoint[]
   returns: { date: string; value: number }[]
   provider: string
-}
-
-function rateAt(
-  rates: readonly { date: string; rate: number }[],
-  date: string,
-): number | null {
-  const candidate = [...rates].reverse().find((rate) => rate.date <= date)
-  return candidate?.rate ?? null
-}
-
-function convertPriceSeries(
-  series: readonly SeriesPoint[],
-  rates: readonly { date: string; rate: number }[],
-): SeriesPoint[] {
-  return series.flatMap((point) => {
-    const rate = rateAt(rates, point.date)
-    return rate === null ? [] : [{ date: point.date, close: point.close * rate }]
-  })
-}
-
-function convertDemoPriceSeries(
-  series: readonly SeriesPoint[],
-  from: Currency,
-  to: Currency,
-): SeriesPoint[] {
-  if (from === to) return series.map((point) => ({ ...point }))
-  const eurUsd = Number(DEMO_FX_EURUSD.rate)
-  if (!Number.isFinite(eurUsd) || eurUsd <= 0) return []
-  const rate = from === 'USD' && to === 'EUR' ? 1 / eurUsd : eurUsd
-  return series.map((point) => ({ date: point.date, close: point.close * rate }))
-}
-
-async function fetchSeries(
-  asset: Asset,
-  days: number,
-  displayCurrency: Currency,
-  fxSeries: readonly { date: string; rate: number }[],
-): Promise<AssetSeries | null> {
-  if (asset.isDemo === true && hasDemoHistoricalSeries(asset.id)) {
-    const demoSeries = getDemoHistoricalSeries(asset.id, days)
-    const series = convertDemoPriceSeries(demoSeries, asset.quoteCurrency, displayCurrency)
-    if (series.length > 0) {
-      return {
-        asset,
-        series,
-        returns: dailyReturns(series),
-        provider:
-          asset.quoteCurrency === displayCurrency
-            ? 'Demostración sintética'
-            : 'Demostración sintética + FX demo',
-      }
-    }
-  }
-
-  /* Una serie diaria no cambia hasta el cierre siguiente: si ya se descargó
-     hoy se reutiliza. Antes se volvía a pedir en cada visita y eso agota la
-     cuota diaria del proveedor en unas pocas recargas. */
-  const enCache = leerSerie(asset.id, days, displayCurrency)
-  if (enCache !== null) {
-    return {
-      asset,
-      series: enCache.puntos,
-      returns: dailyReturns(enCache.puntos),
-      provider: `${enCache.proveedor} (en caché)`,
-    }
-  }
-
-  const twelveDataId = asset.providerIds?.['twelvedata']
-  if (twelveDataId !== undefined && twelveDataProvider.isConfigured()) {
-    try {
-      const candles = await colaTwelveData(() =>
-        twelveDataProvider.getDailyOHLC(twelveDataId, days, asset.quoteCurrency),
-      )
-      if (candles.length > 0) {
-        let series = candles.map((candle) => ({
-          date: candle.time,
-          close: Number(candle.close),
-        }))
-        if (asset.quoteCurrency !== displayCurrency) {
-          series = convertPriceSeries(series, fxSeries)
-        }
-        const proveedor =
-          asset.quoteCurrency === displayCurrency ? 'Twelve Data' : 'Twelve Data + BCE FX'
-        escribirSerie(asset.id, days, displayCurrency, series, proveedor)
-        return { asset, series, returns: dailyReturns(series), provider: proveedor }
-      }
-    } catch {
-      // Continúa con el siguiente proveedor.
-    }
-  }
-
-  const coinGeckoId = asset.providerIds?.['coingecko']
-  if (coinGeckoId !== undefined && asset.assetType === 'crypto') {
-    try {
-      // CoinGecko puede devolver directamente la divisa de presentación.
-      const candles = await colaCoinGecko(() =>
-        coingeckoProvider.getDailyOHLC(coinGeckoId, days, displayCurrency),
-      )
-      if (candles.length > 0) {
-        const series = candles.map((candle) => ({
-          date: candle.time,
-          close: Number(candle.close),
-        }))
-        escribirSerie(asset.id, days, displayCurrency, series, 'CoinGecko')
-        return { asset, series, returns: dailyReturns(series), provider: 'CoinGecko' }
-      }
-    } catch {
-      // Sin datos.
-    }
-  }
-  return null
-}
-
-function transactionCashFlow(
-  transaction: Transaction,
-  displayCurrency: Currency,
-  fxRates: readonly FxRate[],
-  downloadedFx: readonly { date: string; rate: number }[],
-): { contribution: number; withdrawal: number } | null {
-  const date = transaction.datetime.slice(0, 10)
-  let amount = convertAmount(
-    transaction.investedAmount,
-    transaction.investedCurrency,
-    displayCurrency,
-    fxRates,
-    date,
-  )?.amount
-  if (amount === undefined && transaction.investedCurrency !== displayCurrency) {
-    const rate = rateAt(downloadedFx, date)
-    if (rate !== null) amount = dec(transaction.investedAmount).times(rate)
-  }
-  if (amount === undefined) return null
-
-  let fee = dec(0)
-  if (transaction.fee !== null) {
-    const feeCurrency = transaction.feeCurrency ?? transaction.investedCurrency
-    const convertedFee = convertAmount(
-      transaction.fee,
-      feeCurrency,
-      displayCurrency,
-      fxRates,
-      date,
-    )?.amount
-    if (convertedFee !== undefined) fee = convertedFee
-    else if (feeCurrency !== displayCurrency) {
-      const rate = rateAt(downloadedFx, date)
-      if (rate === null) return null
-      fee = dec(transaction.fee).times(rate)
-    } else fee = dec(transaction.fee)
-  }
-
-  if (transaction.type === 'buy') {
-    return { contribution: Number(amount.plus(fee).toString()), withdrawal: 0 }
-  }
-  const net = dec(amount).minus(fee)
-  return {
-    contribution: 0,
-    withdrawal: Number((net.gt(0) ? net : dec(0)).toString()),
-  }
-}
-
-function quantityOn(
-  transactions: readonly Transaction[],
-  assetId: string,
-  date: string,
-): number {
-  return transactions
-    .filter(
-      (transaction) =>
-        transaction.assetId === assetId && transaction.datetime.slice(0, 10) <= date,
-    )
-    .reduce(
-      (quantity, transaction) =>
-        quantity +
-        Number(transaction.quantity) * (transaction.type === 'buy' ? 1 : -1),
-      0,
-    )
-}
-
-function calculatePortfolioTwr(input: {
-  loaded: AssetSeries[]
-  transactions: Transaction[]
-  displayCurrency: Currency
-  fxRates: FxRate[]
-  downloadedFx: { date: string; rate: number }[]
-  requiredAssetIds: Set<string>
-}): number | null {
-  const relevantLoaded = input.loaded.filter((item) =>
-    input.requiredAssetIds.has(item.asset.id),
-  )
-  const relevantTransactions = input.transactions.filter((transaction) =>
-    input.requiredAssetIds.has(transaction.assetId),
-  )
-  if (
-    relevantLoaded.length === 0 ||
-    relevantLoaded.length !== input.requiredAssetIds.size ||
-    relevantTransactions.some((transaction) => transaction.costKnown === false)
-  ) {
-    return null
-  }
-  const aligned = alignManyReturns(
-    relevantLoaded.map((item) =>
-      item.series.map((point) => ({ date: point.date, value: point.close })),
-    ),
-  )
-  if (aligned.dates.length < 2) return null
-  const priceMaps = new Map(
-    relevantLoaded.map((item) => [
-      item.asset.id,
-      new Map(item.series.map((point) => [point.date, point.close])),
-    ]),
-  )
-  const periods: TwrPeriod[] = []
-  for (let index = 1; index < aligned.dates.length; index++) {
-    const previousDate = aligned.dates[index - 1]!
-    const date = aligned.dates[index]!
-    let openingValue = 0
-    let closingValue = 0
-    for (const item of relevantLoaded) {
-      const prices = priceMaps.get(item.asset.id)!
-      openingValue += quantityOn(relevantTransactions, item.asset.id, previousDate) * prices.get(previousDate)!
-      closingValue += quantityOn(relevantTransactions, item.asset.id, date) * prices.get(date)!
-    }
-    let contributions = 0
-    let withdrawals = 0
-    for (const transaction of relevantTransactions.filter(
-      (item) => item.datetime.slice(0, 10) === date,
-    )) {
-      const flow = transactionCashFlow(
-        transaction,
-        input.displayCurrency,
-        input.fxRates,
-        input.downloadedFx,
-      )
-      if (flow === null) return null
-      contributions += flow.contribution
-      withdrawals += flow.withdrawal
-    }
-    periods.push({ openingValue, closingValue, contributions, withdrawals })
-  }
-  return timeWeightedReturn(periods)
 }
 
 export function HistoricalRiskSection() {
