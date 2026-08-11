@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InvestmentPolicy, RiskBand } from '../../../lib/lab/domain/investmentPolicy'
 import { KNOWLEDGE_QUESTIONS } from '../../../lib/lab/analytics/knowledgeLevel'
 import { TOLERANCE_QUESTIONS } from '../../../lib/lab/analytics/toleranceBand'
+import { isSupabaseConfigured } from '../../../lib/supabase'
 import { GUEST_CACHE_NAME, useAppStore } from '../../../state/store'
 import { initialLabProfileState } from '../../../state/slices/labProfileSlice'
 import { PerfilPage } from '../../../pages/PerfilPage'
@@ -104,7 +105,10 @@ describe('IpsWizard · navegación por pasos', () => {
     const pasos = screen.getByRole('navigation', { name: 'Pasos del asistente' })
 
     expect(within(pasos).getAllByRole('button')).toHaveLength(PASOS.length)
-    expect(within(pasos).getByText(/Necesidad, restricciones y revisión/)).toBeInTheDocument()
+    // El paso 6 se salta a propósito y se dice: renumerar fingiría que el
+    // asistente está completo.
+    expect(within(pasos).getByText(/Necesidad de rentabilidad/)).toBeInTheDocument()
+    expect(PASOS.map((p) => p.num)).toEqual([1, 2, 3, 4, 5, 7, 8, 9])
   })
 
   it('no crea ninguna política por el mero hecho de abrirlo', () => {
@@ -655,6 +659,278 @@ describe('IpsWizard · la capacidad no se autocompleta', () => {
 
     expect(borrador()?.assessment.capacity.band).toBeUndefined()
     expect(borrador()?.effectiveRisk).toBeUndefined()
+  })
+})
+
+/* ── Restricciones (paso 7) ───────────────────────────────────────────────── */
+
+describe('IpsWizard · restricciones', () => {
+  it('guarda un límite por grupo con los pesos en fracción, no en porcentaje', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="restricciones" />)
+
+    await user.type(screen.getByLabelText('Grupo concreto'), 'tecnología')
+    await user.type(screen.getByLabelText('Máximo'), '30')
+    await user.click(screen.getByRole('button', { name: 'Añadir restricción' }))
+
+    expect(borrador()?.constraints).toEqual([
+      { kind: 'groupWeight', dimension: 'sector', key: 'tecnología', max: 0.3 },
+    ])
+  })
+
+  it('no añade nada si falta el grupo o el rango', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="restricciones" />)
+
+    await user.click(screen.getByRole('button', { name: 'Añadir restricción' }))
+    expect(screen.getByRole('alert')).toBeVisible()
+    expect(borrador()).toBeNull()
+
+    await user.type(screen.getByLabelText('Grupo concreto'), 'banca')
+    await user.click(screen.getByRole('button', { name: 'Añadir restricción' }))
+    expect(screen.getByText('Pon al menos un mínimo o un máximo.')).toBeVisible()
+    expect(borrador()).toBeNull()
+  })
+
+  it('señala dos límites que ninguna cartera puede cumplir a la vez', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="restricciones" />)
+
+    await user.type(screen.getByLabelText('Grupo concreto'), 'europa')
+    await user.type(screen.getByLabelText('Mínimo'), '60')
+    await user.click(screen.getByRole('button', { name: 'Añadir restricción' }))
+
+    await user.type(screen.getByLabelText('Grupo concreto'), 'américa')
+    await user.type(screen.getByLabelText('Mínimo'), '50')
+    await user.click(screen.getByRole('button', { name: 'Añadir restricción' }))
+
+    // El aviso se pinta en las dos restricciones implicadas: la contradicción
+    // no es de una sola, y señalar solo la última haría creer que la otra vale.
+    expect(screen.getAllByText(/suman 110 %/)).toHaveLength(2)
+    expect(screen.getByText(/la política no puede activarse/)).toBeInTheDocument()
+  })
+
+  it('permite quitar una restricción ya declarada', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="restricciones" />)
+
+    await user.type(screen.getByLabelText('Grupo concreto'), 'banca')
+    await user.type(screen.getByLabelText('Máximo'), '20')
+    await user.click(screen.getByRole('button', { name: 'Añadir restricción' }))
+    expect(borrador()?.constraints).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: /^Quitar Sector «banca»/ }))
+    expect(borrador()?.constraints).toEqual([])
+  })
+
+  it('un máximo del 0 % avisa pero no bloquea', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="restricciones" />)
+
+    await user.type(screen.getByLabelText('Grupo concreto'), 'tabaco')
+    await user.type(screen.getByLabelText('Máximo'), '0')
+    await user.click(screen.getByRole('button', { name: 'Añadir restricción' }))
+
+    expect(screen.getByText(/no es un límite: excluye por completo/)).toBeInTheDocument()
+    expect(screen.getByText(/no impiden activar la política/)).toBeInTheDocument()
+  })
+})
+
+/* ── Mantenimiento (paso 8) ───────────────────────────────────────────────── */
+
+describe('IpsWizard · reglas de mantenimiento', () => {
+  it('«no reequilibrar» viene marcado y es una elección declarada, no un hueco', () => {
+    render(<IpsWizard pasoInicial="mantenimiento" />)
+    expect(
+      screen.getByRole('radio', { name: /No reequilibrar. Es una elección, no un olvido./ }),
+    ).toBeChecked()
+  })
+
+  it('elegir calendario guarda los meses', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="mantenimiento" />)
+
+    await user.click(screen.getByRole('radio', { name: /Por calendario/ }))
+    expect(borrador()?.rebalancePolicy).toEqual({ kind: 'calendar', everyMonths: 12 })
+  })
+
+  it('la banda de desviación se pregunta en porcentaje y se guarda en fracción', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="mantenimiento" />)
+
+    await user.click(screen.getByRole('radio', { name: /Por desviación/ }))
+    expect(borrador()?.rebalancePolicy).toEqual({ kind: 'bands', toleranceBand: 0.05 })
+  })
+
+  it('un plan de aportaciones sin importe no se guarda a medias', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="mantenimiento" />)
+
+    await user.selectOptions(screen.getByLabelText('Cada cuánto'), 'anual')
+    expect(borrador()?.contributionPlan).toBeUndefined()
+
+    await user.type(screen.getByLabelText('Importe'), '250')
+    expect(borrador()?.contributionPlan).toEqual({
+      amount: '250',
+      currency: 'EUR',
+      frequency: 'anual',
+    })
+  })
+
+  it('borrar el importe retira el plan en vez de dejarlo vacío', async () => {
+    const user = userEvent.setup()
+    render(<IpsWizard pasoInicial="mantenimiento" />)
+
+    await user.type(screen.getByLabelText('Importe'), '250')
+    await user.clear(screen.getByLabelText('Importe'))
+
+    expect(borrador()?.contributionPlan).toBeUndefined()
+    expect('contributionPlan' in (borrador() ?? {})).toBe(false)
+  })
+})
+
+/* ── Revisión, activación y versionado (paso 9) ───────────────────────────── */
+
+/** Rellena el asistente hasta dejarlo listo para activar. */
+async function completarAsistente(user: ReturnType<typeof userEvent.setup>) {
+  render(<IpsWizard />)
+  await anadirObjetivo(user, {
+    nombre: 'Entrada de una casa',
+    importe: '40000',
+    fecha: '2032-06-01',
+  })
+  cleanup()
+
+  render(<IpsWizard pasoInicial="horizonte" />)
+  await user.type(screen.getByLabelText('Años hasta necesitar el dinero'), '20')
+  cleanup()
+
+  render(<IpsWizard pasoInicial="situacion" />)
+  await user.type(screen.getByLabelText('Meses de gastos cubiertos por tu colchón'), '12')
+  await user.click(screen.getByRole('radio', { name: /Estables/ }))
+  await user.type(screen.getByLabelText('Personas que dependen económicamente de ti'), '0')
+  await user.type(
+    screen.getByLabelText('Porcentaje de tu patrimonio que representa esta cartera'),
+    '10',
+  )
+  cleanup()
+
+  render(<IpsWizard pasoInicial="tolerancia" />)
+  await contestarTolerancia(user, [3, 3, 3, 3, 3])
+  cleanup()
+}
+
+describe('IpsWizard · revisión y activación', () => {
+  it('resume lo declarado en una sola pantalla', async () => {
+    const user = userEvent.setup()
+    await completarAsistente(user)
+    render(<IpsWizard pasoInicial="revision" />)
+
+    expect(screen.getByText('Entrada de una casa · 40.000,00 € · 2032-06-01')).toBeInTheDocument()
+    expect(screen.getByText('20 años')).toBeInTheDocument()
+    expect(screen.getByText('Hasta un 20 %.')).toBeInTheDocument()
+    expect(screen.getByText('No reequilibrar (elección declarada)')).toBeInTheDocument()
+    expect(screen.getByText(/el menor de los dos/)).toBeInTheDocument()
+  })
+
+  it('sin confirmar explícitamente no se puede activar', async () => {
+    const user = userEvent.setup()
+    await completarAsistente(user)
+    render(<IpsWizard pasoInicial="revision" />)
+
+    expect(screen.getByRole('button', { name: 'Activar esta política' })).toBeDisabled()
+    expect(screen.getByText('Marca la confirmación de aquí abajo.')).toBeInTheDocument()
+  })
+
+  it('confirmar desbloquea la activación, y desmarcar la vuelve a bloquear', async () => {
+    const user = userEvent.setup()
+    await completarAsistente(user)
+    render(<IpsWizard pasoInicial="revision" />)
+    const firma = screen.getByRole('checkbox')
+
+    await user.click(firma)
+    expect(borrador()?.acknowledgements).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Activar esta política' })).toBeEnabled()
+
+    await user.click(firma)
+    expect(borrador()?.acknowledgements).toEqual([])
+    expect(screen.getByRole('button', { name: 'Activar esta política' })).toBeDisabled()
+  })
+
+  it('un borrador incompleto dice todo lo que le falta, no solo lo primero', () => {
+    render(<IpsWizard pasoInicial="revision" />)
+
+    expect(screen.getByText('Declara al menos un objetivo en el paso 1.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Contesta las cinco preguntas de tolerancia en el paso 4.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Completa los cinco datos de situación en los pasos 2 y 3.'),
+    ).toBeInTheDocument()
+  })
+
+  it('activar deja la política vigente y cierra el asistente', async () => {
+    const user = userEvent.setup()
+    await completarAsistente(user)
+    render(<IpsWizard pasoInicial="revision" />)
+
+    await user.click(screen.getByRole('checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Activar esta política' }))
+
+    const estado = useAppStore.getState()
+    expect(estado.labPolicyActive?.status).toBe('active')
+    expect(estado.labPolicyDraft).toBeNull()
+    // Ya no hay formulario: la vigente no se edita.
+    expect(
+      screen.getByRole('region', { name: 'Política de inversión vigente' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Pasos del asistente' })).toBeNull()
+  })
+
+  it('la vigente es inmutable: editar abre una versión nueva y no la toca', async () => {
+    const user = userEvent.setup()
+    await completarAsistente(user)
+    render(<IpsWizard pasoInicial="revision" />)
+    await user.click(screen.getByRole('checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Activar esta política' }))
+
+    const vigente = useAppStore.getState().labPolicyActive!
+    await user.click(screen.getByRole('button', { name: 'Crear una versión nueva' }))
+
+    expect(useAppStore.getState().labPolicyActive).toEqual(vigente)
+    expect(useAppStore.getState().labPolicyDraft?.version).toBe(vigente.version + 1)
+    expect(screen.getByText(/sigue vigente y no se toca/)).toBeInTheDocument()
+  })
+
+  it('descartar la versión nueva deja la vigente donde estaba', async () => {
+    const user = userEvent.setup()
+    await completarAsistente(user)
+    render(<IpsWizard pasoInicial="revision" />)
+    await user.click(screen.getByRole('checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Activar esta política' }))
+    const vigente = useAppStore.getState().labPolicyActive!
+
+    await user.click(screen.getByRole('button', { name: 'Crear una versión nueva' }))
+    await user.click(screen.getByRole('button', { name: 'Descartar los cambios' }))
+
+    expect(useAppStore.getState().labPolicyDraft).toBeNull()
+    expect(useAppStore.getState().labPolicyActive).toEqual(vigente)
+    expect(
+      screen.getByRole('region', { name: 'Política de inversión vigente' }),
+    ).toBeInTheDocument()
+  })
+
+  it('todo esto funciona sin cuenta ni backend: el modo local no se rompe', async () => {
+    const user = userEvent.setup()
+    await completarAsistente(user)
+    render(<IpsWizard pasoInicial="revision" />)
+    await user.click(screen.getByRole('checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Activar esta política' }))
+
+    // Sin Supabase configurado, y la política vive en el almacenamiento local.
+    expect(isSupabaseConfigured()).toBe(false)
+    const enDiscoAhora = enDisco()?.state as { labPolicyActive?: InvestmentPolicy } | undefined
+    expect(enDiscoAhora?.labPolicyActive?.status).toBe('active')
   })
 })
 
