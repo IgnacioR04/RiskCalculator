@@ -10,7 +10,7 @@
 | Commit base de la Fase 0 | `c807281` |
 | Último commit en `main` | `2b989ec` |
 | Fase activa | **Fase 2 — IPS, restricciones y calidad de datos** |
-| Tarea activa | Ninguna — **Fase 3 a medias**: `LAB-301`, `303`, `304`, `305`, `309` y `310` hechas. Siguiente: `LAB-302`, `306`–`308`, `311`–`314` |
+| Tarea activa | Ninguna — **Fase 3 a medias**: `LAB-301`, `303`–`306`, `309` y `310` hechas. Siguiente: `LAB-302`, `307`, `308`, `311`–`314` |
 | Última puerta superada | **G1**, el 2026-08-10 |
 | Última actualización | 2026-08-11 |
 
@@ -156,6 +156,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-11 | `LAB-306` terminada. La orquestación de la descarga sale a `useStabilityAnalysis` y la pantalla baja a **605 líneas**, sin saber ya que existen proveedores. Lo importante no es el movimiento: **cierra una carrera que el monolito tenía abierta**. Dos ejecuciones solapadas —cambiar de ventana y volver a pedir, o cambiar de cartera— podían resolverse en orden inverso, y la respuesta vieja pisaba a la nueva sin que nada fallara; el usuario veía datos de otra petición creyendo que eran los suyos. Ahora cada ejecución lleva un testigo y solo la vigente publica, incluido el apagado del indicador de carga. |
 | 2026-08-11 | `LAB-301`, `LAB-303`, `LAB-304` y `LAB-305` terminadas. El monolito histórico baja de **919 a 672 líneas**: la aritmética de divisa, la adquisición con red y el cálculo de TWR salen a `lib/lab/stability/` como módulos propios. **No se ha tocado una sola línea de lógica al moverla**, y esa es la condición del refactor: si además se corrigiera algo, una diferencia numérica posterior sería imposible de atribuir. La paridad la sostienen los 27 fixtures dorados de `LAB-002` y las 732 unitarias, verdes antes y después. Separar la red de la aritmética permite además probar la conversión de divisa con números en vez de con mocks de proveedor. |
 | 2026-08-11 | `LAB-005` y `LAB-008` terminadas (sueltas de Fase 0): metadatos de build visibles en Perfil y presupuesto de bundle que corre en CI. |
 | 2026-08-11 | `LAB-309` y `LAB-310` terminadas (Fase 3): VaR y CVaR históricos, perfil de caída con duración y recuperación, y estabilidad por ventanas. **El VaR nunca se presenta como pérdida máxima**: la frase obligatoria vive en el módulo, no en la interfaz. Una ventana que la serie no cubre se marca «no disponible» en vez de simularse. Corregido un error de coma flotante que hacía que una muestra de 100 usara seis días de cola en vez de cinco, un 20 % de diferencia en el CVaR. |

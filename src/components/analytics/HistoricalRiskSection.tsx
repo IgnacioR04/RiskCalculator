@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Asset } from '../../lib/domain'
+import { useMemo, useState } from 'react'
 import {
   alignReturns,
   annualizedVolatility,
@@ -8,7 +7,6 @@ import {
   maxDrawdown,
   sharpeRatio,
   sortinoRatio,
-  type SeriesPoint,
 } from '../../lib/finance/historical'
 import { describeDiversification, diversificationMetrics } from '../../lib/finance/diversification'
 import {
@@ -20,10 +18,9 @@ import {
 } from '../../lib/finance/portfolioRisk'
 import { formatPct } from '../../lib/format'
 import { buildPortfolioView } from '../../lib/portfolio'
-import { historicalFxSeries } from '../../lib/market/service'
-import { fetchSeries } from '../../lib/lab/stability/acquisition'
 import { hasDemoHistoricalSeries } from '../../state/demoHistory'
 import { calculatePortfolioTwr } from '../../lib/lab/stability/twr'
+import { useStabilityAnalysis } from '../../lib/lab/stability/useStabilityAnalysis'
 import { useAppStore } from '../../state/store'
 import { RiskMatrix } from '../charts/RiskMatrix'
 import { RiskContributionChart } from '../charts/RiskContributionChart'
@@ -32,13 +29,6 @@ import { Card, Kpi, Note, Segmented } from '../ui'
 type Period = '90' | '180' | '365'
 type RiskView = 'relaciones' | 'activos' | 'contribucion'
 type MatrixKind = 'correlacion' | 'covarianza'
-
-interface AssetSeries {
-  asset: Asset
-  series: SeriesPoint[]
-  returns: { date: string; value: number }[]
-  provider: string
-}
 
 export function HistoricalRiskSection() {
   const store = useAppStore()
@@ -74,69 +64,13 @@ export function HistoricalRiskSection() {
         ),
     [view.positions],
   )
-  const [period, setPeriod] = useState<Period>('365')
-  const [busy, setBusy] = useState(false)
-  const [loaded, setLoaded] = useState<AssetSeries[] | null>(null)
-  const [downloadedFx, setDownloadedFx] = useState<{ date: string; rate: number }[]>([])
-  const [missing, setMissing] = useState<string[]>([])
-  const [benchmarkId, setBenchmarkId] = useState('')
+  // La orquestación de la descarga vive en el hook (LAB-306): esta pantalla ya
+  // no sabe que existen proveedores, ni puede publicar una respuesta que llegue
+  // tarde. Lo que queda aquí son las dos elecciones puramente visuales.
+  const { period, busy, loaded, downloadedFx, missing, benchmarkId, setPeriod, setBenchmarkId, run } =
+    useStabilityAnalysis(candidates, store.settings.displayCurrency)
   const [view3, setView3] = useState<RiskView>('relaciones')
   const [matrixKind, setMatrixKind] = useState<MatrixKind>('correlacion')
-  const autoRan = useRef(false)
-
-  async function run() {
-    setBusy(true)
-    setLoaded(null)
-    setMissing([])
-    try {
-      const days = Number(period)
-      const end = new Date()
-      const start = new Date(end.getTime() - (days + 10) * 86_400_000)
-      let fx: { date: string; rate: number }[] = []
-      const needsDownloadedFx = candidates.some(
-        (asset) =>
-          asset.quoteCurrency !== store.settings.displayCurrency &&
-          !(asset.isDemo === true && hasDemoHistoricalSeries(asset.id)),
-      )
-      if (needsDownloadedFx) {
-        try {
-          fx = await historicalFxSeries(
-            store.settings.displayCurrency === 'EUR' ? 'USD' : 'EUR',
-            store.settings.displayCurrency,
-            start.toISOString().slice(0, 10),
-            end.toISOString().slice(0, 10),
-          )
-        } catch {
-          // Solo sera bloqueante para activos en la otra divisa.
-        }
-      }
-      setDownloadedFx(fx)
-      const results = await Promise.all(
-        candidates.map((asset) =>
-          fetchSeries(asset, days, store.settings.displayCurrency, fx),
-        ),
-      )
-      const available = results.filter((result): result is AssetSeries => result !== null)
-      setLoaded(available)
-      setMissing(
-        candidates
-          .filter((asset) => !available.some((item) => item.asset.id === asset.id))
-          .map((asset) => asset.symbol),
-      )
-      const defaultBenchmark =
-        available.find((item) => item.asset.symbol === 'SXR8') ?? available[0]
-      if (defaultBenchmark !== undefined) setBenchmarkId(defaultBenchmark.asset.id)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  useEffect(() => {
-    if (autoRan.current || candidates.length === 0) return
-    autoRan.current = true
-    void run()
-    // Solo en el primer montaje (autoRan): despues manda el usuario con la ventana.
-  }, [candidates.length])
 
   const analytics = useMemo(() => {
     if (loaded === null || loaded.length === 0) return null
