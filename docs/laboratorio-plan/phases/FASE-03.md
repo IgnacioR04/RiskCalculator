@@ -59,8 +59,8 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [ ] LAB-306 — View model y hook de análisis
 - [ ] LAB-307 — Descomponer tarjetas y tablas
 - [ ] LAB-308 — Sustituir HistoricalRiskSection por composición
-- [ ] LAB-309 — Añadir métricas downside y drawdown
-- [ ] LAB-310 — Estabilidad por ventanas
+- [x] LAB-309 — Métricas downside y drawdown *(2026-08-11)* — VaR/CVaR históricos y perfil de caída con duración y recuperación; el VaR nunca se llama pérdida máxima
+- [x] LAB-310 — Estabilidad por ventanas *(2026-08-11)* — una ventana que la serie no cubre se marca «no disponible», no se simula
 - [ ] LAB-311 — Runs locales reproducibles
 - [ ] LAB-312 — Página Resumen de estabilidad V2
 - [ ] LAB-313 — Medir y aislar cálculo pesado
