@@ -66,6 +66,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-211 — Adaptadores de calidad para datos actuales *(2026-08-11)* — traduce cotizaciones, FX e historia ya en memoria al modelo de LAB-210, sin una sola llamada de red y con `asOf` como argumento; 45 pruebas
 - [x] LAB-212 — Página Calidad de datos *(2026-08-11)* — tabla de cobertura por activo, `CoverageMeter` y `AsOfBadge`; lo que falta se escribe «No disponible» y nunca es un cero ni una celda vacía; 15 pruebas
 - [x] LAB-213 — Cabecera de contexto real *(2026-08-11)* — modelo de vista único conectado por defecto en `LabShell`, con huella de cartera para que no se mezclen dos
+- [x] LAB-215 — Necesidad de rentabilidad y alternativas *(2026-08-11)* — **añadida al plan**; cierra D17
 - [x] LAB-214 — Sincronización cloud de IPS *(2026-08-11)* — decisión pura por versiones; divergencia y política ajena paran en conflicto, nunca sobrescriben
 
 ---

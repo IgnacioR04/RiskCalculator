@@ -1,12 +1,9 @@
 /**
  * Asistente de política de inversión (LAB-207, LAB-208, LAB-209).
  *
- * Cubre ocho de los nueve pasos de la especificación de producto (§8.1):
- * objetivos, horizonte, situación y liquidez, tolerancia, conocimientos,
- * restricciones, reglas de mantenimiento y revisión. Falta el 6, «necesidad de
- * rentabilidad», que **ningún LAB-xxx del backlog reclama**; queda anotado como
- * divergencia D17 porque sin él la maquinaria de conflicto de ADR-002 §4 no
- * puede dispararse.
+ * Cubre los nueve pasos de la especificación de producto (§8.1). El 6,
+ * «necesidad de rentabilidad», llegó en LAB-215 y cierra D17: sin él la
+ * maquinaria de conflicto de ADR-002 §4 no podía dispararse nunca.
  *
  * Dos decisiones de diseño vienen del plan y conviene no perderlas de vista:
  *
@@ -42,22 +39,20 @@ import { ConstraintsStep, describir } from './steps/ConstraintsStep'
 import { GoalsStep } from './steps/GoalsStep'
 import { HorizonStep } from './steps/HorizonStep'
 import { KnowledgeStep } from './steps/KnowledgeStep'
+import { NeedStep } from './steps/NeedStep'
 import { MaintenanceStep } from './steps/MaintenanceStep'
 import { ReviewStep } from './steps/ReviewStep'
 import { SituationStep } from './steps/SituationStep'
 import { ToleranceStep } from './steps/ToleranceStep'
 
-/**
- * Pasos implementados, con la numeración de la especificación (§8.1). El 6 no
- * está: se salta a propósito y la interfaz lo dice, en vez de renumerar y fingir
- * que el asistente está completo.
- */
+/** Los nueve pasos de la especificación (§8.1), con su numeración. */
 export const PASOS = [
   { id: 'objetivos', num: 1, titulo: 'Objetivos' },
   { id: 'horizonte', num: 2, titulo: 'Horizonte' },
   { id: 'situacion', num: 3, titulo: 'Situación y liquidez' },
   { id: 'tolerancia', num: 4, titulo: 'Tolerancia' },
   { id: 'conocimientos', num: 5, titulo: 'Conocimientos' },
+  { id: 'necesidad', num: 6, titulo: 'Necesidad' },
   { id: 'restricciones', num: 7, titulo: 'Restricciones' },
   { id: 'mantenimiento', num: 8, titulo: 'Mantenimiento' },
   { id: 'revision', num: 9, titulo: 'Revisión' },
@@ -206,16 +201,6 @@ export function IpsWizard(props: IpsWizardProps = {}) {
             // final de la lista parecería un extra y no lo que es, un paso que
             // falta en medio.
             <Fragment key={p.id}>
-              {p.num === 7 && (
-                <li>
-                  <span className="ips-paso pendiente">
-                    <span className="ips-paso__num" aria-hidden="true">
-                      6
-                    </span>
-                    <span>Necesidad de rentabilidad (aún no disponible)</span>
-                  </span>
-                </li>
-              )}
               <li>
                 <button
                   type="button"
@@ -262,6 +247,7 @@ export function IpsWizard(props: IpsWizardProps = {}) {
           onChange={guardarConocimientos}
         />
       )}
+      {paso === 'necesidad' && <NeedStep policy={politica} hoy={hoy} />}
       {paso === 'restricciones' && (
         <ConstraintsStep
           constraints={politica.constraints}

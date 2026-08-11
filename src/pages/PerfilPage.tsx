@@ -3,6 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import { Card, Note, SectionHeader, Segmented } from '../components/ui'
 import { IpsWizard } from '../features/lab/ips/IpsWizard'
 import type { Currency, RiskCategory, RiskResult } from '../lib/domain'
+import { buildSignature } from '../lib/buildInfo'
 import { isFeatureEnabled } from '../lib/features/flags'
 import { formatDateTime, formatMoney } from '../lib/format'
 import { providerStatus } from '../lib/market/service'
@@ -269,6 +270,10 @@ export function PerfilPage() {
           </button>
         </div>
       </Card>
+
+      {/* Versión exacta que se está usando (LAB-005). Sin esto, «a mí no me
+          pasa» es una conversación sin salida. */}
+      <p className="muted tiny">{buildSignature()}</p>
 
       <Note kind="info">
         RiskCalculator ofrece cálculos y análisis educativos; no es asesoramiento financiero ni

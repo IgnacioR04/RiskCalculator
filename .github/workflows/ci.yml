@@ -70,6 +70,11 @@ jobs:
           # que `e2e-core` pueda ejercitarlo sobre este mismo bundle.
           VITE_LAB_FLAGS: labShell
 
+      # El tamaño crece de uno en uno y nadie parece culpable. Esto avisa del
+      # salto grande, no congela el bundle (LAB-008).
+      - name: Presupuesto de bundle
+        run: npm run bundle:budget
+
       - name: Auditoría de secretos en el bundle
         run: |
           # Ninguna clave privada debe aparecer en el bundle. Las variables

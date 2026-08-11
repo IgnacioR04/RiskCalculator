@@ -100,15 +100,13 @@ describe('IpsWizard · navegación por pasos', () => {
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Paso 2 de 9 · Horizonte')
   })
 
-  it('anuncia los pasos que todavía no existen sin ofrecerlos como botón', () => {
+  it('ofrece los nueve pasos de la especificación, en su orden', () => {
     render(<IpsWizard />)
     const pasos = screen.getByRole('navigation', { name: 'Pasos del asistente' })
 
     expect(within(pasos).getAllByRole('button')).toHaveLength(PASOS.length)
-    // El paso 6 se salta a propósito y se dice: renumerar fingiría que el
-    // asistente está completo.
-    expect(within(pasos).getByText(/Necesidad de rentabilidad/)).toBeInTheDocument()
-    expect(PASOS.map((p) => p.num)).toEqual([1, 2, 3, 4, 5, 7, 8, 9])
+    // Desde LAB-215 no falta ninguno: el 6 era el hueco que cerraba D17.
+    expect(PASOS.map((p) => p.num)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
   })
 
   it('no crea ninguna política por el mero hecho de abrirlo', () => {
