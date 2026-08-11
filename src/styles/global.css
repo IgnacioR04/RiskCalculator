@@ -3516,3 +3516,54 @@ small {
   font: 400 var(--fs-body) / 1.5 var(--font-ui);
   color: var(--text-body);
 }
+
+/* Calidad y cobertura de datos (LAB-212). */
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.coverage-meter__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  font: 400 var(--fs-body) var(--font-ui);
+  color: var(--text-body);
+}
+
+.coverage-meter__bar {
+  position: relative;
+  height: 8px;
+  border-radius: var(--radius-chip);
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+
+.coverage-meter__fill {
+  display: block;
+  height: 100%;
+  background: var(--positive);
+}
+
+/* Por debajo del mínimo cambia el color y además el texto lo dice: el estado
+   nunca se distingue solo por color. */
+.coverage-meter__fill.baja {
+  background: var(--negative);
+}
+
+/* Marca del mínimo exigido. Va dentro de la barra, no fuera: el `overflow:
+   hidden` que redondea el relleno también la recortaría. */
+.coverage-meter__min {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text-primary);
+}
+
+.coverage-meter p {
+  margin-top: var(--space-1);
+}

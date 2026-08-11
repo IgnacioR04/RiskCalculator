@@ -64,7 +64,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-209 — Asistente IPS: restricciones y revisión *(2026-08-11)* — editor de límites con detección de contradicciones, resumen, confirmación explícita y activación versionada: la vigente es inmutable y editarla abre la versión siguiente; 82 pruebas
 - [x] LAB-210 — Modelo de calidad de datos *(2026-08-11)* — ocho dimensiones, cinco estados, cobertura ponderada donde **ausente ≠ cero**, y la matriz de umbrales del documento 02 §8.4 centralizada y versionada; el tipo impide que exista un bloqueo sin acción para desbloquearlo; 39 pruebas
 - [x] LAB-211 — Adaptadores de calidad para datos actuales *(2026-08-11)* — traduce cotizaciones, FX e historia ya en memoria al modelo de LAB-210, sin una sola llamada de red y con `asOf` como argumento; 45 pruebas
-- [ ] LAB-212 — Página Calidad de datos
+- [x] LAB-212 — Página Calidad de datos *(2026-08-11)* — tabla de cobertura por activo, `CoverageMeter` y `AsOfBadge`; lo que falta se escribe «No disponible» y nunca es un cero ni una celda vacía; 15 pruebas
 - [ ] LAB-213 — Cabecera de contexto real
 - [ ] LAB-214 — Sincronización cloud de IPS
 

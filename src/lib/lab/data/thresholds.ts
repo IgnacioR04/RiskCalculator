@@ -70,8 +70,11 @@ export const CALCULATION_REQUIREMENTS: Readonly<Record<LabCalculation, Calculati
     nota: 'Snapshot completo. Si el valor no cuadra, se bloquea.',
   },
   lookThrough: {
-    // Sin mínimo: mirar dentro de la mitad de los fondos ya dice algo, siempre
-    // que se diga qué mitad.
+    // La referencia es verlo todo, y quedarse corto da un resultado parcial,
+    // nunca un bloqueo. El 1 no es una calibración inventada: es la definición
+    // de cobertura completa. Sin él, mirar dentro de un tercio de los fondos se
+    // presentaría como «suficiente», que es justo lo contrario de la verdad.
+    minCoverage: 1,
     onShortfall: 'partial',
     nota: 'Resultado parcial: se muestra qué porcentaje se ha podido mirar por dentro.',
   },
