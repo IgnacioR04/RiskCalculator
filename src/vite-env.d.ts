@@ -18,3 +18,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** Inyectados por Vite en tiempo de compilación (LAB-005). */
+declare const __BUILD_COMMIT__: string
+declare const __BUILD_TIME__: string

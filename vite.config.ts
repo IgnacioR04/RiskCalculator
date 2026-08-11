@@ -1,12 +1,35 @@
 /// <reference types="vitest/config" />
+import { execSync } from 'node:child_process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+
+/**
+ * SHA corto del commit que se está compilando (LAB-005).
+ *
+ * Si git no está disponible —un tarball, un contenedor sin `.git`— se devuelve
+ * cadena vacía y la aplicación lo mostrará como «desconocido». Fallar el build
+ * por no poder etiquetarlo sería peor que no etiquetarlo.
+ */
+function commitActual(): string {
+  if (process.env.GITHUB_SHA !== undefined) return process.env.GITHUB_SHA.slice(0, 7)
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim()
+  } catch {
+    return ''
+  }
+}
 
 export default defineConfig({
   // En GitHub Pages la app se sirve bajo /RiskCalculator/. En local y Vercel
   // se mantiene la raíz. El workflow de Pages exporta DEPLOY_TARGET=gh-pages.
   base: process.env.DEPLOY_TARGET === 'gh-pages' ? '/RiskCalculator/' : '/',
   plugins: [react()],
+  define: {
+    // Metadatos del build. Son públicos: el SHA de un repositorio público y una
+    // fecha. Aquí no entra nada que no pueda leerse en GitHub.
+    __BUILD_COMMIT__: JSON.stringify(commitActual()),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   test: {
     globals: true,
     environment: 'jsdom',
