@@ -38,7 +38,11 @@ export default defineConfig({
     // El Laboratorio se despliega por capacidades, así que hay que encenderlo
     // para poder ejercitarlo. En CI el build lo hace el job `build`, que lee
     // esta misma variable del workflow.
-    env: { VITE_LAB_FLAGS: 'labShell' },
+    //
+    // La lista es **exactamente la que publica `deploy-pages.yml`**: probar una
+    // combinación distinta de la que se despliega valida un artefacto que nadie
+    // va a usar. `deployFlags.test.ts` falla si las tres listas se separan.
+    env: { VITE_LAB_FLAGS: 'labShell,labIpsV2,labStabilityV2,labLookThrough' },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     // El build local cabe de sobra aquí; el servidor en sí arranca en ~1 s.
