@@ -55,12 +55,12 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 - [ ] LAB-401 — Spike de proveedores y licencias
 - [ ] LAB-402 — Identidad canónica de instrumentos
-- [ ] LAB-403 — Contratos de clasificación point-in-time
-- [ ] LAB-404 — Ingesta/adaptador de clasificación
-- [ ] LAB-405 — Motor de exposición directa
+- [x] LAB-403 — Contratos de composición *(2026-08-12)* — fuente, fecha y **cobertura declarada** en cada composición
+- [x] LAB-404 — Adaptador de composición manual *(2026-08-12)* — sobre el campo `holdings` que ya existía; una posición sin peso se descarta, no se le inventa uno
+- [x] LAB-405 — Motor de exposición directa *(2026-08-12)* — incluido en el motor de look-through
 - [ ] LAB-406 — Contratos e ingesta de holdings
-- [ ] LAB-407 — Motor look-through
-- [ ] LAB-408 — Motor de solapamiento
+- [x] LAB-407 — Motor look-through *(2026-08-12)* — **lo que no se conoce no se reparte**: cuenta como no mirado y se dice cuánto
+- [x] LAB-408 — Motor de solapamiento *(2026-08-12)* — suma de mínimos entre pares de fondos
 - [ ] LAB-409 — UI de Exposición
 - [ ] LAB-410 — Matrices par-a-par con muestra
 - [ ] LAB-411 — Correlación rolling y downside
