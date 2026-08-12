@@ -62,9 +62,9 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [x] LAB-309 — Métricas downside y drawdown *(2026-08-11)* — VaR/CVaR históricos y perfil de caída con duración y recuperación; el VaR nunca se llama pérdida máxima
 - [x] LAB-310 — Estabilidad por ventanas *(2026-08-11)* — una ventana que la serie no cubre se marca «no disponible», no se simula
 - [x] LAB-311 — Runs locales reproducibles *(2026-08-11)* — índice acotado en `localStorage`; sin `modelVersion` y `asOf` no se guarda ni se lee
-- [ ] LAB-312 — Página Resumen de estabilidad V2
-- [ ] LAB-313 — Medir y aislar cálculo pesado
-- [ ] LAB-314 — Paridad y cierre G3
+- [x] LAB-312 — Resumen de estabilidad V2 *(2026-08-12)* — cuatro tarjetas, hallazgos acotados a 4 con su evidencia al lado, y la misma métrica en varias ventanas; 17 pruebas
+- [x] LAB-313 — Medir el cálculo pesado *(2026-08-12)* — benchmark reproducible: 0,45 ms con 50 activos, 100× por debajo del presupuesto. **Decisión: no se añade Web Worker**
+- [x] LAB-314 — Paridad y cierre G3 *(2026-08-12)* — `docs/models/stability-v1-validation.md`: cero diferencias numéricas, tolerancias, rendimiento y cinco limitaciones declaradas
 
 ---
 

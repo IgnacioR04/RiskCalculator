@@ -14,7 +14,8 @@
     "lint": "eslint src e2e playwright.config.ts",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run bundle:budget",
     "verify:fase2": "vitest run src/features/lab/context/fase2.test.ts --reporter=verbose",
-    "bundle:budget": "node scripts/bundle-budget.mjs"
+    "bundle:budget": "node scripts/bundle-budget.mjs",
+    "bench:stability": "node scripts/bench-stability.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",
