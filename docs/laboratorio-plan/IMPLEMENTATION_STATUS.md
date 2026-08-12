@@ -9,10 +9,10 @@
 |---|---|
 | Commit base de la Fase 0 | `c807281` |
 | Último commit en `main` | `2b989ec` |
-| Fase activa | **Fase 2 — IPS, restricciones y calidad de datos** |
-| Tarea activa | Ninguna — **Fase 3: 11 de 14**. El refactor del monolito está cerrado. Siguiente: `LAB-312`, `LAB-313`, `LAB-314` (cierre de G3) |
-| Última puerta superada | **G1**, el 2026-08-10 |
-| Última actualización | 2026-08-11 |
+| Fase activa | **Fase 4 — Exposición, look-through y dependencia** (bloqueada: falta decidir proveedor de datos) |
+| Tarea activa | Ninguna — **Fase 3 completa y G3 superada**. La Fase 4 necesita antes la decisión del propietario sobre el proveedor de clasificaciones y componentes de ETF |
+| Última puerta superada | **G3**, el 2026-08-12 |
+| Última actualización | 2026-08-12 |
 
 ## 2. Estado por fase y puerta
 
@@ -20,8 +20,8 @@
 |---:|---|---|---|---|
 | 0 | Base, contratos y calidad | G0 | **Superada** | 2026-08-09 |
 | 1 | Shell y migración de navegación | G1 | **Superada** | 2026-08-10 |
-| 2 | IPS, restricciones y calidad de datos | G2 | Pendiente | — |
-| 3 | Refactor y ampliación de estabilidad | G3 | Pendiente | — |
+| 2 | IPS, restricciones y calidad de datos | G2 | **Superada** | 2026-08-11 |
+| 3 | Refactor y ampliación de estabilidad | G3 | **Superada** | 2026-08-12 |
 | 4 | Exposición, look-through y dependencia | G4 | Pendiente | — |
 | 5 | Escenarios | G5 | Pendiente | — |
 | 6 | Restricciones y carteras candidatas | G6 | Pendiente | — |
@@ -71,7 +71,7 @@ El hash del bundle no cambió respecto al despliegue anterior (`index-Cz6I4xU_.j
 
 La evidencia del segundo criterio cubre el canal de **GitHub Pages**. El repositorio reconoce un segundo destino (divergencia D4: `vercel.json` y la bifurcación `DEPLOY_TARGET` de `vite.config.ts`), y **desde el repositorio no puede comprobarse** si hay un proyecto de Vercel conectado ni si su integración con Git está condicionada a CI: `vercel.json` es solo una reescritura para SPA y ningún workflow lo gobierna. Si ese destino estuviera activo, desplegaría en cada push sin esperar a CI. **G0 se declara sobre el canal de Pages**; comprobar Vercel exige entrar en su panel y queda como riesgo abierto.
 
-Quedan además tres tareas de Fase 0 **fuera del criterio de G0**, que no la bloquean: `LAB-005` (metadatos de build), `LAB-006` (feature flags tipadas) y `LAB-008` (presupuesto de bundle).
+Quedaban tres tareas de Fase 0 **fuera del criterio de G0**, que no la bloqueaban: `LAB-006` se cerró el 2026-08-09, y `LAB-005` y `LAB-008` el 2026-08-11. **La Fase 0 está completa.**
 
 ## 2 ter. Acta de la puerta G1 — **SUPERADA**
 
@@ -99,10 +99,10 @@ Cerrada el 2026-08-10, con las diez tareas de la Fase 1 terminadas.
 | LAB-002 — Fixtures financieros dorados | **Terminada** (2026-08-08) | 27 pruebas doradas sobre `src/lib/finance/`. Documentación en `docs/lab/golden-fixtures.md` |
 | LAB-003 — Separar CI de despliegue | **Terminada** (2026-08-08) | Jobs `quality`, `build` y `e2e-core`; Playwright sirve el build. Cierra D8 |
 | LAB-004 — Endurecer GitHub Actions | **Terminada** (2026-08-08) | Ocho Actions fijadas a SHA, permisos mínimos por job, despliegue por `workflow_run` sobre el SHA validado. Cierra D2 |
-| LAB-005 — Metadatos de build | Pendiente | Depende de LAB-003 |
+| LAB-005 — Metadatos de build | **Terminada** (2026-08-11) | SHA y hora de compilación inyectados por Vite, visibles en Perfil |
 | LAB-006 — Feature flags tipadas | **Terminada** (2026-08-09) | `src/lib/features/flags.ts` con las 9 capacidades del documento 03, default seguro y 17 pruebas. Nada la consume aún: la primera será `labShell` en la Fase 1 |
 | LAB-007 — Baseline E2E de rutas actuales | **Terminada** (2026-08-09) | `e2e/navigation-current.spec.ts` + `e2e/helpers.ts`. Las ocho rutas, redirecciones legacy, modo sin Supabase, rail y barra móvil |
-| LAB-008 — Presupuesto de bundle y lazy loading baseline | Pendiente | Depende de LAB-003 |
+| LAB-008 — Presupuesto de bundle | **Terminada** (2026-08-11) | `npm run bundle:budget`, con límites comentados, ejecutándose en CI. **Fase 0 completa** |
 
 ## 4. Decisiones abiertas registradas
 
@@ -156,6 +156,7 @@ Detectadas al auditar el commit base. Registradas, **no** corregidas. Detalle y 
 | 2026-08-09 | `LAB-007` terminada. Baseline E2E de las ocho rutas, redirecciones antiguas, modo sin Supabase y navegación de escritorio y móvil. |
 | 2026-08-09 | Revisión previa a la fusión. El `security-reviewer` detectó que el filtro `branches` de `workflow_run` compara contra la rama **de origen**, de modo que un PR desde un fork llamado `main` habría desplegado código no confiable; corregido antes de fusionar. El `test-reviewer` detectó que el acta de G0 declaraba el criterio de despliegue sin evaluar el segundo destino (D4); acotado. |
 | 2026-08-09 | `LAB-006` terminada. Feature flags tipadas con default seguro, para poder fusionar capacidades de la Fase 1 sin exponerlas. |
+| 2026-08-12 | **G3 superada.** `LAB-312`, `LAB-313` y `LAB-314` cierran la Fase 3. El resumen de estabilidad acota los hallazgos a cuatro y pone la evidencia junto a cada uno: doce avisos no informan de doce cosas, no informan de ninguna. El benchmark de `LAB-313` mide 0,45 ms con 50 activos, **100 veces por debajo del presupuesto**, así que se decide **no** introducir un Web Worker: el criterio pedía decidir con datos y no añadir uno innecesario. Informe de validación en `docs/models/stability-v1-validation.md`, con **cero diferencias numéricas que aprobar** y cinco limitaciones declaradas, entre ellas que la serie de cartera pondera por el peso actual y no por el histórico. |
 | 2026-08-12 | `LAB-302`, `LAB-307` y `LAB-308` terminadas: **el refactor del monolito queda cerrado**. `HistoricalRiskSection` baja de **919 a 371 líneas** y pasa a ser un adaptador: junta el store con cinco bloques de presentación que no tocan el store, no descargan nada y no calculan métricas. Reciben datos ya resueltos, y por eso **cada uno se prueba con un objeto fijo** —el criterio de aceptación de LAB-307—: comprobar cómo se pinta una volatilidad del 18 % es escribir `0.18`, sin montar una cartera. **Cero cambio numérico**: los 27 fixtures dorados, las 760 unitarias y los 58 E2E pasan igual antes y después. El adaptador no desaparece a propósito: alguien tiene que juntar store y bloques, y ese pegamento es más honesto en un sitio que repartido por cinco. |
 | 2026-08-11 | `LAB-311` terminada. Índice local de cálculos ejecutados, acotado a 50 y en su propia clave de `localStorage`, aparte del store: es material reconstruible y no tiene por qué viajar a la nube. **`modelVersion` y `asOf` son obligatorios y se comprueban al guardar y al leer**: sin ellos un resultado no se puede reproducir ni explicar, así que no entra ni sobrevive. Un formato de una versión futura se descarta entero en vez de leerse a medias, y quedarse sin cuota se informa en vez de tragarse. |
 | 2026-08-11 | `LAB-306` terminada. La orquestación de la descarga sale a `useStabilityAnalysis` y la pantalla baja a **605 líneas**, sin saber ya que existen proveedores. Lo importante no es el movimiento: **cierra una carrera que el monolito tenía abierta**. Dos ejecuciones solapadas —cambiar de ventana y volver a pedir, o cambiar de cartera— podían resolverse en orden inverso, y la respuesta vieja pisaba a la nueva sin que nada fallara; el usuario veía datos de otra petición creyendo que eran los suyos. Ahora cada ejecución lleva un testigo y solo la vigente publica, incluido el apagado del indicador de carga. |

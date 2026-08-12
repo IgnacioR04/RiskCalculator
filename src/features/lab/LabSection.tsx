@@ -15,6 +15,7 @@ import { LabPlaceholderPage } from './pages/LabPlaceholderPage'
 import { LabExposureLegacyPage } from './pages/LabExposureLegacyPage'
 import { LabDataQualityPage } from './pages/LabDataQualityPage'
 import { LabHomePage } from './pages/LabHomePage'
+import { LabStabilitySummaryPage } from './pages/LabStabilitySummaryPage'
 import { LabRiskLegacyPage } from './pages/LabRiskLegacyPage'
 import { LabScenariosLegacyPage } from './pages/LabScenariosLegacyPage'
 import { LAB_ROUTE_IDS, LAB_ROUTES, labRelativePath, type LabRouteId } from './routes/labRoutes'
@@ -25,6 +26,7 @@ import { LAB_ROUTE_IDS, LAB_ROUTES, labRelativePath, type LabRouteId } from './r
  */
 const PANTALLAS: Partial<Record<LabRouteId, ReactElement>> = {
   'lab.home': <LabHomePage />,
+  'lab.stability': <LabStabilitySummaryPage />,
   'lab.stability.data': <LabDataQualityPage />,
   'lab.stability.risk': <LabRiskLegacyPage />,
   'lab.stability.exposure': <LabExposureLegacyPage />,
