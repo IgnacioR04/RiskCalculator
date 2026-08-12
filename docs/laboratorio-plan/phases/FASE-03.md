@@ -61,7 +61,7 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 - [ ] LAB-308 — Sustituir HistoricalRiskSection por composición
 - [x] LAB-309 — Métricas downside y drawdown *(2026-08-11)* — VaR/CVaR históricos y perfil de caída con duración y recuperación; el VaR nunca se llama pérdida máxima
 - [x] LAB-310 — Estabilidad por ventanas *(2026-08-11)* — una ventana que la serie no cubre se marca «no disponible», no se simula
-- [ ] LAB-311 — Runs locales reproducibles
+- [x] LAB-311 — Runs locales reproducibles *(2026-08-11)* — índice acotado en `localStorage`; sin `modelVersion` y `asOf` no se guarda ni se lee
 - [ ] LAB-312 — Página Resumen de estabilidad V2
 - [ ] LAB-313 — Medir y aislar cálculo pesado
 - [ ] LAB-314 — Paridad y cierre G3
