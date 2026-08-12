@@ -53,23 +53,23 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 ## Checklist de tareas
 
-- [ ] LAB-401 — Spike de proveedores y licencias
-- [ ] LAB-402 — Identidad canónica de instrumentos
+- [x] LAB-401 — Spike de proveedores y licencias *(2026-08-12)* — decisión: **ningún proveedor externo**. ADR-004 y docs/research/data-provider-evaluation.md
+- [x] LAB-402 — Identidad canónica de instrumentos *(2026-08-12)* — ISIN sobre mercado sobre ticker; un ticker ambiguo **no se autoasigna**. Catálogo en Supabase pospuesto por ADR-004
 - [x] LAB-403 — Contratos de composición *(2026-08-12)* — fuente, fecha y **cobertura declarada** en cada composición
 - [x] LAB-404 — Adaptador de composición manual *(2026-08-12)* — sobre el campo `holdings` que ya existía; una posición sin peso se descarta, no se le inventa uno
 - [x] LAB-404b — Formulario de composición manual *(2026-08-12)* — `HoldingsEditor`: se pregunta en porcentaje y se guarda en fracción; sin símbolo, con peso fuera de rango o duplicado no entra nada
 - [x] LAB-405 — Motor de exposición directa *(2026-08-12)* — incluido en el motor de look-through
-- [ ] LAB-406 — Contratos e ingesta de holdings
+- [x] LAB-406 — Contratos e ingesta de holdings *(2026-08-12)* — composiciones con vigencia: actualizar no borra. Migración e ingesta de proveedor pospuestas por ADR-004
 - [x] LAB-407 — Motor look-through *(2026-08-12)* — **lo que no se conoce no se reparte**: cuenta como no mirado y se dice cuánto
 - [x] LAB-408 — Motor de solapamiento *(2026-08-12)* — suma de mínimos entre pares de fondos
 - [x] LAB-409 — UI de Exposición *(2026-08-12)* — cobertura mirada, exposición real por empresa, solapamiento entre fondos y el editor de cada envoltorio; conserva el reparto clásico porque `/diversificacion` redirige aquí
-- [ ] LAB-410 — Matrices par-a-par con muestra
-- [ ] LAB-411 — Correlación rolling y downside
-- [ ] LAB-412 — Clustering jerárquico
-- [ ] LAB-413 — UI de Dependencia
-- [ ] LAB-414 — Correlación de cola: spike
-- [ ] LAB-415 — Factores: contrato y alcance
-- [ ] LAB-416 — Cierre G4
+- [x] LAB-410 — Matrices par-a-par con muestra *(2026-08-12)* — N y periodo **por celda**; sin intersección global forzada; Spearman aparte
+- [x] LAB-411 — Correlación rolling y downside *(2026-08-12)* — la condición «día malo» la define la cartera y viaja con el número
+- [x] LAB-412 — Clustering jerárquico *(2026-08-12)* — distancia (1−ρ)/2, enlace medio, orden determinista; etiquetas genéricas
+- [x] LAB-413 — UI de Dependencia *(2026-08-12)* — apuestas reales, parejas, caídas y matriz; el número va siempre impreso
+- [x] LAB-414 — Correlación de cola: spike *(2026-08-12)* — **no se implementa**: 13 días de cola en un año no sostienen la métrica. ADR-005
+- [x] LAB-415 — Factores: contrato y alcance *(2026-08-12)* — **pospuesto**: sin series con licencia ni muestra para identificar. ADR-005
+- [x] LAB-416 — Cierre G4 *(2026-08-12)* — **G4 superada**. docs/models/exposure-dependency-v1-validation.md
 
 ---
 

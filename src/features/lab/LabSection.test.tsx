@@ -61,12 +61,23 @@ describe('LabSection · rutas desconocidas', () => {
 
 describe('LabSection · portadas informativas', () => {
   it('dice que la pantalla no está construida, sin mostrar cifras', () => {
-    montarEn(labPath('lab.stability.dependence'))
-    expect(
-      screen.getByText('Correlaciones, clusters y factores todavía no está construido.'),
-    ).toBeInTheDocument()
+    // Estrés sigue siendo portada. Dependencia dejó de serlo en LAB-413: se
+    // cambia de ruta en vez de aflojar la prueba, porque lo que comprueba
+    // —que una pantalla sin construir no enseña números— sigue haciendo falta.
+    montarEn(labPath('lab.stability.stress'))
+    expect(screen.getByText('Pruebas de estrés todavía no está construido.')).toBeInTheDocument()
     expect(
       screen.getByText(/las métricas de estabilidad, con paridad demostrada/),
+    ).toBeInTheDocument()
+  })
+
+  it('Dependencia ya no es una portada: mide de verdad (LAB-413)', () => {
+    montarEn(labPath('lab.stability.dependence'))
+    expect(screen.queryByText(/todavía no está construido/)).not.toBeInTheDocument()
+    // Sin cartera montada enseña su estado vacío, que también es contenido
+    // real: dice qué hace falta en vez de «todavía no está construido».
+    expect(
+      screen.getByText('Hacen falta al menos dos posiciones con historial'),
     ).toBeInTheDocument()
   })
 

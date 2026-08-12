@@ -191,6 +191,70 @@ describe('solapamiento entre fondos (LAB-408)', () => {
   })
 })
 
+describe('identidad canónica, no el texto del ticker (LAB-402)', () => {
+  it('el mismo valor en dos mercados se suma en una sola exposición', () => {
+    // Santander cotiza en Madrid y en Milán con tickers distintos. Es una única
+    // empresa y una única exposición: 1.500 €, no dos posiciones de 1.000 y 500.
+    const r = lookThrough({
+      positions: [
+        { ...accion('SAN', 1000), isin: 'ES0113900J37', exchange: 'BME' },
+        { assetId: 'sant', symbol: 'SANT', value: 500, isWrapper: false, isin: 'ES0113900J37', exchange: 'MIL' },
+      ],
+      compositions: {},
+      baseCurrency: 'EUR',
+    })
+
+    expect(r.exposures).toHaveLength(1)
+    expect(r.exposures[0]?.totalValue).toBe(1500)
+  })
+
+  it('dos empresas distintas con el mismo ticker no se funden', () => {
+    // `SAN` es Santander en Madrid y Sandstorm Gold en Toronto.
+    const r = lookThrough({
+      positions: [
+        { assetId: 'a', symbol: 'SAN', value: 1000, isWrapper: false, exchange: 'BME' },
+        { assetId: 'b', symbol: 'SAN', value: 400, isWrapper: false, exchange: 'TSX' },
+      ],
+      compositions: {},
+      baseCurrency: 'EUR',
+    })
+
+    expect(r.exposures).toHaveLength(2)
+    // Ninguna de las dos aparece con el valor de la otra sumado.
+    expect(r.exposures.map((e) => e.totalValue).sort((x, y) => y - x)).toEqual([1000, 400])
+  })
+
+  it('un ticker de dentro de un fondo que encaja con dos instrumentos no se asigna', () => {
+    const r = lookThrough({
+      positions: [
+        { assetId: 'a', symbol: 'SAN', value: 1000, isWrapper: false, exchange: 'BME' },
+        { assetId: 'b', symbol: 'SAN', value: 1000, isWrapper: false, exchange: 'TSX' },
+        fondo('IWDA', 1000),
+      ],
+      compositions: { iwda: composicion('iwda', [{ symbol: 'SAN', weight: 1 }], 1) },
+      baseCurrency: 'EUR',
+    })
+
+    // Se dice cuál es la duda...
+    expect(r.ambiguousHoldings).toEqual(['SAN'])
+    // ...y su valor cuenta como no resuelto en vez de engordar a un candidato.
+    expect(r.unresolvedValue).toBeCloseTo(1000, 6)
+    const santander = r.exposures.find((e) => e.directValue === 1000 && e.symbol === 'SAN')
+    expect(santander?.indirectValue).toBe(0)
+  })
+
+  it('sin ambigüedad no se inventa ninguna advertencia', () => {
+    const r = lookThrough({
+      positions: [accion('AAPL', 500), fondo('IWDA', 1000)],
+      compositions: { iwda: composicion('iwda', [{ symbol: 'AAPL', weight: 1 }], 1) },
+      baseCurrency: 'EUR',
+    })
+    expect(r.ambiguousHoldings).toEqual([])
+    // Y la exposición sí se suma: 500 directo + 1.000 dentro del fondo.
+    expect(r.exposures.find((e) => e.symbol === 'AAPL')?.totalValue).toBeCloseTo(1500, 6)
+  })
+})
+
 describe('determinismo', () => {
   it('los mismos datos dan exactamente el mismo resultado', () => {
     const entrada = {

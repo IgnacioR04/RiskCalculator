@@ -55,6 +55,10 @@ export function LabExposurePage() {
         ...(p.asset.name === undefined ? {} : { name: p.asset.name }),
         value: p.value === null ? null : p.value.toNumber(),
         isWrapper: isWrapper(p.asset),
+        // Identificación fuerte cuando el activo la trae (LAB-402): así el
+        // mismo valor en dos mercados se suma y dos homónimos no se funden.
+        ...(p.asset.isin === undefined ? {} : { isin: p.asset.isin }),
+        ...(p.asset.exchange === undefined ? {} : { exchange: p.asset.exchange }),
       }))
 
     const simbolos = Object.fromEntries(
@@ -97,6 +101,16 @@ export function LabExposurePage() {
             {resultado.oldestAsOf !== null &&
               ` La composición más antigua que se ha usado es del ${resultado.oldestAsOf}.`}
           </p>
+        )}
+        {resultado.ambiguousHoldings.length > 0 && (
+          // Callar esto sería lo peor: el usuario leería la ausencia de la
+          // exposición como «no la tengo», y significa «no se sabe cuál es».
+          <Note kind="warning">
+            {resultado.ambiguousHoldings.join(', ')} aparece dentro de tus fondos, pero en tu
+            cartera hay más de un instrumento con ese mismo símbolo. No se ha asignado a ninguno:
+            elegir uno sería adivinar. Añade el ISIN o el mercado a esos activos y el reparto se
+            resolverá solo.
+          </Note>
         )}
       </Card>
 

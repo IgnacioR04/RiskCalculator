@@ -19,6 +19,12 @@
  * falsa sensación de precisión justo donde hay menos.
  */
 import type { Currency } from '../../domain'
+import {
+  buildIdentityIndex,
+  identify,
+  resolveSymbol,
+  type InstrumentKey,
+} from '../identity/instrumentIdentity'
 import type {
   FundComposition,
   LookThroughExposure,
@@ -33,6 +39,10 @@ export interface PositionValue {
   readonly value: number | null
   /** Si es un envoltorio (ETF, fondo, índice) que puede tener algo dentro. */
   readonly isWrapper: boolean
+  /** Identificación fuerte, si se conoce (LAB-402). */
+  readonly isin?: string
+  /** Mercado donde cotiza, si se conoce (LAB-402). */
+  readonly exchange?: string
 }
 
 export interface LookThroughInput {
@@ -46,32 +56,49 @@ export interface LookThroughInput {
  * Reparte el valor de cada fondo entre lo que lleva dentro y lo suma con lo que
  * se tiene directamente.
  *
- * Las claves de agrupación son los **símbolos**. Es una simplificación
- * declarada: dos líneas con el mismo ticker en mercados distintos se sumarían
- * como si fueran la misma empresa. Resolver la identidad canónica de un
- * instrumento es un problema propio —`LAB-402` en el plan— y hacerlo a medias
- * aquí sería peor que declarar el límite.
+ * Desde `LAB-402` la agrupación es por **identidad canónica**, no por el texto
+ * del ticker: el ISIN manda sobre el mercado y el mercado sobre el ticker
+ * suelto. Así el mismo valor cotizado en dos plazas se suma, y dos empresas
+ * distintas que comparten ticker no se funden en una.
+ *
+ * Los emisores publican el ticker de cada componente, casi nunca su ISIN, así
+ * que un componente hay que casarlo con la cartera. Si ese ticker encaja con
+ * **más de un** instrumento, no se elige ninguno: su valor cuenta como no
+ * resuelto y el ticker se nombra en `ambiguousHoldings`. Repartirlo al candidato
+ * más probable inflaría una exposición concreta, que es justo la cifra que el
+ * usuario mira para decidir.
  */
 export function lookThrough(input: LookThroughInput): LookThroughResult {
   const acumulado = new Map<
-    string,
-    { name?: string; directo: number; indirecto: number; fondos: Set<string> }
+    InstrumentKey,
+    { symbol: string; name?: string; directo: number; indirecto: number; fondos: Set<string> }
   >()
 
-  const entrada = (symbol: string, name?: string) => {
-    const previo = acumulado.get(symbol)
+  const entrada = (key: InstrumentKey, symbol: string, name?: string) => {
+    const previo = acumulado.get(key)
     if (previo !== undefined) {
       if (previo.name === undefined && name !== undefined) previo.name = name
       return previo
     }
-    const nuevo = { ...(name === undefined ? {} : { name }), directo: 0, indirecto: 0, fondos: new Set<string>() }
-    acumulado.set(symbol, nuevo)
+    const nuevo = {
+      symbol,
+      ...(name === undefined ? {} : { name }),
+      directo: 0,
+      indirecto: 0,
+      fondos: new Set<string>(),
+    }
+    acumulado.set(key, nuevo)
     return nuevo
   }
+
+  // Índice de lo que el usuario tiene identificado, para casar contra él los
+  // tickers sueltos que vienen dentro de los fondos.
+  const indice = buildIdentityIndex(input.positions.filter((p) => !p.isWrapper))
 
   let totalAnalizado = 0
   let sinResolver = 0
   const fondosSinComposicion: string[] = []
+  const ambiguos = new Set<string>()
   const fechas: string[] = []
 
   for (const posicion of input.positions) {
@@ -81,7 +108,7 @@ export function lookThrough(input: LookThroughInput): LookThroughResult {
     totalAnalizado += posicion.value
 
     if (!posicion.isWrapper) {
-      entrada(posicion.symbol, posicion.name).directo += posicion.value
+      entrada(identify(posicion).key, posicion.symbol, posicion.name).directo += posicion.value
       continue
     }
 
@@ -108,17 +135,33 @@ export function lookThrough(input: LookThroughInput): LookThroughResult {
       // suman 0,25, cada una se lleva su parte proporcional del 25 % cubierto,
       // no su peso bruto sobre el fondo entero.
       const proporcion = pesoDeclarado > 0 ? holding.weight / pesoDeclarado : 0
-      const acc = entrada(holding.symbol, holding.name)
-      acc.indirecto += cubierto * proporcion
+      const parte = cubierto * proporcion
+
+      const resolucion = resolveSymbol(indice, holding.symbol)
+      if (resolucion.status === 'ambiguous') {
+        // Ese ticker es dos instrumentos distintos en esta cartera. Elegir uno
+        // sería inventarse cuál. Se aparta y se dice.
+        ambiguos.add(holding.symbol.trim().toUpperCase())
+        sinResolver += parte
+        continue
+      }
+
+      // Resuelto contra la cartera, o desconocido: un componente que no se tiene
+      // directamente no es ambiguo, simplemente es nuevo.
+      const key =
+        resolucion.status === 'resolved' ? resolucion.key : identify({ symbol: holding.symbol }).key
+
+      const acc = entrada(key, holding.symbol.trim().toUpperCase(), holding.name)
+      acc.indirecto += parte
       acc.fondos.add(posicion.symbol)
     }
   }
 
-  const exposures: LookThroughExposure[] = [...acumulado.entries()]
-    .map(([symbol, datos]) => {
+  const exposures: LookThroughExposure[] = [...acumulado.values()]
+    .map((datos) => {
       const total = datos.directo + datos.indirecto
       return {
-        symbol,
+        symbol: datos.symbol,
         ...(datos.name === undefined ? {} : { name: datos.name }),
         directValue: datos.directo,
         indirectValue: datos.indirecto,
@@ -139,6 +182,7 @@ export function lookThrough(input: LookThroughInput): LookThroughResult {
     baseCurrency: input.baseCurrency,
     // La más antigua manda: el conjunto es tan viejo como su pieza más vieja.
     oldestAsOf: fechas.length === 0 ? null : fechas.slice().sort()[0]!,
+    ambiguousHoldings: [...ambiguos].sort(),
   }
 }
 

@@ -173,6 +173,39 @@ describe('lo que no se conoce no se reparte', () => {
   })
 })
 
+/* ── Identidad canónica (LAB-402) ─────────────────────────────────────────── */
+
+describe('un símbolo que puede ser dos empresas no se reparte', () => {
+  it('lo dice en pantalla en vez de asignarlo al candidato más probable', () => {
+    montarPagina([
+      activo({ id: 'san-bme', symbol: 'SAN', name: 'Santander', exchange: 'BME' }),
+      activo({ id: 'san-tsx', symbol: 'SAN', name: 'Sandstorm Gold', exchange: 'TSX' }),
+      activo({
+        id: 'iwda',
+        symbol: 'IWDA',
+        assetType: 'etf',
+        holdings: [{ symbol: 'SAN', weight: '1' }],
+      }),
+    ])
+
+    expect(screen.getByText(/más de un instrumento con ese mismo símbolo/)).toBeInTheDocument()
+    expect(screen.getByText(/elegir uno sería adivinar/)).toBeInTheDocument()
+  })
+
+  it('sin homónimos no aparece ninguna advertencia', () => {
+    montarPagina([
+      activo({ id: 'aapl', symbol: 'AAPL', name: 'Apple' }),
+      activo({
+        id: 'iwda',
+        symbol: 'IWDA',
+        assetType: 'etf',
+        holdings: [{ symbol: 'AAPL', weight: '1' }],
+      }),
+    ])
+    expect(screen.queryByText(/elegir uno sería adivinar/)).toBeNull()
+  })
+})
+
 /* ── Editor de composición ────────────────────────────────────────────────── */
 
 describe('editor de composición (LAB-404b)', () => {

@@ -104,4 +104,13 @@ export interface LookThroughResult {
   readonly baseCurrency: Currency
   /** Fecha más antigua entre las composiciones usadas: la que manda. */
   readonly oldestAsOf: string | null
+  /**
+   * Tickers de dentro de un fondo que coinciden con **más de un instrumento**
+   * de la cartera, así que no se han podido asignar a ninguno (LAB-402).
+   *
+   * Su valor engorda `unresolvedValue` en vez de ir al candidato más probable.
+   * Aparece aquí para poder decirlo: si no, el usuario leería la ausencia de
+   * esa exposición como «no la tengo» cuando significa «no se sabe cuál es».
+   */
+  readonly ambiguousHoldings: readonly string[]
 }
