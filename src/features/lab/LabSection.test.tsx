@@ -82,10 +82,15 @@ describe('LabSection · portadas informativas', () => {
     expect(screen.getByText(/versión actual del simulador/)).toBeInTheDocument()
   })
 
-  it('Exposición tampoco es una portada: muestra Diversificación (LAB-106)', () => {
+  it('Exposición no es una portada: exposición real y el reparto de siempre (LAB-409)', () => {
     montarEn(labPath('lab.stability.exposure'))
     expect(screen.queryByText(/todavía no está construido/)).not.toBeInTheDocument()
-    expect(screen.getByText(/versión actual del reparto de la cartera/)).toBeInTheDocument()
+    // Desde LAB-409 la pantalla añade la exposición real mirando dentro de los
+    // fondos, pero **conserva** el reparto clásico: `/diversificacion` redirige
+    // aquí desde LAB-108 y quitarlo rompería un recorrido que G1 declaró
+    // disponible.
+    expect(screen.getByText(/mirar por dentro/)).toBeInTheDocument()
+    expect(screen.getByText('Sin posiciones valoradas')).toBeInTheDocument()
   })
 
   it('la portada ya no es un placeholder: presenta las dos mitades (LAB-109)', () => {

@@ -20,8 +20,8 @@ export function DiversificacionPage() {
 
 /**
  * Contenido de Diversificación, sin decidir dónde vive. El Laboratorio lo
- * reutiliza tal cual desde `LabExposureLegacyPage`: una sola implementación,
- * ningún cálculo duplicado.
+ * reutiliza tal cual desde `LabExposurePage`: una sola implementación, ningún
+ * cálculo duplicado.
  */
 export function DiversificacionContenido(props: { conEncabezado?: boolean }) {
   const store = useAppStore()
