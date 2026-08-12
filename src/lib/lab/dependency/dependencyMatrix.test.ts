@@ -170,7 +170,7 @@ describe('lo que hay que mirar primero', () => {
     ])
     const top = strongestPairs(m, 2)
     expect(top).toHaveLength(2)
-    expect(top[0]!.value).toBeGreaterThanOrEqual(top[1]!.value)
+    expect(top[0]!.value!).toBeGreaterThanOrEqual(top[1]!.value!)
     // a y b son idénticas: tienen que encabezar la lista.
     expect([top[0]!.a, top[0]!.b].sort()).toEqual(['a', 'b'])
   })

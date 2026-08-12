@@ -60,12 +60,12 @@ describe('los grupos son los que se ven a simple vista', () => {
 
   it('los que se mueven juntos acaban juntos', () => {
     const grupoTech = resultado.clusters.find((c) => c.members.includes('tech1'))
-    expect(grupoTech?.members.sort()).toEqual(['tech1', 'tech2', 'tech3'])
+    expect([...(grupoTech?.members ?? [])].sort()).toEqual(['tech1', 'tech2', 'tech3'])
   })
 
   it('los bonos forman su propio grupo, no se mezclan con tech', () => {
     const grupoBonos = resultado.clusters.find((c) => c.members.includes('bono1'))
-    expect(grupoBonos?.members.sort()).toEqual(['bono1', 'bono2'])
+    expect([...(grupoBonos?.members ?? [])].sort()).toEqual(['bono1', 'bono2'])
   })
 
   it('el que va por libre se queda solo', () => {

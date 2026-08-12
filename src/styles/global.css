@@ -3609,3 +3609,28 @@ small {
   cursor: pointer;
   margin-top: var(--space-1);
 }
+
+/* ── Dependencia (LAB-413) ─────────────────────────────────────────────────── */
+
+/* Controles del periodo: en móvil se apilan en vez de encogerse hasta ser
+   inutilizables. */
+.controles-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.lista-grupos {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.lista-grupos > li {
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--border-strong);
+  background: var(--surface-inset);
+}
