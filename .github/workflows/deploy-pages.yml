@@ -90,6 +90,25 @@ jobs:
           DEPLOY_TARGET: gh-pages
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Capacidades del Laboratorio visibles en el sitio publicado.
+          #
+          # Se versiona aquí, y no en una variable del repositorio, porque
+          # encender una capacidad es una decisión de release: tiene que verse
+          # en un diff, poder revisarse y poder revertirse con otro commit. Una
+          # variable de repositorio cambiaría lo que se publica sin dejar rastro
+          # en la historia, y nadie podría decir mirando el código qué había
+          # visible en una fecha dada.
+          #
+          # Esto **no es un secreto y no es autorización**: acaba en el bundle,
+          # y cualquiera puede activar una capacidad en su navegador. Lo que
+          # protege datos privados es la RLS de Supabase, no esta lista.
+          #
+          # Cuidado con las erratas: `parseLabFlags` ignora en silencio lo que
+          # no reconoce —es el default seguro—, así que un nombre mal escrito no
+          # rompería el build, apagaría la capacidad sin avisar. Por eso
+          # `src/lib/features/deployFlags.test.ts` lee este mismo fichero en CI
+          # y falla si un nombre no está en el catálogo.
+          VITE_LAB_FLAGS: labShell,labIpsV2,labStabilityV2,labLookThrough
 
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 

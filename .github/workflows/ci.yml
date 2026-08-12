@@ -68,7 +68,12 @@ jobs:
         env:
           # El Laboratorio se despliega por capacidades. Se enciende aquí para
           # que `e2e-core` pueda ejercitarlo sobre este mismo bundle.
-          VITE_LAB_FLAGS: labShell
+          #
+          # La lista es **exactamente la que publica `deploy-pages.yml`**: si CI
+          # auditara una combinación distinta de la que se despliega, estaría
+          # validando un artefacto que nadie va a usar. `deployFlags.test.ts`
+          # falla si las tres listas se separan.
+          VITE_LAB_FLAGS: labShell,labIpsV2,labStabilityV2,labLookThrough
 
       # El tamaño crece de uno en uno y nadie parece culpable. Esto avisa del
       # salto grande, no congela el bundle (LAB-008).
