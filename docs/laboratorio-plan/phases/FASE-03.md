@@ -52,13 +52,13 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 ## Checklist de tareas
 
 - [x] LAB-301 — Inventario del componente histórico *(2026-08-11)* — `docs/lab/historical-inventory.md`: cada bloque de las 919 líneas con destino
-- [ ] LAB-302 — Contratos de entrada/salida de estabilidad
+- [x] LAB-302 — Contratos de presentación *(2026-08-12)* — `features/lab/stability/contracts.ts`; lo que no se pudo calcular es `null`, nunca cero
 - [x] LAB-303 — Extraer adquisición histórica *(2026-08-11)* — `lab/stability/acquisition.ts`, lo único que toca red
 - [x] LAB-304 — Extraer alineación y FX *(2026-08-11)* — `lab/stability/fx.ts`, puro y probado con números; un día sin tipo no vale cero
 - [x] LAB-305 — Componer motor Stability V1 *(2026-08-11)* — `lab/stability/twr.ts`; paridad demostrada con los 27 fixtures dorados
 - [x] LAB-306 — Hook de análisis *(2026-08-11)* — `useStabilityAnalysis`; testigo de petición: una respuesta que llega tarde no pisa a la vigente
-- [ ] LAB-307 — Descomponer tarjetas y tablas
-- [ ] LAB-308 — Sustituir HistoricalRiskSection por composición
+- [x] LAB-307 — Descomponer tarjetas y tablas *(2026-08-12)* — cinco bloques de presentación, cada uno probado con objeto fijo; 16 pruebas
+- [x] LAB-308 — Sustituir por composición *(2026-08-12)* — el monolito baja de 919 a 371 líneas y queda como adaptador; cero cambio numérico
 - [x] LAB-309 — Métricas downside y drawdown *(2026-08-11)* — VaR/CVaR históricos y perfil de caída con duración y recuperación; el VaR nunca se llama pérdida máxima
 - [x] LAB-310 — Estabilidad por ventanas *(2026-08-11)* — una ventana que la serie no cubre se marca «no disponible», no se simula
 - [x] LAB-311 — Runs locales reproducibles *(2026-08-11)* — índice acotado en `localStorage`; sin `modelVersion` y `asOf` no se guarda ni se lee
