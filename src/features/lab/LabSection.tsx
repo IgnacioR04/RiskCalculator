@@ -12,7 +12,7 @@
 import type { ReactElement } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LabPlaceholderPage } from './pages/LabPlaceholderPage'
-import { LabExposureLegacyPage } from './pages/LabExposureLegacyPage'
+import { LabExposurePage } from './pages/LabExposurePage'
 import { LabDataQualityPage } from './pages/LabDataQualityPage'
 import { LabHomePage } from './pages/LabHomePage'
 import { LabStabilitySummaryPage } from './pages/LabStabilitySummaryPage'
@@ -29,7 +29,7 @@ const PANTALLAS: Partial<Record<LabRouteId, ReactElement>> = {
   'lab.stability': <LabStabilitySummaryPage />,
   'lab.stability.data': <LabDataQualityPage />,
   'lab.stability.risk': <LabRiskLegacyPage />,
-  'lab.stability.exposure': <LabExposureLegacyPage />,
+  'lab.stability.exposure': <LabExposurePage />,
   'lab.future.scenarios': <LabScenariosLegacyPage />,
 }
 
