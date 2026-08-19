@@ -69,7 +69,7 @@ describe('mínimos que no caben', () => {
       { kind: 'assetWeight', instrumentId: 'iwda', min: 0.3 },
     ])
     const problema = r.problems.find((p) => p.kind === 'minimums_exceed_total')!
-    expect(problema.bounds.sort()).toEqual(['asset:aapl', 'asset:iwda', 'asset:msft'])
+    expect([...problema.bounds].sort()).toEqual(['asset:aapl', 'asset:iwda', 'asset:msft'])
   })
 
   it('grupos que se solapan no cuentan el mismo dinero dos veces', () => {
