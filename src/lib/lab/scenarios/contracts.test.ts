@@ -27,7 +27,7 @@ describe('un escenario no existe sin horizonte ni tipo', () => {
   })
 
   it('sin horizonte no entra', () => {
-    const { horizon, ...sinHorizonte } = BASE
+    const { horizon: _horizon, ...sinHorizonte } = BASE
     expect(parseScenarioDefinition(sinHorizonte).ok).toBe(false)
   })
 
@@ -47,7 +47,7 @@ describe('un escenario no existe sin horizonte ni tipo', () => {
   })
 
   it('sin versión no entra: dos resultados no serían comparables', () => {
-    const { version, ...sinVersion } = BASE
+    const { version: _version, ...sinVersion } = BASE
     expect(parseScenarioDefinition(sinVersion).ok).toBe(false)
   })
 })
@@ -186,17 +186,17 @@ describe('un resultado guardado se puede reproducir', () => {
   })
 
   it('sin versión de modelo no entra: no se sabría qué lo calculó', () => {
-    const { modelVersion, ...sinModelo } = RESULTADO
+    const { modelVersion: _modelVersion, ...sinModelo } = RESULTADO
     expect(parseScenarioResult(sinModelo).ok).toBe(false)
   })
 
   it('sin fecha de los datos no entra: no se sabría de cuándo es', () => {
-    const { asOf, ...sinFecha } = RESULTADO
+    const { asOf: _asOf, ...sinFecha } = RESULTADO
     expect(parseScenarioResult(sinFecha).ok).toBe(false)
   })
 
   it('sin supuestos no entra: el número no puede viajar solo', () => {
-    const { assumptions, ...sinSupuestos } = RESULTADO
+    const { assumptions: _assumptions, ...sinSupuestos } = RESULTADO
     expect(parseScenarioResult(sinSupuestos).ok).toBe(false)
   })
 

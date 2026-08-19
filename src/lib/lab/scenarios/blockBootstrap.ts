@@ -67,7 +67,16 @@ export type BootstrapError =
   | 'invalid_horizon'
   | 'too_many_paths'
 
-/** Tope de trayectorias. Más no mejora el percentil y sí bloquea el navegador. */
+/**
+ * Tope de trayectorias del contrato.
+ *
+ * **No es un tope de interfaz.** Medido en `npm run bench:scenarios`: con 20
+ * activos, 1.000 trayectorias cuestan 378 ms y 10.000 rondan los 3,8 s de
+ * JavaScript bloqueante. Por eso [`ADR-006`](../../../../docs/adr/ADR-006-scenario-persistence-and-execution.md)
+ * establece que **el bootstrap no se expone en pantalla hasta que se ejecute en
+ * un Web Worker**, con cancelación y progreso. El motor está listo; lo que falta
+ * es dónde corre.
+ */
 export const MAX_PATHS = 10_000
 
 export type BootstrapResult =
