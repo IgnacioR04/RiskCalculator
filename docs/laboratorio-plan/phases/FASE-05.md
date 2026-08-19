@@ -53,18 +53,18 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 ## Checklist de tareas
 
-- [ ] LAB-501 — Contratos de escenario
-- [ ] LAB-502 — Migrar estrés determinista actual
-- [ ] LAB-503 — Escenarios históricos
-- [ ] LAB-504 — Flujos, aportaciones y rebalanceo
-- [ ] LAB-505 — Bootstrap por bloques
-- [ ] LAB-506 — Sensibilidad de escenarios
-- [ ] LAB-507 — Biblioteca de escenarios
-- [ ] LAB-508 — UI constructor
-- [ ] LAB-509 — Persistencia cloud de escenarios y runs
-- [ ] LAB-510 — API asíncrona de runs
-- [ ] LAB-511 — Comparar y guardar resultados
-- [ ] LAB-512 — Cierre G5
+- [x] LAB-501 — Contratos de escenario *(2026-08-19)* — sin tipo ni horizonte no existe; con azar, la semilla es obligatoria **en el esquema**
+- [x] LAB-502 — Migrar estrés determinista actual *(2026-08-19)* — envoltorio sin tocar una línea de la aritmética; paridad comprobada preset a preset
+- [x] LAB-503 — Escenarios históricos *(2026-08-19)* — **no se afirma que tuvieras esa cartera entonces**; lo que no tiene historia no se rellena
+- [x] LAB-504 — Flujos, aportaciones y rebalanceo *(2026-08-19)* — orden explícito: la aportación no participa del periodo en que entra
+- [x] LAB-505 — Bootstrap por bloques *(2026-08-19)* — bloques **comunes** a todos los activos, que es lo que conserva la correlación. Motor listo, no expuesto (ADR-006)
+- [x] LAB-506 — Sensibilidad de escenarios *(2026-08-19)* — una variable cada vez: coste lineal, no exponencial
+- [x] LAB-507 — Biblioteca de escenarios *(2026-08-19)* — lo de fábrica se deriva, no se edita; editar lo propio sube su versión
+- [x] LAB-508 — UI constructor *(2026-08-19)* — de la respuesta a sus condiciones; conserva el simulador de aportaciones
+- [x] LAB-509 — Persistencia cloud de escenarios y runs *(2026-08-19)* — **pospuesta**: material reconstruible, y la cartera es el dato más sensible. ADR-006
+- [x] LAB-510 — API asíncrona de runs *(2026-08-19)* — **no se implementa**; lo que hace falta es un Web Worker, no un servidor. ADR-006
+- [x] LAB-511 — Comparar y guardar resultados *(2026-08-19)* — la comparación se **niega** si no vienen de la misma definición y versión
+- [x] LAB-512 — Cierre G5 *(2026-08-19)* — **G5 superada**. `docs/models/scenarios-v1-validation.md`
 
 ---
 

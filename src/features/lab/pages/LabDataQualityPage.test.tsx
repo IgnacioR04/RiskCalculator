@@ -183,7 +183,19 @@ describe('estados de los datos', () => {
   it('manual: un precio introducido a mano se distingue de uno de mercado', () => {
     montar({
       assets: [
-        activo({ manualPrice: { price: '110', currency: 'EUR', updatedAt: '2026-08-10T00:00:00Z' } }),
+        activo({
+          // Fecha **relativa**, no fija: con una fija la prueba caducaba sola.
+          // Escrita el 2026-08-10, pasó a fallar el 2026-08-15, cuando el precio
+          // superó la ventana de frescura y la fila empezó a decir «Antiguo» en
+          // vez de «Manual». Lo que se comprueba aquí es la procedencia, no la
+          // antigüedad —de eso va la prueba de arriba—, así que el precio tiene
+          // que ser reciente siempre.
+          manualPrice: {
+            price: '110',
+            currency: 'EUR',
+            updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
+          },
+        }),
       ],
     })
     expect(within(fila('ACC')).getByText(/Manual/)).toBeInTheDocument()

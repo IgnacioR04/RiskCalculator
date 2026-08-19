@@ -30,7 +30,7 @@ export function SimularPage() {
 
 /**
  * Contenido de Simular, sin decidir dónde vive. El Laboratorio lo reutiliza tal
- * cual desde `LabScenariosLegacyPage`: una sola implementación, resultados
+ * cual desde `LabScenariosPage`: una sola implementación, resultados
  * idénticos en ambas rutas.
  */
 export function SimularContenido(props: { conEncabezado?: boolean }) {

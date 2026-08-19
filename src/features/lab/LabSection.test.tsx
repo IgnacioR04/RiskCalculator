@@ -87,10 +87,22 @@ describe('LabSection · portadas informativas', () => {
     expect(screen.getByText(/versión actual del análisis de riesgo/)).toBeInTheDocument()
   })
 
-  it('Escenarios muestra el simulador actual (LAB-107)', () => {
+  it('Escenarios pasa a ser el motor con supuestos declarados (LAB-508)', () => {
     montarEn(labPath('lab.future.scenarios'))
     expect(screen.queryByText(/todavía no está construido/)).not.toBeInTheDocument()
-    expect(screen.getByText(/versión actual del simulador/)).toBeInTheDocument()
+    // Sin cartera valorada enseña qué hace falta, que es contenido real: un
+    // escenario aplica un supuesto sobre algo, y sin ese algo no hay escenario.
+    expect(screen.getByText('Hace falta una cartera valorada')).toBeInTheDocument()
+  })
+
+  it('Escenarios conserva el simulador de aportaciones (LAB-107)', () => {
+    // `/simular` redirige aquí desde LAB-107. El motor de escenarios no cubre
+    // las aportaciones hipotéticas, así que quitarlo rompería un recorrido que
+    // G1 declaró disponible.
+    montarEn(labPath('lab.future.scenarios'))
+    // El encabezado «Simular» solo sale en su propia ruta; dentro del
+    // Laboratorio el contenido se reconoce por sus tarjetas.
+    expect(screen.getByText('Escenarios de estrés')).toBeInTheDocument()
   })
 
   it('Exposición no es una portada: exposición real y el reparto de siempre (LAB-409)', () => {
