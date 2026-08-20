@@ -71,11 +71,16 @@ export type BootstrapError =
  * Tope de trayectorias del contrato.
  *
  * **No es un tope de interfaz.** Medido en `npm run bench:scenarios`: con 20
- * activos, 1.000 trayectorias cuestan 378 ms y 10.000 rondan los 3,8 s de
- * JavaScript bloqueante. Por eso [`ADR-006`](../../../../docs/adr/ADR-006-scenario-persistence-and-execution.md)
- * establece que **el bootstrap no se expone en pantalla hasta que se ejecute en
- * un Web Worker**, con cancelación y progreso. El motor está listo; lo que falta
- * es dónde corre.
+ * activos, 1.000 trayectorias cuestan 366 ms aquí, y casi todo es reservar el
+ * array de salida, no la aritmética.
+ *
+ * Desde LAB-1014 la pantalla **no usa esta función**: usa `bootstrapOutcome`,
+ * que recorre el mismo muestreo sin materializar las trayectorias —21,9 ms para
+ * ese mismo caso, 222 ms para 10.000— y corre en un Web Worker con cancelación
+ * y progreso, que es la condición que puso
+ * [`ADR-006`](../../../../docs/adr/ADR-006-scenario-persistence-and-execution.md).
+ * Esta se queda como referencia del modelo: es contra ella contra la que se
+ * comprueba que el resumen no ha cambiado lo que se calcula.
  */
 export const MAX_PATHS = 10_000
 

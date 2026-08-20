@@ -22,9 +22,14 @@ import {
   runDeterministicScenario,
 } from '../../../lib/lab/scenarios/deterministicScenario'
 import { scenarioSensitivity } from '../../../lib/lab/scenarios/scenarioSensitivity'
+import { alignReturns } from '../../../lib/lab/scenarios/bootstrapOutcome'
+import { hasDemoHistoricalSeries } from '../../../state/demoHistory'
+import { useStabilityAnalysis } from '../../../lib/lab/stability/useStabilityAnalysis'
 import { SimularContenido } from '../../../pages/SimularPage'
 import { useAppStore } from '../../../state/store'
 import { LabShell } from '../components/LabShell'
+import { BootstrapBlock } from '../scenarios/BootstrapBlock'
+import { useBootstrapRun } from '../scenarios/useBootstrapRun'
 import {
   AssumptionsBlock,
   ContributionsBlock,
@@ -32,6 +37,27 @@ import {
   ScenarioPicker,
   SensitivityBlock,
 } from '../scenarios/ScenarioBlocks'
+
+/**
+ * Longitud del bloque, en días hábiles.
+ *
+ * Un mes de mercado. Es el mismo compromiso que documenta `blockBootstrap`:
+ * suficientemente largo para conservar una racha de volatilidad dentro del
+ * bloque, suficientemente corto para que con un año de historia salgan bloques
+ * distintos y no cuatro trozos siempre iguales. No se ofrece como control: sería
+ * un mando que casi nadie puede juzgar y que cambia el resultado.
+ */
+const BLOQUE_DIAS = 20
+
+/**
+ * Semilla fija.
+ *
+ * Que sea fija es lo que hace comparables dos ejecuciones seguidas: si cambiara
+ * sola, mover el horizonte y ver otro abanico no diría si cambió por el
+ * horizonte o por el azar. Se enseña en pantalla, y con ella el resultado se
+ * reproduce.
+ */
+const SEMILLA = 20260820
 
 export function LabScenariosPage() {
   const store = useAppStore()
@@ -66,6 +92,45 @@ export function LabScenariosPage() {
       sinValorar: conCantidad.filter((p) => p.value === null).map((p) => p.asset.symbol),
     }
   }, [store.assets, store.accounts, store.transactions, store.quotes, store.fxRates, displayCurrency])
+
+  /* ── Bootstrap (LAB-1014) ───────────────────────────────────────────────── */
+
+  const candidatosHistoria = useMemo(
+    () =>
+      store.assets.filter(
+        (a) =>
+          a.assetType !== 'cash' &&
+          posiciones.some((p) => p.assetId === a.id) &&
+          (hasDemoHistoricalSeries(a.id) ||
+            a.providerIds?.['coingecko'] !== undefined ||
+            a.providerIds?.['twelvedata'] !== undefined),
+      ),
+    [store.assets, posiciones],
+  )
+
+  const { loaded, busy: descargando, run: descargar } = useStabilityAnalysis(
+    candidatosHistoria,
+    displayCurrency,
+  )
+
+  const [horizonte, setHorizonte] = useState(252)
+  const [trayectorias, setTrayectorias] = useState(1_000)
+  const bootstrap = useBootstrapRun()
+
+  const historia = useMemo(() => {
+    if (loaded === null || loaded.length === 0) return null
+    const alineado = alignReturns(
+      loaded.map((item) => ({
+        id: item.asset.id,
+        label: item.asset.symbol,
+        returns: item.returns,
+      })),
+    )
+    // El valor va en el mismo orden que las columnas: si se desordenara, cada
+    // activo evolucionaría con la historia de otro y nada fallaría.
+    const porId = new Map(posiciones.map((p) => [p.assetId, Number(p.value)]))
+    return { alineado, values: alineado.ids.map((id) => porId.get(id) ?? 0) }
+  }, [loaded, posiciones])
 
   const analisis = useMemo(() => {
     if (ejecutado === null) return null
@@ -139,6 +204,51 @@ export function LabScenariosPage() {
             elegido tú: dice qué pasaría <em>si</em> ocurriera, no si va a ocurrir.
           </Note>
         </>
+      )}
+
+      {/* El bootstrap por bloques, que hasta LAB-1014 estaba construido y no se
+          enseñaba: ADR-006 exigía worker, cancelación y progreso antes de
+          exponerlo, y hasta ahora no los tenía. */}
+      {candidatosHistoria.length === 0 ? null : historia === null ? (
+        <Card
+          title="Muchos futuros posibles"
+          sub="Remuestreo por bloques de tu propia historia, no una campana de Gauss"
+        >
+          <p className="muted">
+            Hace falta tu historial para remuestrearlo. No se descarga solo: es tráfico de red y
+            tiempo, y esta pantalla funciona sin él.
+          </p>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => void descargar()}
+            disabled={descargando}
+          >
+            {descargando ? 'Descargando…' : 'Descargar historial'}
+          </button>
+        </Card>
+      ) : (
+        <BootstrapBlock
+          state={bootstrap.state}
+          availableDays={historia.alineado.rows.length}
+          horizonDays={horizonte}
+          paths={trayectorias}
+          blockDays={BLOQUE_DIAS}
+          currency={displayCurrency}
+          onHorizonChange={setHorizonte}
+          onPathsChange={setTrayectorias}
+          onCancel={bootstrap.cancel}
+          onRun={() =>
+            bootstrap.run({
+              history: historia.alineado.rows,
+              values: historia.values,
+              blockDays: BLOQUE_DIAS,
+              horizonDays: horizonte,
+              paths: trayectorias,
+              seed: SEMILLA,
+            })
+          }
+        />
       )}
 
       {/* El simulador de siempre sigue aquí: `/simular` redirige a esta ruta

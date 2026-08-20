@@ -268,6 +268,13 @@ export const REASON_CODES: readonly ReasonEntry[] = [
     origin: 'escenarios',
   },
   {
+    code: 'no_value',
+    severity: 'blocking',
+    text: 'La cartera no tiene valor con el que empezar, así que no hay nada que hacer evolucionar.',
+    remediation: 'Añade posiciones con precio, o carga los datos de demostración.',
+    origin: 'escenarios',
+  },
+  {
     code: 'too_many_paths',
     severity: 'blocking',
     text: 'Se han pedido más trayectorias de las que se pueden calcular sin bloquear el navegador.',
