@@ -42,7 +42,7 @@ export default defineConfig({
     // La lista es **exactamente la que publica `deploy-pages.yml`**: probar una
     // combinación distinta de la que se despliega valida un artefacto que nadie
     // va a usar. `deployFlags.test.ts` falla si las tres listas se separan.
-    env: { VITE_LAB_FLAGS: 'labShell,labIpsV2,labStabilityV2,labLookThrough' },
+    env: { VITE_LAB_FLAGS: 'labShell,labIpsV2,labStabilityV2,labLookThrough,labScenarioEngine,labCandidates,labSectorResearch,labNarrativeExplanation' },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     // El build local cabe de sobra aquí; el servidor en sí arranca en ~1 s.
