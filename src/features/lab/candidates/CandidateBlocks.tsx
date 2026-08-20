@@ -16,6 +16,7 @@ import type { CandidateMetrics } from '../../../lib/lab/candidates/evaluateCandi
 import type { FeasibilityReport } from '../../../lib/lab/candidates/constraintFeasibility'
 import type { RobustnessReport } from '../../../lib/lab/candidates/candidateRobustness'
 import type { CoverageIssue } from '../../../lib/lab/candidates/constraintCompiler'
+import { TableWrap } from '../../../components/TableWrap'
 
 const num = (valor: number, decimales = 2) =>
   valor.toFixed(decimales).replace('.', ',')
@@ -88,7 +89,7 @@ export function CandidateComparisonTable(props: ComparisonProps) {
       title="Las alternativas, una al lado de otra"
       sub="Todas medidas con el mismo código y los mismos datos, incluida la tuya"
     >
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data" aria-label="Comparación de carteras candidatas">
           <thead>
             <tr>
@@ -124,7 +125,7 @@ export function CandidateComparisonTable(props: ComparisonProps) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
 
       {props.metrics.some((m) => m.cost === null) && (
         <p className="muted tiny">
@@ -148,7 +149,7 @@ export function WeightsTable(props: ComparisonProps) {
 
   return (
     <Card title="Qué peso tendría cada posición">
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data" aria-label="Pesos por candidata">
           <thead>
             <tr>
@@ -173,7 +174,7 @@ export function WeightsTable(props: ComparisonProps) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
     </Card>
   )
 }
@@ -191,7 +192,7 @@ export function CandidateStabilityPanel(props: { readonly robustness: Robustness
       title="¿Estos pesos son una decisión o son ruido?"
       sub="Qué pasa con la mínima varianza si los datos hubieran salido un poco distintos"
     >
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data" aria-label="Estabilidad de los pesos">
           <thead>
             <tr>
@@ -216,7 +217,7 @@ export function CandidateStabilityPanel(props: { readonly robustness: Robustness
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
 
       {inestables.length > 0 && (
         <Note kind="warning">

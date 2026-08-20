@@ -108,7 +108,7 @@ jobs:
           # rompería el build, apagaría la capacidad sin avisar. Por eso
           # `src/lib/features/deployFlags.test.ts` lee este mismo fichero en CI
           # y falla si un nombre no está en el catálogo.
-          VITE_LAB_FLAGS: labShell,labIpsV2,labStabilityV2,labLookThrough
+          VITE_LAB_FLAGS: labShell,labIpsV2,labStabilityV2,labLookThrough,labScenarioEngine,labCandidates,labSectorResearch,labNarrativeExplanation
 
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 

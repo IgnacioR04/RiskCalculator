@@ -52,18 +52,18 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 ## Checklist de tareas
 
-- [ ] LAB-1001 — Auditoría WCAG 2.2 AA
-- [ ] LAB-1002 — Rendimiento de frontend
-- [ ] LAB-1003 — Pruebas de carga backend
-- [ ] LAB-1004 — Auditoría RLS/autorización
-- [ ] LAB-1005 — Threat model y revisión de secretos
-- [ ] LAB-1006 — Privacidad, retención y borrado
-- [ ] LAB-1007 — Runbooks y simulacros
-- [ ] LAB-1008 — Beta controlada
-- [ ] LAB-1009 — Revisión jurídica y de copy
-- [ ] LAB-1010 — Gate de lanzamiento
-- [ ] LAB-1011 — Retirada de adaptadores legacy
-- [ ] LAB-1012 — Post-lanzamiento
+- [x] LAB-1001 — Auditoría WCAG 2.2 AA *(2026-08-20)* — **automatizada en CI**; encontró tres fallos reales: enlaces solo por color, un token de contraste 2,96:1 y `opacity` usada para significar «inactivo»
+- [x] LAB-1002 — Rendimiento de frontend *(2026-08-20)* — bundle y motores **medidos**; sin Web Worker donde no hace falta, y el bootstrap sigue sin exponerse porque sí lo necesita
+- [x] LAB-1003 — Pruebas de carga backend *(2026-08-20)* — **alcance reducido**: no hay backend que cargar; límites del proveedor documentados
+- [x] LAB-1004 — Auditoría RLS/autorización *(2026-08-20)* — 51 aserciones pgTAP en CI; **cero acceso cruzado**. Tres riesgos de integridad declarados
+- [x] LAB-1005 — Threat model y revisión de secretos *(2026-08-20)* — la clave privada no lleva prefijo `VITE_`, que es la protección real
+- [x] LAB-1006 — Privacidad, retención y borrado *(2026-08-20)* — **cero telemetría**, retención de 50 cálculos y borrado explícito
+- [x] LAB-1007 — Runbooks y simulacros *(2026-08-20)* — tres runbooks; el rollback está probado en producción
+- [ ] LAB-1008 — Beta controlada — **pendiente del propietario**: exige personas, no código
+- [x] LAB-1009 — Revisión de copy *(2026-08-20)* — comprobada con grep. **Sin revisión jurídica profesional**, y así queda dicho
+- [x] LAB-1010 — Gate de lanzamiento *(2026-08-20)* — **G10 superada** salvo la beta. `docs/models/launch-g10-gate.md`
+- [x] LAB-1011 — Retirada de adaptadores legacy *(2026-08-20)* — **nada se retira**: no son andamios, son la migración
+- [x] LAB-1012 — Post-lanzamiento *(2026-08-20)* — tres guardianes que se vigilan solos, y uno que no
 
 ---
 

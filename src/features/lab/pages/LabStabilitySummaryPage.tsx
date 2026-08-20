@@ -44,6 +44,7 @@ import {
   stabilityFindings,
   type StabilityFacts,
 } from '../stability/findings'
+import { TableWrap } from '../../../components/TableWrap'
 
 /** Una cifra grande con su lectura debajo. `null` se dice, no se pinta a cero. */
 function Tarjeta(props: {
@@ -250,7 +251,7 @@ export function LabStabilitySummaryPage() {
               La misma caída máxima medida en ventanas distintas. Si cambia mucho, el número dice
               menos de lo que parece.
             </p>
-            <div className="table-wrap">
+            <TableWrap>
               <table className="data">
                 <thead>
                   <tr>
@@ -274,7 +275,7 @@ export function LabStabilitySummaryPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
           </Card>
 
           <Note>

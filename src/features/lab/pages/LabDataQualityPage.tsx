@@ -38,6 +38,7 @@ import { useAppStore } from '../../../state/store'
 import { AsOfBadge } from '../components/AsOfBadge'
 import { CoverageMeter } from '../components/CoverageMeter'
 import { LabShell } from '../components/LabShell'
+import { TableWrap } from '../../../components/TableWrap'
 
 /**
  * Cómo se dibuja cada estado de campo.
@@ -151,7 +152,7 @@ export function LabDataQualityPage() {
             title="Datos por activo"
             action={<AsOfBadge at={informe.asOf} label="Evaluado" />}
           >
-            <div className="table-wrap">
+            <TableWrap>
               <table className="data">
                 <thead>
                   <tr>
@@ -173,11 +174,11 @@ export function LabDataQualityPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
           </Card>
 
           <Card title="Qué se puede calcular con esto">
-            <div className="table-wrap">
+            <TableWrap>
               <table className="data">
                 <thead>
                   <tr>
@@ -206,7 +207,7 @@ export function LabDataQualityPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
             <p className="muted tiny mb-0">
               Umbrales de la versión {informe.thresholdsVersion}. Están centralizados y
               versionados: un resultado antiguo se puede explicar con los mínimos que regían

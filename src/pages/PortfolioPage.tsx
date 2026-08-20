@@ -48,6 +48,7 @@ import {
 } from '../lib/market/service'
 import { buildPortfolioView, type PortfolioView } from '../lib/portfolio'
 import { useAppStore } from '../state/store'
+import { TableWrap } from '../components/TableWrap'
 
 type PortfolioTab = 'overview' | 'manage'
 
@@ -1202,7 +1203,7 @@ function TransactionsSection() {
 
   return (
     <Card title="Historial de operaciones">
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data">
           <thead>
             <tr><th>Fecha</th><th>Activo</th><th>Movimiento</th><th>Importe</th><th>Comisión</th><th>Unidades</th><th>Calidad</th><th /></tr>
@@ -1236,7 +1237,7 @@ function TransactionsSection() {
             })}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
     </Card>
   )
 }

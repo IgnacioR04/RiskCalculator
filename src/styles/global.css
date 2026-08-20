@@ -973,6 +973,16 @@ td.heatmap-cell {
   gap: var(--space-2);
 }
 
+/*
+ * El modo no seleccionado se atenúa con **color**, no con opacidad.
+ *
+ * `opacity: 0.55` mezclaba el texto con el fondo y hundía el contraste por
+ * debajo del 4,5:1 de WCAG AA: es el uso de la opacidad para significar
+ * «inactivo», que atenúa el píxel sin preguntar si seguía siendo legible.
+ * Aquí se dice qué color tiene el texto inactivo, y ese color pasa AA.
+ *
+ * Lo encontró la auditoría de LAB-1001 en la pantalla de Calculadora.
+ */
 .mode-explainer > div {
   display: flex;
   align-items: center;
@@ -980,13 +990,13 @@ td.heatmap-cell {
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  opacity: 0.55;
+  color: var(--text-secondary);
 }
 
 .mode-explainer > div.active {
-  opacity: 1;
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
+  color: var(--text-primary);
 }
 
 .mode-explainer > div > span {
@@ -1167,6 +1177,25 @@ a {
   text-decoration: none;
 }
 
+/*
+ * Un enlace dentro de un párrafo va subrayado.
+ *
+ * Sin subrayado, lo único que lo distingue del texto que lo rodea es el color,
+ * y eso incumple WCAG 1.4.1: quien no distingue ese color no ve que hay un
+ * enlace. En la navegación no hace falta —ahí la posición y el contexto ya lo
+ * dicen—, pero en medio de una frase sí.
+ *
+ * Lo encontró la auditoría de LAB-1001 en la pantalla de Resumen.
+ */
+p a,
+li a,
+.muted a,
+.meta a,
+span a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 a:hover {
   color: var(--brand-hover);
 }
@@ -1263,14 +1292,26 @@ textarea:focus-visible,
   color: var(--text-secondary);
 }
 
+/*
+ * Texto de signo: se usan las variantes `-text`, no las base.
+ *
+ * `--negative` (#a8455a) y `--positive` (#5aa17f) están pensadas para rellenos,
+ * bordes y series de gráfico. Como color de texto sobre la superficie oscura,
+ * `--negative` da un contraste de 2,96:1, por debajo del 4,5:1 que exige WCAG
+ * AA. Las variantes `--negative-text` y `--positive-text` existen justo para
+ * esto y estaban sin usar aquí.
+ *
+ * Lo encontró la auditoría de LAB-1001, no una revisión visual: a simple vista
+ * el rojo se lee, y ese es el problema de fiarse de que se lea.
+ */
 .positive {
-  color: var(--positive);
+  color: var(--positive-text);
 }
 .negative {
-  color: var(--negative);
+  color: var(--negative-text);
 }
 .warning-text {
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 /* ── Shell ───────────────────────────────────────────────────────────────── */
@@ -2034,6 +2075,18 @@ textarea:focus-visible,
 .table-wrap {
   overflow-x: auto;
   margin: var(--space-3) 0 0;
+}
+
+/*
+ * Cuando la tabla desborda, `TableWrap` la hace enfocable para poder desplazarla
+ * con el teclado. Un foco que no se ve no sirve de nada (WCAG 2.4.7), así que
+ * aquí se dibuja: es el único contenedor de la aplicación que recibe el foco sin
+ * ser un control.
+ */
+.table-wrap:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-control);
 }
 
 table.data {
@@ -3026,7 +3079,12 @@ small {
 
 .lab-context__campo dt {
   font: 400 var(--fs-aux) / 1.4 var(--font-ui);
-  color: var(--text-tertiary);
+  /*
+   * `--text-tertiary` (#7b7f82) da 4,2:1 sobre la superficie, por debajo del
+   * 4,5:1 que exige WCAG AA para texto normal. Se usa `--text-secondary`, que
+   * da 5,4:1. Lo encontró la auditoría de LAB-1001.
+   */
+  color: var(--text-secondary);
 }
 
 .lab-context__campo dd {
@@ -3037,7 +3095,15 @@ small {
 
 /* Un hueco sin dato se ve como hueco: nunca se rellena con un valor falso. */
 .lab-context__pendiente {
-  color: var(--text-disabled);
+  /*
+   * «No disponible» es texto informativo, no un control desactivado, así que no
+   * le alcanza la excepción de WCAG 1.4.3 y tiene que llegar a 4,5:1.
+   * `--text-disabled` (#5e6264) se queda por debajo sobre esta superficie;
+   * `--text-secondary` da 5,4:1. La distinción visual la sigue marcando la
+   * cursiva, que es lo que de verdad separa el hueco del dato real.
+   * Lo encontró la auditoría de LAB-1001.
+   */
+  color: var(--text-secondary);
   font-style: italic;
 }
 

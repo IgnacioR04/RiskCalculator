@@ -22,6 +22,7 @@ import { useAppStore } from '../../../state/store'
 import { DiversificacionContenido } from '../../../pages/DiversificacionPage'
 import { HoldingsEditor } from '../exposure/HoldingsEditor'
 import { LabShell } from '../components/LabShell'
+import { TableWrap } from '../../../components/TableWrap'
 
 export function LabExposurePage() {
   const assets = useAppStore((s) => s.assets)
@@ -119,7 +120,7 @@ export function LabExposurePage() {
           title="Tu exposición real, empresa por empresa"
           sub="Sumando lo que tienes directo y lo que viene dentro de los fondos"
         >
-          <div className="table-wrap">
+          <TableWrap>
             {/* Con nombre: la página tiene varias tablas y un lector de
                 pantalla necesita distinguirlas. */}
             <table className="data" aria-label="Exposición real por empresa">
@@ -163,7 +164,7 @@ export function LabExposurePage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
           {resultado.exposures.length > 25 && (
             <p className="muted tiny mb-0">
               Se muestran las 25 mayores de {resultado.exposures.length}.
@@ -177,7 +178,7 @@ export function LabExposurePage() {
           title="Cuánto se repiten tus fondos entre sí"
           sub="No es que se muevan parecido: es que llevan literalmente lo mismo dentro"
         >
-          <div className="table-wrap">
+          <TableWrap>
             <table className="data" aria-label="Solapamiento entre fondos">
               <thead>
                 <tr>
@@ -205,7 +206,7 @@ export function LabExposurePage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
           <p className="muted tiny mb-0">
             Calculado sobre lo que has declarado de cada fondo, así que es un <strong>suelo</strong>:
             el solape real solo puede ser mayor.

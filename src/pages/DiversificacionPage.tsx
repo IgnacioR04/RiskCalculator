@@ -7,6 +7,7 @@ import { Decimal } from '../lib/finance/decimal'
 import { formatNumber, formatPct } from '../lib/format'
 import { buildPortfolioView } from '../lib/portfolio'
 import { useAppStore } from '../state/store'
+import { TableWrap } from '../components/TableWrap'
 
 type DivTab = 'distribucion' | 'concentracion' | 'solapamientos'
 
@@ -114,7 +115,7 @@ export function DiversificacionContenido(props: { conEncabezado?: boolean }) {
             </Kpi>
           </div>
 
-          <div className="table-wrap">
+          <TableWrap>
             <table className="data">
               <thead>
                 <tr>
@@ -146,7 +147,7 @@ export function DiversificacionContenido(props: { conEncabezado?: boolean }) {
                 })}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
 
           <Note kind="info">
             Son observaciones, no órdenes: una concentración alta no es un error en sí misma, pero conviene que sea una

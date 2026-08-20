@@ -73,7 +73,7 @@ jobs:
           # auditara una combinación distinta de la que se despliega, estaría
           # validando un artefacto que nadie va a usar. `deployFlags.test.ts`
           # falla si las tres listas se separan.
-          VITE_LAB_FLAGS: labShell,labIpsV2,labStabilityV2,labLookThrough
+          VITE_LAB_FLAGS: labShell,labIpsV2,labStabilityV2,labLookThrough,labScenarioEngine,labCandidates,labSectorResearch,labNarrativeExplanation
 
       # El tamaño crece de uno en uno y nadie parece culpable. Esto avisa del
       # salto grande, no congela el bundle (LAB-008).

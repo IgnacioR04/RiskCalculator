@@ -16,6 +16,7 @@ import type {
   ScenarioResult,
 } from '../../../lib/lab/scenarios/contracts'
 import type { SensitivityResult } from '../../../lib/lab/scenarios/scenarioSensitivity'
+import { TableWrap } from '../../../components/TableWrap'
 
 const signo = (valor: number) => (valor > 0 ? '+' : '')
 
@@ -140,7 +141,7 @@ export function ContributionsBlock(props: { readonly result: ScenarioResult }) {
 
   return (
     <Card title="De dónde sale el golpe" sub="Cuánto aporta cada posición al cambio total">
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data" aria-label="Contribución al cambio">
           <thead>
             <tr>
@@ -165,7 +166,7 @@ export function ContributionsBlock(props: { readonly result: ScenarioResult }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
     </Card>
   )
 }
@@ -189,7 +190,7 @@ export function SensitivityBlock(props: { readonly sensitivity: SensitivityResul
       title="Qué supuesto manda"
       sub="Cuánto cambia el resultado si mueves cada supuesto por separado"
     >
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data" aria-label="Sensibilidad a los supuestos">
           <thead>
             <tr>
@@ -220,7 +221,7 @@ export function SensitivityBlock(props: { readonly sensitivity: SensitivityResul
             })}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
 
       {drivers[0] !== undefined && (
         <p className="muted tiny">

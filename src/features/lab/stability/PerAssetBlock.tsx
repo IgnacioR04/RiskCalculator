@@ -10,6 +10,7 @@
  */
 import { formatPct } from '../../../lib/format'
 import type { AssetMetricRow, BenchmarkRow } from './contracts'
+import { TableWrap } from '../../../components/TableWrap'
 
 function num(valor: number | null, decimales = 2): string {
   return valor === null ? '—' : valor.toFixed(decimales)
@@ -30,7 +31,7 @@ export function PerAssetBlock(props: PerAssetBlockProps) {
       <p className="card-sub">
         Volatilidad y caída máxima del periodo, con la fuente de cada serie.
       </p>
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data">
           <thead>
             <tr>
@@ -64,7 +65,7 @@ export function PerAssetBlock(props: PerAssetBlockProps) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
 
       <details className="disclose mt-3">
         <summary>Beta y alpha frente a un benchmark</summary>
@@ -84,7 +85,7 @@ export function PerAssetBlock(props: PerAssetBlockProps) {
             </select>
           </div>
           {props.benchmarkRows.length > 0 && (
-            <div className="table-wrap">
+            <TableWrap>
               <table className="data">
                 <thead>
                   <tr>
@@ -110,7 +111,7 @@ export function PerAssetBlock(props: PerAssetBlockProps) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
           )}
         </div>
       </details>

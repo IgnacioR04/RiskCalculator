@@ -26,6 +26,7 @@ import {
   toMarkdown,
 } from '../../../lib/lab/evidence/exportRun'
 import { LabShell } from '../components/LabShell'
+import { TableWrap } from '../../../components/TableWrap'
 
 const ETIQUETA_TIPO: Readonly<Record<string, string>> = {
   stability: 'Estabilidad',
@@ -76,7 +77,7 @@ export function LabRunsPage() {
         title="Lo que has calculado"
         sub="Abrir uno no lo recalcula: es lo que salió entonces, con los datos de entonces"
       >
-        <div className="table-wrap">
+        <TableWrap>
           <table className="data" aria-label="Historial de cálculos">
             <thead>
               <tr>
@@ -110,7 +111,7 @@ export function LabRunsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
       </Card>
 
       {seleccionado !== null && <DetalleRun run={seleccionado} />}
@@ -145,7 +146,7 @@ function DetalleRun(props: { readonly run: LabRun }) {
       title={`${ETIQUETA_TIPO[run.kind] ?? run.kind} · ${run.asOf}`}
       sub={`Modelo ${run.modelVersion}, calculado el ${run.createdAt.slice(0, 10)}`}
     >
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data" aria-label={`Detalle del cálculo ${run.id}`}>
           <thead>
             <tr>
@@ -178,7 +179,7 @@ function DetalleRun(props: { readonly run: LabRun }) {
               ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
 
       <div className="controles-fila">
         <button

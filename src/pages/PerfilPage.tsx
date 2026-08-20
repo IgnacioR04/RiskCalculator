@@ -10,6 +10,7 @@ import { providerStatus } from '../lib/market/service'
 import { authRedirectUrl, getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { pullFromCloud, pushToCloud, signOutAndClearCloudSession } from '../lib/sync'
 import { useAppStore } from '../state/store'
+import { TableWrap } from '../components/TableWrap'
 
 /** Cuestionario de perfil: exactamente cinco preguntas (especificación). */
 const RISK_QUESTIONS = [
@@ -197,7 +198,7 @@ export function PerfilPage() {
       <RiskResultsCard />
 
       <Card title="Proveedores de datos de mercado">
-        <div className="table-wrap">
+        <TableWrap>
           <table className="data">
             <thead>
               <tr>
@@ -214,7 +215,7 @@ export function PerfilPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
         <p className="muted mb-0">
           Twelve Data requiere desplegar el proxy seguro (Supabase Edge Function) con la clave en el
           servidor; nunca se pone la clave en el navegador. Ver docs/DATA_SOURCES.md.
@@ -585,7 +586,7 @@ function RiskResultsCard() {
           Todavía no hay cálculos guardados desde la calculadora.
         </p>
       ) : (
-        <div className="table-wrap">
+        <TableWrap>
           <table className="data">
             <thead>
               <tr>
@@ -614,7 +615,7 @@ function RiskResultsCard() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
       )}
     </Card>
   )

@@ -78,11 +78,15 @@ describe('el despliegue declara qué capacidades publica', () => {
   })
 
   it('no se publica ninguna capacidad de una fase que no se ha empezado', () => {
-    // Freno de mano, no política: las fases 5 a 9 no tienen pantalla construida
-    // y encender su capacidad solo publicaría portadas de «todavía no está
-    // construido». Cuando una de esas fases llegue, esta prueba y la lista del
-    // workflow se cambian a la vez y en el mismo diff.
-    const FASE_MAXIMA_CONSTRUIDA = 4
+    // Freno de mano, no política: encender la capacidad de una fase sin pantalla
+    // solo publicaría portadas de «todavía no está construido». Esta prueba y la
+    // lista del workflow se cambian **a la vez y en el mismo diff**, que es el
+    // momento de mirar si de verdad hay algo que enseñar.
+    //
+    // Subido a 9 al cerrar el plan: las fases 5, 6, 7 y 9 tienen pantalla. La 8
+    // (empresas) sigue sin construir y su capacidad sigue apagada — el plan la
+    // marca como opcional y bloqueada por defecto.
+    const FASE_MAXIMA_CONSTRUIDA = 9
     const publicadas = [...parseLabFlags(valorEnElWorkflow()).enabled] as LabFeature[]
 
     for (const capacidad of publicadas) {
@@ -91,5 +95,14 @@ describe('el despliegue declara qué capacidades publica', () => {
         `${capacidad} pertenece a la fase ${LAB_FEATURES[capacidad].phase}`,
       ).toBeLessThanOrEqual(FASE_MAXIMA_CONSTRUIDA)
     }
+  })
+})
+
+describe('la fase 8 sigue apagada, y es deliberado', () => {
+  it('`labCompanyResearch` no se publica', () => {
+    // El plan la marca como opcional y bloqueada por defecto, y `CLAUDE.md` §3
+    // prohíbe activar sugerencias de empresas hasta superar las puertas de
+    // calidad. No hay pantalla construida: encenderla publicaría una portada.
+    expect(parseLabFlags(valorEnElWorkflow()).enabled.has('labCompanyResearch')).toBe(false)
   })
 })

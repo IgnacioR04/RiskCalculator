@@ -12,6 +12,7 @@ import { formatDateTime, formatMoney, formatQty } from '../lib/format'
 import { dec } from '../lib/finance/decimal'
 import { uid } from '../lib/domain'
 import { useAppStore } from '../state/store'
+import { TableWrap } from '../components/TableWrap'
 
 type ImportMode = 'create' | 'update'
 
@@ -271,7 +272,7 @@ export function ImportarPage() {
           )}
 
           {proposal.transactions.length > 0 && (
-            <div className="table-wrap">
+            <TableWrap>
               <table className="data">
                 <thead>
                   <tr>
@@ -308,7 +309,7 @@ export function ImportarPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
           )}
 
           {store.demoLoaded && (
