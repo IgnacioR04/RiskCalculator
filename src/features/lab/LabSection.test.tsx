@@ -27,7 +27,8 @@ const RUTAS_ESTATICAS = LAB_ROUTE_IDS.filter((id) => LAB_ROUTES[id].param === un
 
 describe('LabSection · navegación directa', () => {
   it('cada ruta estática se abre por su URL y muestra su título', () => {
-    expect(RUTAS_ESTATICAS).toHaveLength(14)
+    // Quince desde LAB-905, que añade el historial de cálculos.
+    expect(RUTAS_ESTATICAS).toHaveLength(15)
     for (const id of RUTAS_ESTATICAS) {
       const { unmount } = montarEn(labPath(id))
       expect(

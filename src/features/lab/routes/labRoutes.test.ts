@@ -30,13 +30,14 @@ const RUTAS_DEL_DOCUMENTO: Readonly<Record<LabRouteId, string>> = {
   'lab.future.candidates': '/laboratorio/futuro/candidatas',
   'lab.future.sectors': '/laboratorio/futuro/sectores',
   'lab.future.companies': '/laboratorio/futuro/empresas',
+  'lab.runs': '/laboratorio/runs',
   'lab.run': '/laboratorio/runs/:runId',
   'lab.comparison': '/laboratorio/comparaciones/:id',
 }
 
 describe('catálogo de rutas', () => {
   it('reproduce exactamente el mapa del documento de producto', () => {
-    expect(LAB_ROUTE_IDS).toHaveLength(16)
+    expect(LAB_ROUTE_IDS).toHaveLength(17)
     for (const id of LAB_ROUTE_IDS) {
       expect(LAB_ROUTES[id].path).toBe(RUTAS_DEL_DOCUMENTO[id])
     }
@@ -151,6 +152,7 @@ describe('jerarquía y áreas', () => {
     expect(labChildren('lab.home').map((r) => r.id)).toEqual([
       'lab.stability',
       'lab.future',
+      'lab.runs',
       'lab.run',
       'lab.comparison',
     ])
