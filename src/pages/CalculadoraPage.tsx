@@ -21,6 +21,7 @@ import type { Currency } from '../lib/format'
 import { formatMoney, formatPct, formatQty, parseUserNumber } from '../lib/format'
 import { uid } from '../lib/domain'
 import { useAppStore } from '../state/store'
+import { TableWrap } from '../components/TableWrap'
 
 type Mode = 'restore' | 'breakeven'
 
@@ -491,7 +492,7 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
           </Card>
 
           <Card title="Tabla de escenarios">
-            <div className="table-wrap">
+            <TableWrap>
               <table className="data">
                 <thead>
                   <tr>
@@ -517,7 +518,7 @@ function RestoreCalculator({ currency }: { currency: Currency }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
           </Card>
 
           <Note kind="info">
@@ -974,7 +975,7 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
                   />
                 </Stat>
               </div>
-              <div className="table-wrap">
+              <TableWrap>
                 <table className="data">
                   <caption className="sr-only">Desglose del resultado con tu presupuesto</caption>
                   <tbody>
@@ -1019,7 +1020,7 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
                     </tr>
                   </tbody>
                 </table>
-              </div>
+              </TableWrap>
             </Card>
           )}
 
@@ -1049,7 +1050,7 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
           )}
 
           <Card title="Tabla de escenarios">
-            <div className="table-wrap">
+            <TableWrap>
               <table className="data">
                 <thead>
                   <tr>
@@ -1094,7 +1095,7 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
           </Card>
 
           <Card title="Comparador de aportaciones">
@@ -1109,7 +1110,7 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
               />
             </div>
             {comparatorResults.length > 0 && (
-              <div className="table-wrap">
+              <TableWrap>
                 <table className="data">
                   <thead>
                     <tr>
@@ -1146,7 +1147,7 @@ function BreakevenCalculator({ currency }: { currency: Currency }) {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableWrap>
             )}
           </Card>
         </>

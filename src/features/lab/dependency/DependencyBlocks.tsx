@@ -13,6 +13,7 @@ import {
 } from '../../../lib/lab/dependency/dependencyClustering'
 import type { DependencyCell, DependencyMatrix } from '../../../lib/lab/dependency/dependencyMatrix'
 import type { DownsideDependency } from '../../../lib/lab/dependency/rollingDependency'
+import { TableWrap } from '../../../components/TableWrap'
 
 const pct = (valor: number) => `${(valor * 100).toFixed(0)}`
 const num = (valor: number) => valor.toFixed(2).replace('.', ',')
@@ -105,7 +106,7 @@ export function PairsBlock(props: PairsBlockProps) {
       title="Los que más se mueven juntos"
       sub="Cada pareja con su propia muestra: no se recorta el historial de todas por culpa de una"
     >
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data" aria-label="Parejas más correlacionadas">
           <thead>
             <tr>
@@ -134,7 +135,7 @@ export function PairsBlock(props: PairsBlockProps) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       {props.unavailablePairs > 0 && (
         <p className="muted tiny mb-0">
           {props.unavailablePairs}{' '}
@@ -174,7 +175,7 @@ export function DownsideBlock(props: DownsideBlockProps) {
       title="Qué pasa cuando el mercado cae"
       sub="La diversificación tiende a desaparecer justo cuando hace falta"
     >
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data" aria-label="Dependencia en días de caída">
           <thead>
             <tr>
@@ -200,7 +201,7 @@ export function DownsideBlock(props: DownsideBlockProps) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
 
       {/* La definición nunca viaja lejos del número: sin ella no significa nada. */}
       <p className="muted tiny">{conDato[0]!.condition}</p>

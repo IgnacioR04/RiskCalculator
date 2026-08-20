@@ -8,6 +8,7 @@ import { targetPriceWithBudget } from '../lib/finance/recovery'
 import { formatDateTime, formatMoney, formatPct, parseUserNumber } from '../lib/format'
 import { buildPortfolioView } from '../lib/portfolio'
 import { useAppStore } from '../state/store'
+import { TableWrap } from '../components/TableWrap'
 
 const INPUT_LABEL: Record<string, string> = {
   referenceValue: 'Valor de referencia',
@@ -254,7 +255,7 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
               )}
             </Stat>
           </div>
-          <div className="table-wrap">
+          <TableWrap>
             <table className="data">
               <thead>
                 <tr>
@@ -284,7 +285,7 @@ function StressSection({ positions }: { positions: StressPosition[] }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
           <Note kind="info">
             Resultado determinista del shock configurado, no una predicción. Concentración (peso
             máximo): antes{' '}
@@ -449,7 +450,7 @@ function SavedScenariosSection() {
                 {s.mode === 'restore' ? 'Restaurar valor inicial' : 'Punto de equilibrio real'} ·
                 guardado el {formatDateTime(s.createdAt)} · importes en {s.currency}
               </p>
-              <div className="table-wrap">
+              <TableWrap>
                 <table className="data">
                   <tbody>
                     {Object.entries(s.inputs).map(([key, value]) => (
@@ -460,7 +461,7 @@ function SavedScenariosSection() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableWrap>
               <div className="row">
                 <Link to="/calculadora" className="btn small">
                   Recalcular en la calculadora

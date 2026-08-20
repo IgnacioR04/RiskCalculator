@@ -2077,6 +2077,18 @@ textarea:focus-visible,
   margin: var(--space-3) 0 0;
 }
 
+/*
+ * Cuando la tabla desborda, `TableWrap` la hace enfocable para poder desplazarla
+ * con el teclado. Un foco que no se ve no sirve de nada (WCAG 2.4.7), así que
+ * aquí se dibuja: es el único contenedor de la aplicación que recibe el foco sin
+ * ser un control.
+ */
+.table-wrap:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-control);
+}
+
 table.data {
   width: 100%;
   border-collapse: collapse;
@@ -3083,7 +3095,15 @@ small {
 
 /* Un hueco sin dato se ve como hueco: nunca se rellena con un valor falso. */
 .lab-context__pendiente {
-  color: var(--text-disabled);
+  /*
+   * «No disponible» es texto informativo, no un control desactivado, así que no
+   * le alcanza la excepción de WCAG 1.4.3 y tiene que llegar a 4,5:1.
+   * `--text-disabled` (#5e6264) se queda por debajo sobre esta superficie;
+   * `--text-secondary` da 5,4:1. La distinción visual la sigue marcando la
+   * cursiva, que es lo que de verdad separa el hueco del dato real.
+   * Lo encontró la auditoría de LAB-1001.
+   */
+  color: var(--text-secondary);
   font-style: italic;
 }
 

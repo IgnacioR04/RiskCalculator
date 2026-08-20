@@ -4,6 +4,7 @@ import { getQuoteForMatch, searchAssets } from '../lib/market/service'
 import type { AssetMatch } from '../lib/market/provider'
 import { formatMoney } from '../lib/format'
 import { Note } from './ui'
+import { TableWrap } from './TableWrap'
 
 /**
  * Buscador de instrumento con lupa. Al elegir un resultado intenta traer el
@@ -101,7 +102,7 @@ export function TickerSearch(props: {
       {message !== null && <Note kind={message.kind}>{message.text}</Note>}
 
       {results !== null && results.length > 0 && (
-        <div className="table-wrap" style={{ marginTop: 'var(--space-2)' }}>
+        <TableWrap style={{ marginTop: 'var(--space-2)' }}>
           <table className="data">
             <thead>
               <tr>
@@ -134,7 +135,7 @@ export function TickerSearch(props: {
               })}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
       )}
     </div>
   )

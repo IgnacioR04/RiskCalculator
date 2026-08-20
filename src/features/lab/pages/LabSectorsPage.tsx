@@ -31,6 +31,7 @@ import { useStabilityAnalysis } from '../../../lib/lab/stability/useStabilityAna
 import { hasDemoHistoricalSeries } from '../../../state/demoHistory'
 import { useAppStore } from '../../../state/store'
 import { LabShell } from '../components/LabShell'
+import { TableWrap } from '../../../components/TableWrap'
 
 const ETIQUETA: Readonly<Record<string, { texto: string; clase: string }>> = {
   aporta_algo_distinto: { texto: 'Aporta algo distinto', clase: 'positive' },
@@ -231,7 +232,7 @@ export function LabSectorsPage() {
           title="Tus sectores, comparados con tu cartera"
           sub={`Evaluado con un peso hipotético del ${formatPct(compatibilidad.resultado.testWeight, 0)}`}
         >
-          <div className="table-wrap">
+          <TableWrap>
             <table className="data" aria-label="Compatibilidad de sectores con la cartera">
               <thead>
                 <tr>
@@ -269,7 +270,7 @@ export function LabSectorsPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
 
           <Note>{compatibilidad.resultado.limitations.join(' ')}</Note>
           <Note kind="info">{compatibilidad.resultado.disclaimer}</Note>

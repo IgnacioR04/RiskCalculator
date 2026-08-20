@@ -14,6 +14,7 @@ import { useId, useState } from 'react'
 import { Card, Note } from '../../../components/ui'
 import type { Asset, AssetHolding } from '../../../lib/domain'
 import { useAppStore } from '../../../state/store'
+import { TableWrap } from '../../../components/TableWrap'
 
 export interface HoldingsEditorProps {
   readonly asset: Asset
@@ -87,7 +88,7 @@ export function HoldingsEditor(props: HoldingsEditorProps) {
         </Note>
       ) : (
         <>
-          <div className="table-wrap">
+          <TableWrap>
             <table className="data" aria-label={`Posiciones declaradas de ${props.asset.symbol}`}>
               <thead>
                 <tr>
@@ -119,7 +120,7 @@ export function HoldingsEditor(props: HoldingsEditorProps) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
           <p className="muted tiny">
             Llevas declarado el <strong>{(cubierto * 100).toFixed(1).replace('.', ',')} %</strong>{' '}
             del fondo. El resto se contará como no mirado: no se reparte a ojo entre lo que sí has

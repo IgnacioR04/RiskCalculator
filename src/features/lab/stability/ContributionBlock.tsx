@@ -7,6 +7,7 @@
 import { formatPct } from '../../../lib/format'
 import { RiskContributionChart } from '../../../components/charts/RiskContributionChart'
 import type { ContributionRow } from './contracts'
+import { TableWrap } from '../../../components/TableWrap'
 
 /** A partir de dos puntos de diferencia se colorea; por debajo es ruido. */
 const UMBRAL = 0.02
@@ -22,7 +23,7 @@ export function ContributionBlock(props: { readonly rows: readonly ContributionR
       <RiskContributionChart
         data={props.rows.map((row) => ({ label: row.symbol, contribution: row.contribution }))}
       />
-      <div className="table-wrap">
+      <TableWrap>
         <table className="data">
           <thead>
             <tr>
@@ -55,7 +56,7 @@ export function ContributionBlock(props: { readonly rows: readonly ContributionR
             })}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       <p className="meta mb-0">En rojo, aporta más riesgo del que pesa. En verde, amortigua.</p>
     </section>
   )
