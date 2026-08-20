@@ -23,21 +23,40 @@ const OBJETIVO_POR_FASE: Readonly<Record<number, string>> = {
   9: 'las explicaciones y la trazabilidad',
 }
 
-export function LabPlaceholderPage(props: { routeId: LabRouteId }) {
+export function LabPlaceholderPage(props: {
+  routeId: LabRouteId
+  /**
+   * La pantalla existe pero su capacidad no está publicada. Distinguirlo
+   * importa: decirle «todavía no está construido» a quien tiene la pantalla
+   * apagada por una vuelta atrás sería falso, y le haría esperar una fase que
+   * ya llegó.
+   */
+  construida?: boolean
+}) {
   const ruta = LAB_ROUTES[props.routeId]
   // La fase la declara el catálogo de capacidades: aquí no se duplica.
   const fase = ruta.feature === undefined ? null : LAB_FEATURES[ruta.feature].phase
   const objetivo = fase === null ? undefined : OBJETIVO_POR_FASE[fase]
+  const apagada = props.construida === true
 
   return (
     <LabShell routeId={props.routeId}>
       <div className="lab-placeholder">
-        <p>{ruta.title} todavía no está construido.</p>
-        {objetivo !== undefined && (
+        <p>
+          {ruta.title} {apagada ? 'no está disponible en esta versión.' : 'todavía no está construido.'}
+        </p>
+        {apagada ? (
           <p className="muted">
-            Esta pantalla llega con {objetivo}. Hasta entonces no se muestra ningún dato
-            aquí, porque cualquier cifra sería inventada.
+            La capacidad que la publica está apagada. No es un problema de tus datos ni de
+            tu cartera.
           </p>
+        ) : (
+          objetivo !== undefined && (
+            <p className="muted">
+              Esta pantalla llega con {objetivo}. Hasta entonces no se muestra ningún dato
+              aquí, porque cualquier cifra sería inventada.
+            </p>
+          )
         )}
       </div>
     </LabShell>

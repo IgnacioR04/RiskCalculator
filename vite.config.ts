@@ -37,6 +37,23 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
     /*
+     * Las pruebas de componente ejercitan **la combinación que se publica**.
+     *
+     * Antes de LAB-1013 daba igual, porque nadie leía el campo `feature` de las
+     * rutas: la suite corría sin esta variable y aun así veía todas las
+     * pantallas. Ahora que apagar una capacidad la oculta de verdad, correr sin
+     * variable significaría probar una aplicación que nadie usa.
+     *
+     * La lista es la misma que `deploy-pages.yml`, `ci.yml` y
+     * `playwright.config.ts`, y `src/lib/features/deployFlags.test.ts` falla si
+     * este archivo se separa de los otros tres. Una prueba concreta que quiera
+     * la capacidad apagada usa `vi.stubEnv`, que es lo correcto: lo declara.
+     */
+    env: {
+      VITE_LAB_FLAGS:
+        'labShell,labIpsV2,labStabilityV2,labLookThrough,labScenarioEngine,labCandidates,labSectorResearch,labNarrativeExplanation',
+    },
+    /*
      * El umbral por defecto de Vitest son 5 s, pensados para pruebas de lógica
      * pura. Esta suite incluye pruebas de componente, y la primera de cada
      * archivo absorbe un coste único de arranque: el primer render de React y
