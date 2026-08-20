@@ -19,6 +19,7 @@ import { LabHomePage } from './pages/LabHomePage'
 import { LabStabilitySummaryPage } from './pages/LabStabilitySummaryPage'
 import { LabRiskLegacyPage } from './pages/LabRiskLegacyPage'
 import { LabScenariosPage } from './pages/LabScenariosPage'
+import { LabCandidatesPage } from './pages/LabCandidatesPage'
 import { LAB_ROUTE_IDS, LAB_ROUTES, labRelativePath, type LabRouteId } from './routes/labRoutes'
 
 /**
@@ -33,6 +34,7 @@ const PANTALLAS: Partial<Record<LabRouteId, ReactElement>> = {
   'lab.stability.exposure': <LabExposurePage />,
   'lab.stability.dependence': <LabDependencyPage />,
   'lab.future.scenarios': <LabScenariosPage />,
+  'lab.future.candidates': <LabCandidatesPage />,
 }
 
 export function LabSection() {
