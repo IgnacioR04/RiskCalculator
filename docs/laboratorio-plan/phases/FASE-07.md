@@ -53,22 +53,22 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 ## Checklist de tareas
 
-- [ ] LAB-701 — ADR de universo y señales
-- [ ] LAB-702 — Registro de modelos
-- [ ] LAB-703 — Universo point-in-time
-- [ ] LAB-704 — Feature store sectorial
-- [ ] LAB-705 — Implementar señal 1
-- [ ] LAB-706 — Implementar señal 2
-- [ ] LAB-707 — Señal de diversificación marginal
-- [ ] LAB-708 — Normalización y combinación
-- [ ] LAB-709 — Motor de backtest walk-forward
-- [ ] LAB-710 — Informe de validación sectorial
-- [ ] LAB-711 — Jobs de cálculo y publicación
-- [ ] LAB-712 — API de compatibilidad sector-cartera
-- [ ] LAB-713 — UI Sectores
-- [ ] LAB-714 — Estado «sin candidato»
-- [ ] LAB-715 — Monitorización de señal
-- [ ] LAB-716 — Cierre G7
+- [x] LAB-701 — ADR de universo y señales *(2026-08-20)* — **el precio de un ETF sectorial no está licenciado, la taxonomía sí**. Universo declarado por el usuario. ADR-008
+- [x] LAB-702 — Registro de modelos *(2026-08-20)* — una sola versión activa; **retirar no es borrar**
+- [x] LAB-703 — Universo point-in-time *(2026-08-20)* — una consulta a fecha no usa miembros futuros
+- [x] LAB-704 — Feature store sectorial *(2026-08-20)* — tres fechas por dato; una corrección no sobrescribe
+- [x] LAB-705 — Momentum 12-1 *(2026-08-20)* — en `draft`: no se puede calcular con el historial disponible
+- [x] LAB-706 — Momentum ajustado por volatilidad *(2026-08-20)* — en `draft`, por el mismo motivo
+- [x] LAB-707 — Diversificación marginal *(2026-08-20)* — **activa**: no predice nada, describe la cartera de hoy
+- [x] LAB-708 — Normalización y combinación *(2026-08-20)* — rangos y no z-scores; el peso que falta no se redistribuye
+- [x] LAB-709 — Motor de backtest walk-forward *(2026-08-20)* — el veredicto **empieza por la muestra**
+- [x] LAB-710 — Informe de validación sectorial *(2026-08-20)* — **decide la fase: no se publica ranking**. `docs/models/sector-signals-v1-validation.md`
+- [x] LAB-711 — Jobs de cálculo y publicación *(2026-08-20)* — **no aplica**: no hay nada que publicar y la arquitectura es local. La separación existe como estado del registro
+- [x] LAB-712 — API de compatibilidad sector-cartera *(2026-08-20)* — lo único que la fase publica
+- [x] LAB-713 — UI Sectores *(2026-08-20)* — explica **por qué no hay ranking**, con la aritmética delante
+- [x] LAB-714 — Estado «sin candidato» *(2026-08-20)* — es el estado principal de la pantalla, no un caso raro
+- [x] LAB-715 — Monitorización de señal *(2026-08-20)* — **reducida y automatizada**: `dataSufficiency.test.ts` falla el día que haya datos suficientes
+- [x] LAB-716 — Cierre G7 *(2026-08-20)* — **G7 superada**. `docs/models/sectors-g7-gate.md`
 
 ---
 
