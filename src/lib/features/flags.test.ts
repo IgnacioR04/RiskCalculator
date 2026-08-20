@@ -59,8 +59,14 @@ describe('default seguro', () => {
   })
 
   it('ninguna capacidad está activa por defecto', () => {
+    // La variable se declara vacía a propósito. Antes esta prueba se apoyaba en
+    // que el entorno de la suite no la definiera, y eso dejó de ser cierto al
+    // pasar las pruebas a correr con la lista que se publica: comprobaba el
+    // entorno en vez de la regla. La regla es que **la ausencia no activa
+    // nada**, y para comprobarla hay que provocar la ausencia.
+    vi.stubEnv(FLAGS_ENV_VAR, '')
     for (const nombre of TODAS) {
-      expect(isFeatureEnabled(nombre, undefined as unknown as string)).toBe(false)
+      expect(isFeatureEnabled(nombre)).toBe(false)
     }
   })
 })

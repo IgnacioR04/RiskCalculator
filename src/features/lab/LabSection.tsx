@@ -24,6 +24,7 @@ import { LabRepairPage } from './pages/LabRepairPage'
 import { LabSectorsPage } from './pages/LabSectorsPage'
 import { LabRunsPage } from './pages/LabRunsPage'
 import { LAB_ROUTE_IDS, LAB_ROUTES, labRelativePath, type LabRouteId } from './routes/labRoutes'
+import { isFeatureEnabled } from '../../lib/features/flags'
 
 /**
  * Pantallas ya migradas. El resto muestra su portada informativa hasta que su
@@ -43,15 +44,33 @@ const PANTALLAS: Partial<Record<LabRouteId, ReactElement>> = {
   'lab.runs': <LabRunsPage />,
 }
 
+/**
+ * Una pantalla se muestra si está construida **y** su capacidad está publicada.
+ *
+ * Hasta LAB-1013 el campo `feature` del catálogo de rutas estaba declarado y no
+ * lo leía nadie: apagar `labLookThrough` no ocultaba Exposición, así que la
+ * lista de capacidades del despliegue decía una cosa y la aplicación hacía
+ * otra. Aquí se hace cumplir, que es lo que hace reversible encender una
+ * capacidad: si algo sale mal en producción, apagarla en `deploy-pages.yml`
+ * ahora basta de verdad.
+ *
+ * Las rutas siguen montadas y siguen siendo navegables: la portada informativa
+ * es un estado vacío honesto, y borrar el enlace dejaría al usuario con un 404
+ * en un sitio donde ayer había algo.
+ */
+function pantallaDe(id: LabRouteId) {
+  const construida = PANTALLAS[id]
+  const capacidad = LAB_ROUTES[id].feature
+  const publicada = capacidad === undefined || isFeatureEnabled(capacidad)
+  if (construida !== undefined && publicada) return construida
+  return <LabPlaceholderPage routeId={id} construida={construida !== undefined} />
+}
+
 export function LabSection() {
   return (
     <Routes>
       {LAB_ROUTE_IDS.map((id) => (
-        <Route
-          key={id}
-          path={labRelativePath(id)}
-          element={PANTALLAS[id] ?? <LabPlaceholderPage routeId={id} />}
-        />
+        <Route key={id} path={labRelativePath(id)} element={pantallaDe(id)} />
       ))}
       {/* Una subruta desconocida vuelve a la portada del Laboratorio, no a la
           de la aplicación: el usuario sigue donde quería estar. */}

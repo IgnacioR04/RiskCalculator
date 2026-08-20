@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LabSection } from './LabSection'
 import { LAB_ROUTES, LAB_ROUTE_IDS, labPath, type LabRouteId } from './routes/labRoutes'
 
@@ -130,5 +130,53 @@ describe('LabSection · portadas informativas', () => {
       expect(screen.getByRole('region', { name: 'Contexto del análisis' })).toBeInTheDocument()
       unmount()
     }
+  })
+})
+
+describe('LabSection · la capacidad declarada se hace cumplir (LAB-1013)', () => {
+  // `vi.stubEnv` es estado global: se restaura siempre.
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  const EXPOSICION = labPath('lab.stability.exposure')
+
+  it('con la capacidad publicada se muestra la pantalla real', () => {
+    vi.stubEnv('VITE_LAB_FLAGS', 'labShell,labLookThrough')
+    montarEn(EXPOSICION)
+    expect(screen.queryByText(/no está disponible en esta versión/)).not.toBeInTheDocument()
+  })
+
+  it('con la capacidad apagada se muestra la portada, no la pantalla', () => {
+    // Este era el hueco: el campo `feature` estaba declarado en el catálogo de
+    // rutas y no lo leía nadie, así que apagar `labLookThrough` en el workflow
+    // no ocultaba nada. La lista de capacidades del despliegue decía una cosa y
+    // la aplicación hacía otra.
+    vi.stubEnv('VITE_LAB_FLAGS', 'labShell')
+    montarEn(EXPOSICION)
+    expect(screen.getByText(/no está disponible en esta versión/)).toBeInTheDocument()
+  })
+
+  it('la ruta sigue montada y con su shell: apagar no es un 404', () => {
+    vi.stubEnv('VITE_LAB_FLAGS', 'labShell')
+    montarEn(EXPOSICION)
+    expect(screen.getByTestId('ruta-actual')).toHaveTextContent(EXPOSICION)
+    expect(
+      screen.getByRole('heading', { level: 1, name: LAB_ROUTES['lab.stability.exposure'].title }),
+    ).toBeInTheDocument()
+  })
+
+  it('una pantalla que aún no existe sigue diciendo que no está construida', () => {
+    // No es lo mismo «apagada» que «sin construir», y decírselo mal a quien
+    // espera la Fase 8 le haría esperar algo que no viene por ese camino.
+    vi.stubEnv('VITE_LAB_FLAGS', 'labShell,labCompanyResearch')
+    montarEn(labPath('lab.future.companies'))
+    expect(screen.getByText(/todavía no está construido/)).toBeInTheDocument()
+  })
+
+  it('sin capacidad declarada, la ruta no depende de ninguna bandera', () => {
+    vi.stubEnv('VITE_LAB_FLAGS', 'labShell')
+    montarEn(labPath('lab.runs'))
+    expect(screen.queryByText(/no está disponible en esta versión/)).not.toBeInTheDocument()
   })
 })

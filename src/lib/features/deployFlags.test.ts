@@ -30,19 +30,30 @@ const leer = (ruta: string) => readFileSync(join(process.cwd(), ruta), 'utf8')
  * un guardián que se conforme con encontrar el nombre no guarda nada.
  */
 function valorEn(ruta: string): string | null {
-  for (const linea of leer(ruta).split('\n')) {
-    const sinComentario = linea.replace(/^\s*(#|\/\/).*$/, '')
-    const coincidencia = sinComentario.match(
-      new RegExp(`${FLAGS_ENV_VAR}:\\s*['"]?([^'",}]+)['"]?`),
-    )
-    if (coincidencia !== null) return coincidencia[1]!.trim()
-  }
-  return null
+  // Las líneas de comentario se quitan enteras y el resto se vuelve a unir: el
+  // valor no siempre cabe en la misma línea que la clave —Prettier parte la de
+  // `vite.config.ts`— así que no se puede analizar línea a línea.
+  const sinComentarios = leer(ruta)
+    .split('\n')
+    .filter((linea) => !/^\s*(#|\/\/)/.test(linea))
+    .join('\n')
+
+  // La coma **no** puede excluirse de la clase: excluyéndola, esto capturaba
+  // solo `labShell` en los cuatro ficheros y los daba por iguales sin haber
+  // comparado el resto de la lista. El guardián decía «las listas coinciden»
+  // habiendo mirado el primer nombre. Se corta en la comilla de cierre, en la
+  // llave del objeto o en el fin de línea, que es donde acaba de verdad.
+  const coincidencia = sinComentarios.match(
+    new RegExp(`${FLAGS_ENV_VAR}:\\s*['"]?([^'"}\\n]+)`),
+  )
+  if (coincidencia === null) return null
+  return coincidencia[1]!.replace(/,\s*$/, '').trim()
 }
 
 const DESPLIEGUE = '.github/workflows/deploy-pages.yml'
 const CI = '.github/workflows/ci.yml'
 const E2E = 'playwright.config.ts'
+const UNITARIAS = 'vite.config.ts'
 
 const valorEnElWorkflow = () => valorEn(DESPLIEGUE)
 
@@ -75,6 +86,10 @@ describe('el despliegue declara qué capacidades publica', () => {
     // que se sirve es peor que no validarlo, porque parece que sí.
     expect(valorEn(CI)).toBe(valorEnElWorkflow())
     expect(valorEn(E2E)).toBe(valorEnElWorkflow())
+    // Cuarto sitio desde LAB-1013: al hacerse cumplir el campo `feature` de las
+    // rutas, una lista distinta aquí haría que la suite unitaria viera una
+    // aplicación que no es la que se publica.
+    expect(valorEn(UNITARIAS)).toBe(valorEnElWorkflow())
   })
 
   it('no se publica ninguna capacidad de una fase que no se ha empezado', () => {
@@ -104,5 +119,18 @@ describe('la fase 8 sigue apagada, y es deliberado', () => {
     // prohíbe activar sugerencias de empresas hasta superar las puertas de
     // calidad. No hay pantalla construida: encenderla publicaría una portada.
     expect(parseLabFlags(valorEnElWorkflow()).enabled.has('labCompanyResearch')).toBe(false)
+  })
+})
+
+describe('el propio guardián lee la lista entera', () => {
+  it('captura las ocho capacidades, no solo la primera', () => {
+    // Durante un tiempo esta prueba no existía y la expresión regular excluía
+    // la coma: capturaba `labShell` en los cuatro ficheros y los declaraba
+    // iguales sin haber comparado nada más. Un guardián que solo mira el primer
+    // nombre no distingue cuatro capacidades de ocho.
+    const valor = valorEnElWorkflow()
+    expect(valor).not.toBeNull()
+    expect(valor!.split(',').length).toBeGreaterThan(1)
+    expect(parseLabFlags(valor).enabled.size).toBe(valor!.split(',').length)
   })
 })
