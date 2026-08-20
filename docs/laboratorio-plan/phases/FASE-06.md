@@ -53,21 +53,21 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 ## Checklist de tareas
 
-- [ ] LAB-601 — Compilador de restricciones
-- [ ] LAB-602 — Diagnóstico de factibilidad
-- [ ] LAB-603 — ADR del motor de optimización
-- [ ] LAB-604 — Baseline 1/N
-- [ ] LAB-605 — Candidata de aportaciones solamente
-- [ ] LAB-606 — Mínima varianza restringida
-- [ ] LAB-607 — Equal Risk Contribution
-- [ ] LAB-608 — Modelo de costes y turnover
-- [ ] LAB-609 — Métricas de candidata
-- [ ] LAB-610 — Robustez de pesos
-- [ ] LAB-611 — API de candidatas
-- [ ] LAB-612 — UI de carteras candidatas
-- [ ] LAB-613 — Motor de brechas/reparación
-- [ ] LAB-614 — Validación fuera de muestra de candidatas
-- [ ] LAB-615 — Cierre G6
+- [x] LAB-601 — Compilador de restricciones *(2026-08-20)* — una restricción que no se puede comprobar **no se ignora**: bloqueo o aviso, nunca silencio
+- [x] LAB-602 — Diagnóstico de factibilidad *(2026-08-20)* — conjunto mínimo culpable; los mínimos de grupos que se solapan no se suman
+- [x] LAB-603 — ADR del motor de optimización *(2026-08-20)* — **TypeScript en el navegador**, no servicio Python: no se envía la cartera fuera. ADR-007
+- [x] LAB-604 — Baseline 1/N *(2026-08-20)* — reparto iterativo del residuo con topes; suma uno y sin violaciones
+- [x] LAB-605 — Candidata de aportaciones solamente *(2026-08-20)* — invariante: **nunca se vende nada**
+- [x] LAB-606 — Mínima varianza restringida *(2026-08-20)* — gradiente proyectado con shrinkage; sin pesos si no converge
+- [x] LAB-607 — Equal Risk Contribution *(2026-08-20)* — punto fijo; informa de error de paridad y convergencia
+- [x] LAB-608 — Modelo de costes y turnover *(2026-08-20)* — **un coste desconocido es `null`, nunca cero**; sin impacto de mercado inventado
+- [x] LAB-609 — Métricas de candidata *(2026-08-20)* — la cartera actual se mide como una candidata más, con el mismo código
+- [x] LAB-610 — Robustez de pesos *(2026-08-20)* — rangos, no medias; semilla y repeticiones en el resultado
+- [x] LAB-611 — API de candidatas *(2026-08-20)* — ejecución local tipada e idempotente; `LAB_CONSTRAINTS_INFEASIBLE`
+- [x] LAB-612 — UI de carteras candidatas *(2026-08-20)* — **ninguna preseleccionada como la mejor**, y se explica por qué
+- [x] LAB-613 — Motor de brechas/reparación *(2026-08-20)* — lo estructural antes que lo táctico, por construcción; reglas declarativas
+- [x] LAB-614 — Validación fuera de muestra *(2026-08-20)* — walk-forward de 28 ventanas en dos regímenes. `docs/models/candidates-v1-validation.md`
+- [x] LAB-615 — Cierre G6 *(2026-08-20)* — **G6 superada**. `docs/models/candidates-g6-gate.md`
 
 ---
 
