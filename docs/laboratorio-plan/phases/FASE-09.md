@@ -53,16 +53,16 @@ El checklist de este archivo ayuda a navegar, pero `IMPLEMENTATION_STATUS.md` ti
 
 ## Checklist de tareas
 
-- [ ] LAB-901 — Contrato de evidencia
-- [ ] LAB-902 — Catálogo de reason codes
-- [ ] LAB-903 — Generador determinista de explicaciones
-- [ ] LAB-904 — EvidenceDrawer y metodología
-- [ ] LAB-905 — Historial de runs
-- [ ] LAB-906 — Auditoría
-- [ ] LAB-907 — Exportación de análisis
-- [ ] LAB-908 — Spike de explicación con LLM
-- [ ] LAB-909 — Implementar narración opcional
-- [ ] LAB-910 — Cierre G9
+- [x] LAB-901 — Contrato de evidencia *(2026-08-20)* — hecho, estimación, escenario, señal y candidata; sin método ni fuente no se construye
+- [x] LAB-902 — Catálogo de reason codes *(2026-08-20)* — encontró **12 códigos que llegaban sin traducir**; un desconocido se explica de forma segura y se registra
+- [x] LAB-903 — Generador determinista de explicaciones *(2026-08-20)* — **una explicación es función pura del resultado**; ninguna cifra que no venga en la evidencia
+- [x] LAB-904 — EvidenceDrawer y metodología *(2026-08-20)* — `aria-expanded`, región etiquetada y cierre con Escape
+- [x] LAB-905 — Historial de runs *(2026-08-20)* — **abrir no recalcula**: si hay datos nuevos, se crea otro
+- [x] LAB-906 — Auditoría *(2026-08-20)* — **el historial local es la auditoría**; una tabla en servidor sería un rastro de uso. ADR-009
+- [x] LAB-907 — Exportación de análisis *(2026-08-20)* — JSON estable y Markdown legible, con el aviso **dentro del fichero**
+- [x] LAB-908 — Spike de explicación con LLM *(2026-08-20)* — **no**: rompería el determinismo, enviaría la cartera fuera y añadiría cifras. ADR-009
+- [x] LAB-909 — Narración opcional *(2026-08-20)* — **no se implementa**; el punto de enganche queda preparado
+- [x] LAB-910 — Cierre G9 *(2026-08-20)* — **G9 superada**. `docs/models/evidence-g9-gate.md`
 
 ---
 

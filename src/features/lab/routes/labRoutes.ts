@@ -29,6 +29,7 @@ export type LabRouteId =
   | 'lab.future.candidates'
   | 'lab.future.sectors'
   | 'lab.future.companies'
+  | 'lab.runs'
   | 'lab.run'
   | 'lab.comparison'
 
@@ -166,6 +167,19 @@ const DEFS = {
     feature: 'labCompanyResearch',
   },
 
+  /**
+   * Lista de cálculos guardados (LAB-905).
+   *
+   * Comparte el tramo `runs` con `lab.run`, pero **sí es navegable**: es la
+   * pantalla desde la que se llega a un resultado concreto.
+   */
+  'lab.runs': {
+    segment: 'runs',
+    parent: 'lab.home',
+    label: 'Cálculos',
+    title: 'Historial de cálculos',
+    area: null,
+  },
   'lab.run': {
     segment: ':runId',
     parent: 'lab.home',
