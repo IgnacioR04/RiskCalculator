@@ -3719,3 +3719,59 @@ small {
   padding-top: var(--space-3);
   border-top: 1px solid var(--border-subtle);
 }
+
+/* ── Bootstrap por bloques (LAB-1014) ───────────────────────────────────── */
+
+.bootstrap-progreso {
+  margin-top: var(--space-3);
+}
+
+.bootstrap-progreso label {
+  display: block;
+  font: 400 var(--fs-aux) / 1.4 var(--font-ui);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.bootstrap-progreso progress {
+  width: 100%;
+  height: 6px;
+  /* Sin esto, Chrome y Firefox pintan cada uno su barra del sistema, que no
+     tiene por qué contrastar con este fondo. */
+  appearance: none;
+  border: none;
+  background: var(--surface-inset);
+  border-radius: var(--radius-chip);
+  overflow: hidden;
+}
+
+.bootstrap-progreso progress::-webkit-progress-bar {
+  background: var(--surface-inset);
+}
+
+.bootstrap-progreso progress::-webkit-progress-value {
+  background: var(--brand-primary);
+}
+
+.bootstrap-progreso progress::-moz-progress-bar {
+  background: var(--brand-primary);
+}
+
+.bootstrap-rango {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: var(--space-4) 0 var(--space-3);
+}
+
+.bootstrap-rango dt {
+  font: 400 var(--fs-aux) / 1.4 var(--font-ui);
+  color: var(--text-secondary);
+}
+
+.bootstrap-rango dd {
+  margin: 2px 0 0;
+  font: 600 var(--fs-body) / 1.3 var(--font-figures);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}

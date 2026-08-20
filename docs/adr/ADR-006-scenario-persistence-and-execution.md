@@ -113,3 +113,53 @@ falta es cómo se ejecuta, no qué calcula.
 | Trocear el cálculo con `setTimeout` | Mantiene la pestaña viva a costa de multiplicar el tiempo total y de un código difícil de razonar. Un worker hace lo mismo mejor |
 | Subir el cálculo a una Edge Function | Enviaría la cartera al servidor para ahorrar segundos. Mal cambio |
 | Guardar los resultados en Supabase «porque el plan lo decía» | El plan no había medido nada, y `LAB-311` ya había decidido lo contrario con argumentos |
+
+---
+
+## Apéndice (2026-08-20, LAB-1014) — La condición de entrada se cumple, y el número que la motivaba era otro
+
+La regla decía: **el bootstrap no se expone en la interfaz hasta que se ejecute
+en un Web Worker, con cancelación y progreso**. Ya lo hace, y la pantalla lo
+ofrece. Pero al implementarlo apareció que la cifra sobre la que se decidió
+—3,8 s para 10.000 trayectorias— medía sobre todo otra cosa.
+
+### Lo medido
+
+`npm run bench:scenarios`, 20 activos, horizonte de 252 días, bloque de 20:
+
+| Ruta | 1.000 trayectorias | 10.000 trayectorias |
+|---|---|---|
+| `blockBootstrap` (devuelve todas las trayectorias) | 366 ms | ~3,8 s (estimado en ADR-006; no se mide, tumba el canal RPC de Vitest) |
+| `bootstrapOutcome` (resume sin materializarlas) | **21,9 ms** | **222 ms** |
+
+Diecisiete veces menos para el mismo caso. **El coste no estaba en la
+aritmética, estaba en reservar la memoria**: `paths × días × activos` números,
+del orden de 400 MB con 10.000 trayectorias. La pantalla no enseña trayectorias,
+enseña percentiles, así que nunca hizo falta construirlas.
+
+`bootstrapOutcome.test.ts` comprueba que las dos rutas dan lo mismo con la misma
+semilla. Es un cambio de cómo se ejecuta, no de qué se calcula.
+
+### Entonces, ¿sigue haciendo falta el worker?
+
+Sí, pero por menos margen del que decía esta ADR, y conviene dejarlo escrito en
+vez de que dentro de seis meses parezca que 222 ms justificaban lo mismo que
+3.800 ms.
+
+- 222 ms es el peor caso **de esta máquina**. `LAB-416` fijó el listón en que
+  149 ms no valían un worker, así que 222 ms no lo ganan por goleada.
+- Lo que lo decide es el **caso lento**: un móvil modesto multiplica esto por
+  tres o cinco, y ahí sí hay una congelación perceptible y una cancelación que
+  tiene sentido ofrecer. Medido en el navegador con la cartera de demostración
+  —seis posiciones— el ciclo completo de 10.000 trayectorias son 109 ms, y la
+  barra iba por 6.400 a los 120 ms.
+- El worker cuesta **1,85 kB** en su propio chunk y no toca el bundle principal.
+
+Si algún día el peor caso medido bajara de ~100 ms en un dispositivo lento, esta
+decisión merecería revisarse. No es el caso hoy.
+
+### Lo que no cambia
+
+El rechazo a la API de servidor sigue en pie, y por el motivo de siempre: enviar
+la cartera a un backend para ahorrar milisegundos es un mal cambio, y ahora los
+milisegundos son menos todavía.

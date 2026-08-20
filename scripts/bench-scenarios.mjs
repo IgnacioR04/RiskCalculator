@@ -14,6 +14,7 @@ const TEMPORAL = join(process.cwd(), 'src/lib/lab/scenarios/__bench.test.ts')
 const CONTENIDO = `
 import { it } from 'vitest'
 import { blockBootstrap } from './blockBootstrap'
+import { bootstrapOutcome } from './bootstrapOutcome'
 import { portfolioPath } from './portfolioPath'
 import { runDeterministicScenario, presetToDefinition } from './deterministicScenario'
 import { STRESS_PRESETS } from '../../finance/stressPresets'
@@ -48,6 +49,18 @@ it('bench', { timeout: 600_000 }, () => {
       Array.from({ length: activos }, () => Math.random() / 100 - 0.005))
     medir(\`bootstrap \${activos}act \${paths}trayectorias \${dias}dias\`, () =>
       blockBootstrap({ history: hist, blockDays: 20, horizonDays: 252, paths, seed: 1 }))
+  }
+
+  // LAB-1014: el resumen sin materializar las trayectorias. Aquí sí cabe el
+  // caso de 10.000, y esa es justo la diferencia que se quiere medir:
+  // «blockBootstrap» reserva paths x dias x activos numeros antes de devolver
+  // nada, y ese apartado es el que tumbaba el canal RPC del worker de Vitest.
+  for (const [activos, paths] of [[20, 1000], [20, 10000]]) {
+    const hist = Array.from({ length: 252 }, () =>
+      Array.from({ length: activos }, () => Math.random() / 100 - 0.005))
+    const values = Array.from({ length: activos }, () => 1000)
+    medir(\`outcome \${activos}act \${paths}trayectorias 252dias\`, () =>
+      bootstrapOutcome({ history: hist, values, blockDays: 20, horizonDays: 252, paths, seed: 1 }))
   }
 
   const assets = Array.from({ length: 20 }, (_, i) => ({ id: 'a' + i, targetWeight: 0.05, initialValue: 1000 }))
