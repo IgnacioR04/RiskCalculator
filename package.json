@@ -17,7 +17,8 @@
     "bundle:budget": "node scripts/bundle-budget.mjs",
     "bench:stability": "node scripts/bench-stability.mjs",
     "bench:dependency": "node scripts/bench-dependency.mjs",
-    "bench:scenarios": "node scripts/bench-scenarios.mjs"
+    "bench:scenarios": "node scripts/bench-scenarios.mjs",
+    "bench:candidates": "node scripts/bench-candidates.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",
