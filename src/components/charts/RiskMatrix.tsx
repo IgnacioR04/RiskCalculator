@@ -19,12 +19,17 @@ export interface RiskMatrixProps {
   mode: MatrixMode
 }
 
-/** Interpola entre dos colores RGB. */
-function mix(a: [number, number, number], b: [number, number, number], k: number): string {
-  const r = Math.round(a[0] + (b[0] - a[0]) * k)
-  const g = Math.round(a[1] + (b[1] - a[1]) * k)
-  const bl = Math.round(a[2] + (b[2] - a[2]) * k)
-  return `rgb(${r} ${g} ${bl})`
+/** Interpola entre dos colores RGB y devuelve la terna, no la cadena. */
+function mixRgb(
+  a: [number, number, number],
+  b: [number, number, number],
+  k: number,
+): [number, number, number] {
+  return [
+    Math.round(a[0] + (b[0] - a[0]) * k),
+    Math.round(a[1] + (b[1] - a[1]) * k),
+    Math.round(a[2] + (b[2] - a[2]) * k),
+  ]
 }
 
 // Escala divergente del sistema: burdeos (negativo) · superficie (cero) · acero (positivo).
@@ -32,9 +37,40 @@ const NEG: [number, number, number] = [168, 69, 90] // --matrix-negative
 const ZERO: [number, number, number] = [27, 29, 30] // --matrix-zero
 const POS: [number, number, number] = [109, 129, 143] // --matrix-positive
 
-function cellColor(value: number, maxAbs: number): { bg: string; strong: boolean } {
+/** Luminancia relativa en sRGB, según la fórmula de WCAG. */
+function luminancia([r, g, b]: [number, number, number]): number {
+  const canal = (c: number) => {
+    const x = c / 255
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b)
+}
+
+/**
+ * Tinta de una casilla, elegida **midiendo** el fondo.
+ *
+ * La versión anterior usaba un umbral sobre la intensidad del color —«si pasa
+ * de 0,55, texto claro»—, y eso no es contraste, es una aproximación que
+ * coincide a veces. La auditoría de accesibilidad la pilló en cuanto la pantalla
+ * tuvo datos de verdad: a media escala, `--text-body` se quedaba en 4,33:1, por
+ * debajo del 4,5:1 que exige WCAG AA.
+ *
+ * Y no bastaba con subir a `--text-primary`: en el extremo positivo de la escala
+ * ese gris claro da 3,42:1. Ninguna de las dos tintas del sistema sirve para
+ * toda la escala, así que se elige entre casi blanco y casi negro según la
+ * luminancia real del fondo. El peor caso resultante es 4,75:1.
+ */
+const TINTA_CLARA = '#f0f0ec'
+const TINTA_OSCURA = '#0b0d0e'
+const LUMINANCIA_DE_CORTE = 0.18
+
+function cellColor(value: number, maxAbs: number): { bg: string; ink: string } {
   const k = maxAbs > 0 ? Math.min(Math.abs(value) / maxAbs, 1) : 0
-  return { bg: mix(ZERO, value < 0 ? NEG : POS, k), strong: k > 0.55 }
+  const rgb = mixRgb(ZERO, value < 0 ? NEG : POS, k)
+  return {
+    bg: `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`,
+    ink: luminancia(rgb) > LUMINANCIA_DE_CORTE ? TINTA_OSCURA : TINTA_CLARA,
+  }
 }
 
 /** Formato del número dentro de la casilla. */
@@ -95,20 +131,27 @@ export function RiskMatrix(props: RiskMatrixProps) {
         role="table"
         aria-label={mode === 'correlacion' ? 'Matriz de correlación' : 'Matriz de covarianzas anualizadas'}
       >
-        {/* Esquina vacía + cabecera de columnas */}
-        <div className="rmatrix-corner" />
-        {labels.map((label, col) => (
-          <div
-            key={`h-${label}`}
-            className={`rmatrix-head-cell${hover?.col === col ? ' on' : ''}`}
-            role="columnheader"
-          >
-            {label}
-          </div>
-        ))}
+        {/* Esquina vacía + cabecera de columnas.
+            El `role="row"` no es decorativo: `role="table"` exige filas como
+            hijas directas, y sin él las cabeceras quedaban colgando del propio
+            table. Un lector de pantalla no podía anunciar «columna 3 de 8»
+            porque no había ninguna fila a la que pertenecieran. `display:
+            contents` mantiene intacta la rejilla CSS. */}
+        <div style={{ display: 'contents' }} role="row">
+          <div className="rmatrix-corner" />
+          {labels.map((label, col) => (
+            <div
+              key={`h-${label}`}
+              className={`rmatrix-head-cell${hover?.col === col ? ' on' : ''}`}
+              role="columnheader"
+            >
+              {label}
+            </div>
+          ))}
+        </div>
 
         {labels.map((rowLabel, row) => (
-          <div key={`r-${rowLabel}`} style={{ display: 'contents' }}>
+          <div key={`r-${rowLabel}`} style={{ display: 'contents' }} role="row">
             <div className={`rmatrix-head-cell row${hover?.row === row ? ' on' : ''}`} role="rowheader">
               {rowLabel}
             </div>
@@ -127,7 +170,7 @@ export function RiskMatrix(props: RiskMatrixProps) {
                   </div>
                 )
               }
-              const { bg, strong } = cellColor(value, maxAbs)
+              const { bg, ink } = cellColor(value, maxAbs)
               return (
                 <div
                   key={`${rowLabel}-${colLabel}`}
@@ -138,7 +181,7 @@ export function RiskMatrix(props: RiskMatrixProps) {
                   tabIndex={0}
                   style={{
                     background: bg,
-                    color: strong ? 'var(--text-primary)' : 'var(--text-body)',
+                    color: ink,
                   }}
                   title={explain(rowLabel, colLabel, value, mode)}
                   onMouseEnter={() => setHover({ row, col })}

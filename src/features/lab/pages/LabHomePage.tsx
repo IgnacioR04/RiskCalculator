@@ -17,6 +17,8 @@ import { buildPortfolioView } from '../../../lib/portfolio'
 import { useAppStore } from '../../../state/store'
 import { LabShell } from '../components/LabShell'
 import { TwoWorldsCard } from '../components/TwoWorldsCard'
+import { AnalysisProgress } from '../fullAnalysis/AnalysisProgress'
+import { useConsolidatedReport, useFullAnalysisContext } from '../fullAnalysis/FullAnalysisProvider'
 
 export function LabHomePage() {
   const store = useAppStore()
@@ -39,8 +41,14 @@ export function LabHomePage() {
   const valoradas = view.positions.filter((p) => p.value !== null).length
   const sinCartera = posiciones === 0
 
+  const informe = useConsolidatedReport()
+  const { running } = useFullAnalysisContext()
+
   return (
     <LabShell routeId="lab.home">
+      {/* El diagnóstico ya está en marcha antes de llegar aquí: esto solo lo
+          enseña. La presentación definitiva es una fase aparte. */}
+      {!sinCartera && <AnalysisProgress report={informe} running={running} />}
       <Card>
         {sinCartera ? (
           <EmptyState icon="◇" title="Todavía no hay nada que analizar">
