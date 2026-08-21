@@ -73,8 +73,15 @@ export interface FullAnalysisInput {
   readonly seriesFor: (
     assetIds: readonly string[],
   ) => Promise<ReadonlyMap<string, readonly DatedReturn[]>>
-  /** Instrumentos que el adaptador no pudo traer, con su motivo. */
-  readonly seriesFailures?: ReadonlyMap<string, string>
+  /**
+   * Fallos **de los instrumentos de este ámbito**.
+   *
+   * Se pregunta por los que hay aquí en vez de recibir el mapa entero del
+   * adaptador. Con el mapa global, el informe de una cuenta enseñaba el fallo de
+   * un instrumento de otra, y quien lo leyera buscaría en su cuenta un símbolo
+   * que no está en ella.
+   */
+  readonly failuresFor?: (assetIds: readonly string[]) => ReadonlyMap<string, string>
 }
 
 /** Mínimo de observaciones comunes para dar el riesgo por bueno. */
@@ -143,11 +150,14 @@ export async function runFullAnalysis(
 
   /* Etapa 3 — datos de mercado. */
   const conValor = snapshot.positions.filter((p) => p.value !== null && p.value > 0)
-  const series = await input.seriesFor(conValor.map((p) => p.assetId))
+  // Deduplicado: un mismo activo en dos cuentas aparece dos veces en la lista
+  // consolidada, y pedirlo dos veces gastaría dos llamadas para el mismo dato.
+  const idsPedidos = [...new Set(conValor.map((p) => p.assetId))]
+  const series = await input.seriesFor(idsPedidos)
   publicar({}, 'marketData')
 
   /* Etapa 4 — cobertura. */
-  const calidad = medirCalidad(snapshot, series, input.seriesFailures)
+  const calidad = medirCalidad(snapshot, series, input.failuresFor?.(idsPedidos))
   publicar({ quality: available(calidad, input.asOf) }, 'quality')
 
   /* Etapa 5 — riesgo. Depende de la anterior; las demás no dependen de esta. */
@@ -285,8 +295,30 @@ function medirCalidad(
       symbol: porSimbolo.get(assetId) ?? assetId,
       reason,
     })),
-    stalestPriceDays: null,
+    stalestPriceDays: antiguedadMaxima(conPrecio, snapshot.asOf),
   }
+}
+
+/**
+ * Antigüedad, en días, del precio más viejo **de los que se usaron**.
+ *
+ * `null` cuando ninguna posición valorada trae fecha de precio: eso es «no se
+ * sabe», y un 0 diría «todos los precios son de hoy», que es la afirmación más
+ * tranquilizadora posible y probablemente falsa. Antes devolvía `null` fijo, que
+ * al menos no mentía, pero tampoco informaba.
+ */
+function antiguedadMaxima(
+  posiciones: readonly AnalysisPosition[],
+  asOf: string,
+): number | null {
+  const referencia = Date.parse(`${asOf}T23:59:59Z`)
+  const dias = posiciones.flatMap((p) => {
+    if (p.priceAsOf === undefined) return []
+    const t = Date.parse(p.priceAsOf)
+    if (!Number.isFinite(t)) return []
+    return [Math.max(0, Math.floor((referencia - t) / 86_400_000))]
+  })
+  return dias.length === 0 ? null : Math.max(...dias)
 }
 
 /**

@@ -394,7 +394,7 @@ describe('runFullAnalysis · ni un cero inventado', () => {
 describe('runFullAnalysis · fallos de series', () => {
   it('los instrumentos que no llegaron se nombran con su motivo', async () => {
     const informe = await runFullAnalysis(
-      entrada({ seriesFailures: new Map([['a2', 'Límite del proveedor.']]) }),
+      entrada({ failuresFor: (ids) => new Map(ids.includes('a2') ? [['a2', 'Límite del proveedor.'] as const] : []) }),
     )
     expect(informe.quality.status).toBe('available')
     if (informe.quality.status !== 'available') return

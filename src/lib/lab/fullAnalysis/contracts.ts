@@ -202,6 +202,15 @@ export interface AnalysisPosition {
   /** Valor en divisa de presentación, o `null` si no se pudo valorar. */
   readonly value: number | null
   readonly quantity: number
+  /**
+   * Momento del precio usado para valorarla, ISO 8601.
+   *
+   * `undefined` cuando no hay precio, o cuando lo hay pero sin fecha —un precio
+   * escrito a mano hace meses y otro de hace un minuto no se pueden distinguir
+   * sin esto, y la antigüedad del dato es justo lo que hay que saber para
+   * decidir cuánto fiarse del informe.
+   */
+  readonly priceAsOf?: string
 }
 
 export interface PortfolioSnapshot {

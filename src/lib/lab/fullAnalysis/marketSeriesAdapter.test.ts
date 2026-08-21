@@ -127,7 +127,7 @@ describe('adaptador · fallos por instrumento', () => {
 
     const series = await adaptador.seriesFor(['a1', 'a2', 'a3'])
     expect([...series.keys()].sort()).toEqual(['a1', 'a3'])
-    expect(adaptador.failures.get('a2')).toBe('Límite del proveedor.')
+    expect(adaptador.allFailures.get('a2')).toBe('Límite del proveedor.')
   })
 
   it('una serie vacía se anota en vez de pasar por buena', async () => {
@@ -139,7 +139,7 @@ describe('adaptador · fallos por instrumento', () => {
     })
     const series = await adaptador.seriesFor(['a1'])
     expect(series.size).toBe(0)
-    expect(adaptador.failures.get('a1')).toBeDefined()
+    expect(adaptador.allFailures.get('a1')).toBeDefined()
   })
 
   it('un activo que ya no está en la cartera se anota', async () => {
@@ -150,7 +150,7 @@ describe('adaptador · fallos por instrumento', () => {
       fxImpl: sinFx,
     })
     await adaptador.seriesFor(['fantasma'])
-    expect(adaptador.failures.get('fantasma')).toBeDefined()
+    expect(adaptador.allFailures.get('fantasma')).toBeDefined()
   })
 })
 

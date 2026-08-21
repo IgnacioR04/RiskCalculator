@@ -91,7 +91,8 @@ function adaptadorConSeries(): { adapter: MarketSeriesAdapter; llamadas: string[
     llamadas,
     adapter: {
       version: 'test',
-      failures: new Map(),
+      failuresFor: () => new Map(),
+      allFailures: new Map(),
       seriesFor: async (ids) => {
         llamadas.push([...ids])
         return new Map(ids.map((id, i) => [id, serie(120, i + 1)]))
@@ -189,7 +190,8 @@ describe('política de precios', () => {
     let ejecuciones = 0
     const adapter: MarketSeriesAdapter = {
       version: 'test',
-      failures: new Map(),
+      failuresFor: () => new Map(),
+      allFailures: new Map(),
       seriesFor: async () => {
         ejecuciones += 1
         return new Map()
@@ -252,7 +254,8 @@ describe('cancelación y errores', () => {
     const señales: AbortSignal[] = []
     const adapter: MarketSeriesAdapter = {
       version: 'test',
-      failures: new Map(),
+      failuresFor: () => new Map(),
+      allFailures: new Map(),
       seriesFor: async () => new Map(),
     }
     const { unmount } = renderHook(() =>
@@ -282,7 +285,9 @@ describe('cancelación y errores', () => {
     cargarCartera()
     const adapter: MarketSeriesAdapter = {
       version: 'test',
-      failures: new Map([['a2', 'Límite del proveedor.']]),
+      failuresFor: (ids) =>
+        new Map(ids.includes('a2') ? [['a2', 'Límite del proveedor.'] as const] : []),
+      allFailures: new Map([['a2', 'Límite del proveedor.']]),
       seriesFor: async (ids) =>
         new Map(ids.filter((id) => id !== 'a2').map((id, i) => [id, serie(120, i + 1)])),
     }
@@ -306,7 +311,8 @@ describe('cancelación y errores', () => {
     cargarCartera()
     const adapter: MarketSeriesAdapter = {
       version: 'test',
-      failures: new Map(),
+      failuresFor: () => new Map(),
+      allFailures: new Map(),
       seriesFor: async () => {
         throw new Error('proveedor caído')
       },
@@ -330,7 +336,8 @@ describe('cancelación y errores', () => {
     cargarCartera()
     const adapter: MarketSeriesAdapter = {
       version: 'test',
-      failures: new Map(),
+      failuresFor: () => new Map(),
+      allFailures: new Map(),
       seriesFor: async () => {
         throw new Error('proveedor caído')
       },

@@ -56,6 +56,22 @@ export interface CloudSyncState {
   lastSyncedAt: string | null
 }
 
+/**
+ * Sincronización inicial de mercado.
+ *
+ * `settled` significa **terminada**, no «terminada bien»: si tres instrumentos
+ * fallaron, la sincronización acabó igual y el análisis tiene que arrancar con
+ * lo que hay. Esperar a un éxito que no va a llegar dejaría el diagnóstico
+ * colgado para siempre en una cartera con un ticker mal enlazado.
+ */
+export interface MarketSyncState {
+  readonly phase: 'idle' | 'loading' | 'settled'
+  /** Cuándo terminó la ronda inicial. `null` mientras no haya terminado. */
+  readonly completedAt: string | null
+  /** Instrumentos que no se pudieron actualizar, con su motivo. */
+  readonly failures: Readonly<Record<string, string>>
+}
+
 interface AppState extends LabProfileState, LabProfileActions {
   settings: Settings
   accounts: BrokerAccount[]
@@ -69,6 +85,15 @@ interface AppState extends LabProfileState, LabProfileActions {
   riskResults: RiskResult[]
   demoLoaded: boolean
   cloudSync: CloudSyncState
+  /**
+   * Estado de la sincronización inicial de mercado (LAB-1215).
+   *
+   * Vive en el store y no en un contexto porque lo escribe la shell y lo lee el
+   * orquestador, que está por encima de ella. **No se persiste**: al abrir la
+   * aplicación siempre hay que sincronizar otra vez, y un `settled` guardado de
+   * ayer haría que el análisis diera por buenos los precios de ayer.
+   */
+  marketSync: MarketSyncState
 
   setDisplayCurrency: (currency: Currency) => void
   setRiskFreeRate: (rate: string) => void
@@ -84,6 +109,7 @@ interface AppState extends LabProfileState, LabProfileActions {
   addTransactions: (txs: Transaction[]) => void
   removeTransaction: (id: string) => void
 
+  setMarketSync: (patch: Partial<MarketSyncState>) => void
   setQuote: (quote: Quote) => void
   setFxRate: (rate: FxRate) => void
 
@@ -205,6 +231,7 @@ export const useAppStore = create<AppState>()(
       riskResults: [],
       demoLoaded: false,
       cloudSync: initialCloudSync,
+      marketSync: { phase: 'idle', completedAt: null, failures: {} },
       ...initialLabProfileState,
       ...createLabProfileActions(set),
 
@@ -234,6 +261,7 @@ export const useAppStore = create<AppState>()(
       removeTransaction: (id) =>
         set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) })),
 
+      setMarketSync: (patch) => set((s) => ({ marketSync: { ...s.marketSync, ...patch } })),
       setQuote: (quote) => set((s) => ({ quotes: { ...s.quotes, [quote.assetId]: quote } })),
       setFxRate: (rate) =>
         set((s) => ({

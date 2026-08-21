@@ -70,6 +70,23 @@ export interface FingerprintAsset {
   readonly quoteCurrency: string
   /** Clase económica declarada, si la hay: cambia la rentabilidad esperada. */
   readonly economicClass?: string
+  /**
+   * Enlaces con proveedores, serializados.
+   *
+   * Cambian **qué se puede descargar**. Corregir un ticker mal enlazado tiene
+   * que producir un análisis nuevo: el anterior se calculó sin esa serie, y
+   * dejarlo vigente sería enseñar un riesgo que ya no es el mejor disponible.
+   */
+  readonly providerIds?: string
+  /**
+   * Precio escrito a mano.
+   *
+   * Es una entrada del usuario, no una cotización: no cambia con el mercado y sí
+   * cambia el resultado. Por eso va en la estructura y no en la valoración.
+   */
+  readonly manualPrice?: string
+  /** Los datos de demostración se adquieren por otro camino. */
+  readonly isDemo?: boolean
 }
 
 export interface StructuralFingerprintInput {
@@ -108,7 +125,18 @@ export function structuralFingerprint(input: StructuralFingerprintInput): string
     .sort()
 
   const activos = input.assets
-    .map((a) => [a.id, a.symbol, a.assetType, a.quoteCurrency, a.economicClass ?? '-'].join('|'))
+    .map((a) =>
+      [
+        a.id,
+        a.symbol,
+        a.assetType,
+        a.quoteCurrency,
+        a.economicClass ?? '-',
+        a.providerIds ?? '-',
+        a.manualPrice ?? '-',
+        a.isDemo === true ? 'demo' : '-',
+      ].join('|'),
+    )
     .sort()
 
   const efectivo = (input.cashBalances ?? [])

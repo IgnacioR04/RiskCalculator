@@ -105,6 +105,7 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
   const accounts = useAppStore((s) => s.accounts)
   const transactions = useAppStore((s) => s.transactions)
   const displayCurrency = useAppStore((s) => s.settings.displayCurrency)
+  const marketSync = useAppStore((s) => s.marketSync)
 
   const [reports, setReports] = useState<ReadonlyMap<string, PortfolioHealthReport>>(new Map())
   const [failures, setFailures] = useState<ReadonlyMap<string, string>>(new Map())
@@ -151,6 +152,12 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
           symbol: a.symbol,
           assetType: a.assetType,
           quoteCurrency: a.quoteCurrency,
+          // Los tres cambian el resultado o la adquisición, así que corregir un
+          // enlace de proveedor o escribir un precio a mano tiene que producir
+          // una ejecución nueva.
+          providerIds: JSON.stringify(a.providerIds ?? {}),
+          ...(a.manualPrice === undefined ? {} : { manualPrice: JSON.stringify(a.manualPrice) }),
+          ...(a.isDemo === undefined ? {} : { isDemo: a.isDemo }),
         })),
         accountIds: accounts.map((c) => c.id),
       }),
@@ -202,9 +209,15 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
     const aborto = new AbortController()
     abortoActual.current = aborto
 
+    // El estado anterior se marca obsoleto, pero **solo lo que pertenece a esta
+    // misma pregunta**. Un informe de otra identidad no es «viejo», es de otra
+    // cosa: dejarlo mezclado enseñaría cifras de una cartera que ya no existe.
     setReports((previos) => {
-      const salida = new Map(previos)
-      for (const [clave, informe] of salida) salida.set(clave, { ...informe, status: 'stale' })
+      const salida = new Map<string, PortfolioHealthReport>()
+      for (const [clave, informe] of previos) {
+        if (informe.structuralFingerprint !== estructural) continue
+        salida.set(clave, { ...informe, status: 'stale' })
+      }
       return salida
     })
     setFailures(new Map())
@@ -221,21 +234,6 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
       displayCurrency,
     })
 
-    const valoracion = valuationVersion({
-      asOf,
-      baseCurrency: displayCurrency,
-      prices: Object.values(estado.quotes).map((q) => ({
-        assetId: q.assetId,
-        price: q.price,
-        currency: q.currency,
-        asOf: q.timestamp,
-      })),
-      fx: estado.fxRates.map((r) => ({ pair: `${r.base}/${r.quote}`, rate: String(r.rate) })),
-    })
-
-    const id = analysisIdentity(estructural, valoracion, configModelo)
-    if (vigente()) setIdentidad({ full: id.full, structural: id.structural, valuation: id.valuation })
-
     // Una posición del mismo activo repartida entre cuentas se abre por cuenta:
     // colapsarla atribuiría a una cuenta el valor que está en otra.
     const posiciones = vista.positions
@@ -250,13 +248,45 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
             accountId: b.accountId,
             value: b.value === null ? null : Number(b.value.toString()),
             quantity: Number(b.quantity.toString()),
+            // Antigüedad del precio usado: sin ella no se distingue un precio de
+            // hace un minuto de uno escrito a mano hace meses.
+            ...(estado.quotes[p.asset.id] === undefined
+              ? {}
+              : { priceAsOf: estado.quotes[p.asset.id]!.timestamp }),
           })),
       )
 
     if (posiciones.length === 0) {
-      if (vigente()) setReports(new Map())
+      // Vaciar la cartera durante un análisis lo termina limpiamente: nada de
+      // informes viejos reapareciendo con etiqueta de obsoletos.
+      if (vigente()) {
+        setReports(new Map())
+        setFailures(new Map())
+        setRunning(false)
+      }
       return
     }
+
+    // La valoración solo incluye **los precios que se usan**. Meter las
+    // cotizaciones de activos ajenos haría que la identidad cambiara al
+    // actualizar algo que este informe no mira.
+    const idsAnalizados = new Set(posiciones.map((p) => p.assetId))
+    const valoracion = valuationVersion({
+      asOf,
+      baseCurrency: displayCurrency,
+      prices: Object.values(estado.quotes)
+        .filter((q) => idsAnalizados.has(q.assetId))
+        .map((q) => ({
+          assetId: q.assetId,
+          price: q.price,
+          currency: q.currency,
+          asOf: q.timestamp,
+        })),
+      fx: estado.fxRates.map((r) => ({ pair: `${r.base}/${r.quote}`, rate: String(r.rate) })),
+    })
+
+    const id = analysisIdentity(estructural, valoracion, configModelo)
+    if (vigente()) setIdentidad({ full: id.full, structural: id.structural, valuation: id.valuation })
 
     // Se recuperan **todos** los informes compatibles, no solo el consolidado:
     // recargar la página no puede obligar a recalcular cada cuenta.
@@ -299,7 +329,7 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
             baseCurrency: displayCurrency,
             positions: posiciones,
             seriesFor: adaptador.seriesFor,
-            seriesFailures: adaptador.failures,
+            failuresFor: adaptador.failuresFor,
           }
           try {
             return await runFullAnalysis(entrada, (parcial) => {
@@ -314,7 +344,9 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
           }
         },
         (scope, informe) => {
-          if (informe === null) return
+          // Una generación caduca no publica **ni guarda**: escribir en el
+          // almacén sería peor que pintar, porque sobrevive a la recarga.
+          if (informe === null || !vigente()) return
           saveReport(informe)
           setReports((previos) => new Map(previos).set(scopeKey(scope), informe))
         },
@@ -335,14 +367,36 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
     }
   }, [asOf, configModelo, displayCurrency, estructural, visible])
 
+  /**
+   * El primer análisis del día espera a que termine la sincronización inicial.
+   *
+   * Es la carrera que tenía abierta la fase 2: el análisis se programaba a los
+   * 600 ms mientras `useMarketAutoSync` seguía descargando precios de forma
+   * secuencial. Con varios activos esa ronda dura bastante más, así que el
+   * análisis capturaba una valoración a medio hacer —o directamente la de
+   * ayer— **y la congelaba durante todo el día**, porque después ya no
+   * reacciona a `quotes`.
+   *
+   * La espera es por señal, no por otro temporizador ni por una segunda
+   * descarga: `useMarketAutoSync` sigue siendo la única fuente de verdad de la
+   * adquisición. Y se espera a que **termine**, no a que salga bien: si tres
+   * instrumentos fallan, el análisis arranca igual y sale parcial. Esperar a un
+   * éxito que no va a llegar dejaría el diagnóstico colgado para siempre.
+   *
+   * Una vez capturada la primera valoración del día, esto deja de intervenir:
+   * los refrescos horarios no vuelven a poner la fase en `loading`.
+   */
+  const esperandoPrimeraSincronizacion = marketSync.phase === 'loading'
+
   useEffect(() => {
+    if (esperandoPrimeraSincronizacion) return
     const temporizador = setTimeout(() => {
       void arrancar()
     }, espera)
     return () => clearTimeout(temporizador)
     // `disparador` está en las dependencias a propósito aunque no se use dentro:
     // es lo que define cuándo hay una pregunta nueva.
-  }, [arrancar, espera, disparador])
+  }, [arrancar, espera, disparador, esperandoPrimeraSincronizacion])
 
   useEffect(() => () => abortoActual.current?.abort(), [])
 

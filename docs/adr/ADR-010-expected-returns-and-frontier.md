@@ -202,3 +202,73 @@ proyectado, así que un error compartido entre los dos es muy improbable.
 - Si el peso del bundle deja de ser un problema, merece la pena reconsiderar un
   solucionador de programación cuadrática de verdad para las restricciones de
   grupo, que hoy no se pueden imponer.
+
+---
+
+## Apéndice (2026-08-22, LAB-1215) — Coordinación entre la sincronización de mercado y el análisis
+
+Este apéndice documenta una decisión de arquitectura que no existía cuando se
+escribió la ADR: **quién manda sobre la valoración con la que se calcula un
+informe**.
+
+### El problema
+
+`useMarketAutoSync` refresca precios y tipo de cambio de forma secuencial, con
+ocho segundos entre llamadas a Twelve Data para no agotar su cuota. Una cartera
+de quince instrumentos tarda dos minutos.
+
+`useFullAnalysis` programaba su primera ejecución a los 600 ms de debounce. Y
+como la política es **congelar la valoración por día**, ese primer análisis
+capturaba una valoración a medio hacer —o directamente la del día anterior— y la
+mantenía durante toda la sesión.
+
+No fallaba nada. El informe salía completo, con sus percentiles y su
+concentración, calculado sobre precios de hace tres semanas.
+
+### La decisión
+
+Un **estado de sincronización compartido** en el store: `idle`, `loading`,
+`settled`, con `completedAt` y los fallos por instrumento. `useMarketAutoSync` lo
+escribe; `useFullAnalysis` lo lee y retrasa su primera ejecución hasta que la
+fase deja de ser `loading`.
+
+Tres propiedades que la hacen defendible:
+
+1. **No hay un segundo temporizador ni una segunda descarga.** La adquisición
+   sigue teniendo una única fuente de verdad. Si el análisis hiciera su propio
+   sondeo, habría dos componentes pidiendo lo mismo y la cuota se agotaría el
+   doble de rápido.
+2. **`settled` significa terminada, no terminada bien.** Con fallos parciales el
+   análisis arranca igual y sale parcial. Esperar a un éxito que no va a llegar
+   dejaría el diagnóstico colgado para siempre en una cartera con un ticker mal
+   enlazado — que es exactamente la cartera que más necesita el diagnóstico.
+3. **Solo afecta a la primera ejecución.** Los refrescos horarios no vuelven a
+   poner la fase en `loading`, así que un tick posterior no relanza nada. Un
+   cambio estructural sí, y usa los datos más recientes disponibles.
+
+### Por qué el estado vive en el store y no en un contexto
+
+Lo escribe la shell y lo lee el orquestador, que está **por encima** de ella en el
+árbol. Un contexto obligaría a invertir ese orden o a duplicar el proveedor.
+
+**No se persiste**: al abrir la aplicación siempre hay que sincronizar otra vez,
+y un `settled` guardado de ayer haría que el análisis diera por buenos los
+precios de ayer — el mismo fallo que esto viene a arreglar, pero peor, porque
+sobreviviría a la recarga.
+
+### Las tres identidades, y qué va en cada una
+
+| | Qué es | Ejemplos de lo que la cambia |
+|---|---|---|
+| `structuralFingerprint` | **Qué tienes** | Operaciones (los doce campos), activos, `providerIds`, `manualPrice`, `isDemo`, cuentas, efectivo, política, objetivo |
+| `valuationVersion` | **Cuánto valía** | Fecha, divisa base, y los precios y FX **de las posiciones analizadas** |
+| `modelConfigFingerprint` | **Cómo se mide** | Benchmark, tasa sin riesgo, versiones de modelo |
+
+`providerIds` y `manualPrice` están en la estructura y no en la valoración a
+propósito: el primero cambia **qué se puede descargar** y el segundo es una
+entrada del usuario que no se mueve con el mercado. Los dos tienen que producir
+una ejecución nueva.
+
+La valoración solo incluye los precios que se usan. Meter las cotizaciones de
+activos ajenos haría que la identidad cambiara al actualizar algo que ese informe
+ni mira.

@@ -50,8 +50,18 @@ export interface MarketSeriesAdapter {
   readonly seriesFor: (
     assetIds: readonly string[],
   ) => Promise<ReadonlyMap<string, readonly DatedReturn[]>>
-  /** Instrumentos que se pidieron y no llegaron, con su motivo. */
-  readonly failures: ReadonlyMap<string, string>
+  /**
+   * Fallos **de los instrumentos que se pregunten**, no todos los del adaptador.
+   *
+   * El mapa global era un error de aislamiento: el informe de una cuenta acababa
+   * enseñando el fallo de un instrumento de otra, y quien lo leyera buscaría en
+   * su cuenta un símbolo que no está ahí. El adaptador es compartido entre
+   * ámbitos a propósito —esa es su gracia—, así que la separación tiene que
+   * ocurrir al preguntar.
+   */
+  readonly failuresFor: (assetIds: readonly string[]) => ReadonlyMap<string, string>
+  /** Todos los fallos acumulados. Para diagnóstico, no para un informe. */
+  readonly allFailures: ReadonlyMap<string, string>
   readonly version: string
 }
 
@@ -124,7 +134,11 @@ export function createMarketSeriesAdapter(opciones: AdapterOptions): MarketSerie
     const salida = new Map<string, readonly DatedReturn[]>()
     const pendientes: Asset[] = []
 
-    for (const id of assetIds) {
+    // Un mismo activo puede estar en dos cuentas, y entonces llega dos veces en
+    // la lista de la cartera consolidada. La caché es **por instrumento**, no
+    // por posición: sin esta línea, la segunda aparición se colaría en la misma
+    // ronda antes de que la primera llegara a guardarse.
+    for (const id of [...new Set(assetIds)]) {
       const clave = marketDataCacheKey(id, opciones.baseCurrency, 'auto', dias)
       const enCache = cache.get(clave)
       if (enCache !== undefined) {
@@ -171,7 +185,14 @@ export function createMarketSeriesAdapter(opciones: AdapterOptions): MarketSerie
     return salida
   }
 
-  return { seriesFor, failures: fallos, version: MARKET_ADAPTER_VERSION }
+  const failuresFor = (assetIds: readonly string[]) =>
+    new Map(
+      [...new Set(assetIds)].flatMap((id) =>
+        fallos.has(id) ? [[id, fallos.get(id)!] as const] : [],
+      ),
+    )
+
+  return { seriesFor, failuresFor, allFailures: fallos, version: MARKET_ADAPTER_VERSION }
 }
 
 /**
@@ -184,6 +205,7 @@ export function createMarketSeriesAdapter(opciones: AdapterOptions): MarketSerie
  */
 export const ADAPTADOR_VACIO: MarketSeriesAdapter = {
   seriesFor: async () => new Map(),
-  failures: new Map(),
+  failuresFor: () => new Map(),
+  allFailures: new Map(),
   version: 'market-series-adapter-empty',
 }
