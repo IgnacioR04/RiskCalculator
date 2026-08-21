@@ -40,6 +40,11 @@ export type CandidateMethod =
   | 'contributionsOnly'
   | 'minimumVariance'
   | 'equalRiskContribution'
+  // LAB-1102. Las dos últimas cierran la frontera; `maximumSharpe` es la única
+  // que necesita rentabilidades esperadas, y por eso es la única que puede
+  // faltar cuando el resto sí se calcula.
+  | 'maximumSharpe'
+  | 'maximumDiversification'
 
 export interface CandidateAssumption {
   readonly label: string

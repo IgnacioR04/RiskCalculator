@@ -34,8 +34,8 @@ export const MIN_VARIANCE_VERSION = 'candidate-minvar-v1'
 export const ERC_VERSION = 'candidate-erc-v1'
 
 const EPS = 1e-12
-const MAX_ITER = 5_000
-const TOL = 1e-9
+export const MAX_ITER = 5_000
+export const TOL = 1e-9
 
 /* ── Covarianza ────────────────────────────────────────────────────────────── */
 
@@ -87,13 +87,14 @@ export function portfolioVariance(
 
 /* ── Cajas y proyección ────────────────────────────────────────────────────── */
 
-interface Cajas {
+export interface Cajas {
   readonly min: number[]
   readonly max: number[]
 }
 
 /** Extrae los límites por activo. Los de grupo se comprueban al final. */
-function cajasDe(compiled: CompiledConstraints): Cajas {
+/** Cajas duras por activo. Exportada para que la frontera use las mismas. */
+export function cajasDe(compiled: CompiledConstraints): Cajas {
   const n = compiled.universe.length
   const min = new Array<number>(n).fill(0)
   const max = new Array<number>(n).fill(1)

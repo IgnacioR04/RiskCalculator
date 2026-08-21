@@ -268,6 +268,43 @@ export const REASON_CODES: readonly ReasonEntry[] = [
     origin: 'escenarios',
   },
   {
+    code: 'empty_universe',
+    severity: 'blocking',
+    text: 'No hay instrumentos con los que construir la cartera.',
+    origin: 'optimización',
+  },
+  {
+    code: 'invalid_covariance',
+    severity: 'blocking',
+    text: 'La matriz de covarianza no sirve: tiene que ser cuadrada, simétrica y con varianzas positivas.',
+    remediation: 'Amplía el periodo o quita del análisis los activos sin historial suficiente.',
+    origin: 'optimización',
+  },
+  {
+    code: 'invalid_returns',
+    severity: 'blocking',
+    text: 'Falta un modelo de rentabilidad esperada válido para todo el universo, y sin él no hay frontera ni máximo Sharpe.',
+    origin: 'optimización',
+  },
+  {
+    code: 'degenerate_range',
+    severity: 'info',
+    text: 'Todos los activos tienen la misma rentabilidad esperada, o los límites dejan un único reparto posible: no hay curva que dibujar, hay un punto.',
+    origin: 'optimización',
+  },
+  {
+    code: 'length_mismatch',
+    severity: 'blocking',
+    text: 'Las listas de entrada no tienen la misma longitud, así que no se puede saber qué dato corresponde a qué activo.',
+    origin: 'optimización',
+  },
+  {
+    code: 'invalid_weight',
+    severity: 'blocking',
+    text: 'El peso del histórico frente al prior tiene que estar entre 0 y 1.',
+    origin: 'optimización',
+  },
+  {
     code: 'no_value',
     severity: 'blocking',
     text: 'La cartera no tiene valor con el que empezar, así que no hay nada que hacer evolucionar.',
