@@ -56,7 +56,8 @@ export function useStabilityAnalysis(
 
   /** Número de la última petición lanzada. Solo esa puede publicar. */
   const peticion = useRef(0)
-  const autoRan = useRef(false)
+  /** Clave de la última combinación ya calculada. `null` = todavía ninguna. */
+  const autoRan = useRef<string | null>(null)
 
   const run = useCallback(async () => {
     const mia = peticion.current + 1
@@ -116,12 +117,33 @@ export function useStabilityAnalysis(
     }
   }, [candidates, displayCurrency, period])
 
+  /**
+   * El análisis se rehace **solo** cuando cambia algo de lo que depende.
+   *
+   * Antes corría una única vez al montar y después había que pulsar un botón:
+   * cambiar la ventana de 90 a 365 días dejaba en pantalla el resultado de la
+   * anterior hasta que alguien se acordaba de recalcular, que es la peor
+   * combinación posible —cifras viejas con la etiqueta nueva—. Y con la
+   * cartera pasaba igual.
+   *
+   * La clave incluye las tres entradas reales. Comparar contra la última clave
+   * disparada, en vez de fiarse de las dependencias del efecto, evita que un
+   * `candidates` recreado en cada render dispare descargas en bucle.
+   */
   useEffect(() => {
-    if (autoRan.current || candidates.length === 0) return
-    autoRan.current = true
+    if (candidates.length === 0) return
+    const clave = [
+      period,
+      displayCurrency,
+      candidates
+        .map((a) => a.id)
+        .sort()
+        .join(','),
+    ].join('|')
+    if (autoRan.current === clave) return
+    autoRan.current = clave
     void run()
-    // Solo en el primer montaje: después manda el usuario con la ventana.
-  }, [candidates.length, run])
+  }, [candidates, displayCurrency, period, run])
 
   return {
     period,

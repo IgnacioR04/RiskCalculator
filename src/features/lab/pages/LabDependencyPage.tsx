@@ -80,7 +80,7 @@ export function LabDependencyPage() {
     [view.positions],
   )
 
-  const { period, busy, loaded, missing, setPeriod, run } = useStabilityAnalysis(
+  const { period, busy, loaded, missing, setPeriod } = useStabilityAnalysis(
     candidatos,
     displayCurrency,
   )
@@ -147,9 +147,7 @@ export function LabDependencyPage() {
           value={period}
           onChange={setPeriod}
         />
-        <button type="button" className="btn primary" onClick={() => void run()} disabled={busy}>
-          {busy ? 'Calculando…' : 'Calcular dependencia'}
-        </button>
+        {busy && <span className="muted tiny">Descargando historial…</span>}
       </div>
       {missing.length > 0 && (
         <p className="muted tiny mb-0">
@@ -178,10 +176,11 @@ export function LabDependencyPage() {
       {controles}
 
       {analisis === null ? (
-        <Card title="Todavía no se ha calculado">
+        <Card title={busy ? 'Calculando…' : 'Sin historial suficiente'}>
           <p className="muted mb-0">
-            Pulsa «Calcular dependencia» para descargar el historial y ver si tus posiciones se
-            mueven juntas. No se muestra ninguna cifra antes de tenerla.
+            {busy
+              ? 'Descargando el historial de tus posiciones para ver si se mueven juntas.'
+              : 'No ha llegado historial de al menos dos posiciones, así que no hay parejas que comparar. Revisa en Cartera que tus activos estén enlazados con un proveedor.'}
           </p>
         </Card>
       ) : (
