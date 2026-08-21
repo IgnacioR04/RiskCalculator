@@ -92,10 +92,37 @@ export function useMarketAutoSync(): void {
 
     async function sincronizar(motivo: 'arranque' | 'vuelta' | 'periodico') {
       if (!vivo) return
-      if (motivo === 'arranque') enlazarActivosSinProveedor()
+      const { setMarketSync } = useAppStore.getState()
+
+      if (motivo === 'arranque') {
+        enlazarActivosSinProveedor()
+        // Se anuncia **antes** de empezar. El análisis se apoya en esta señal
+        // para no congelar una valoración tomada a mitad de la descarga, y si
+        // la fase llegara tarde la carrera seguiría abierta.
+        setMarketSync({ phase: 'loading', completedAt: null, failures: {} })
+      }
+
       // El tipo de cambio y los precios son independientes: que falle uno no
       // puede dejar al otro sin actualizar.
-      await Promise.allSettled([refreshFx(), refreshAllQuotes(false)])
+      const [, precios] = await Promise.allSettled([refreshFx(), refreshAllQuotes(false)])
+
+      if (motivo !== 'arranque') return
+
+      // `settled` significa **terminada**, no «terminada bien». Un instrumento
+      // con el ticker mal enlazado no puede dejar el diagnóstico esperando para
+      // siempre a un éxito que no va a llegar.
+      const fallos: Record<string, string> = {}
+      if (precios.status === 'fulfilled') {
+        for (const r of precios.value) {
+          if (!r.ok) fallos[r.assetId] = r.message ?? 'No se pudo actualizar el precio.'
+        }
+      }
+      if (!vivo) return
+      setMarketSync({
+        phase: 'settled',
+        completedAt: new Date().toISOString(),
+        failures: fallos,
+      })
     }
 
     if (!arrancado.current) {

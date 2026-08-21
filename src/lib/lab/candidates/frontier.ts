@@ -31,11 +31,11 @@
  *
  * Funciones puras: no tocan red, ni almacenamiento, ni reloj.
  */
-import { violations as comprobar } from './constraintCompiler'
+import { candidateEligibility } from './eligibility'
+import { covarianceHealth } from './covarianceHealth'
 import type { CandidateAssumption, PortfolioCandidate } from './contracts'
 import {
   cajasDe,
-  isUsableCovariance,
   MAX_ITER,
   projectToSimplex,
   shrinkCovariance,
@@ -97,14 +97,20 @@ function fallo(
  */
 function preparar(
   input: FrontierOptimizerInput | OptimizerInput,
-): { sigma: number[][]; cajas: Cajas; w0: number[] } | { error: 'empty' | 'covariance' | 'infeasible' } {
+):
+  | { sigma: number[][]; cajas: Cajas; w0: number[] }
+  | { error: 'empty' | 'covariance' | 'infeasible'; detalle?: string } {
   const n = input.compiled.universe.length
   if (n === 0) return { error: 'empty' }
-  if (!isUsableCovariance(input.covariance) || input.covariance.length !== n) {
-    return { error: 'covariance' }
-  }
+  if (input.covariance.length !== n) return { error: 'covariance' }
 
-  const sigma = shrinkCovariance(input.covariance, input.shrinkage)
+  // El shrinkage va **antes** de la comprobación: es parte de la matriz que se
+  // va a usar, así que comprobar la original y optimizar sobre otra dejaría el
+  // aval en el sitio equivocado.
+  const encogida = shrinkCovariance(input.covariance, input.shrinkage)
+  const salud = covarianceHealth(encogida)
+  if (!salud.ok) return { error: 'covariance', detalle: salud.detail }
+  const sigma = salud.matrix as number[][]
   const cajas = cajasDe(input.compiled)
   const w0 = projectToSimplex(new Array<number>(n).fill(1 / n), cajas)
   if (w0 === null) return { error: 'infeasible' }
@@ -217,7 +223,7 @@ export function candidateMaximumSharpe(input: FrontierOptimizerInput): Portfolio
       'maximumSharpe',
       MAX_SHARPE_VERSION,
       prep.error === 'infeasible' ? 'infeasible' : 'invalid_input',
-      motivoDe(prep.error),
+      motivoDe(prep.error, prep.detalle),
       SUPUESTOS_SHARPE,
     )
   }
@@ -246,14 +252,21 @@ export function candidateMaximumSharpe(input: FrontierOptimizerInput): Portfolio
     )
   }
 
+  // Elegibilidad, no una lista de textos: una candidata que incumple un límite
+  // duro no es factible, aunque el solver haya convergido. Y las restricciones
+  // que el solver no puede imponer se declaran como limitación aunque esta vez
+  // se hayan cumplido: que saliera bien no significa que las vigilara.
+  const elegibilidad = candidateEligibility(input.compiled, r.w)
+
   return {
     method: 'maximumSharpe',
     modelVersion: MAX_SHARPE_VERSION,
     weights: r.w,
     solver: { status: 'converged', iterations: r.iteraciones, residual: r.residual, tolerance: TOL },
-    violations: comprobar(input.compiled, r.w).map((v) => v.label),
+    violations: elegibilidad.breaches.map((b) => b.label),
     assumptions: [...SUPUESTOS_SHARPE],
-    notCovered: [],
+    notCovered: elegibilidad.limitations,
+    eligibility: elegibilidad,
   }
 }
 
@@ -285,7 +298,7 @@ export function candidateMaximumDiversification(input: OptimizerInput): Portfoli
       'maximumDiversification',
       MAX_DIVERSIFICATION_VERSION,
       prep.error === 'infeasible' ? 'infeasible' : 'invalid_input',
-      motivoDe(prep.error),
+      motivoDe(prep.error, prep.detalle),
       SUPUESTOS_MAXDIV,
     )
   }
@@ -306,14 +319,21 @@ export function candidateMaximumDiversification(input: OptimizerInput): Portfoli
     )
   }
 
+  // Elegibilidad, no una lista de textos: una candidata que incumple un límite
+  // duro no es factible, aunque el solver haya convergido. Y las restricciones
+  // que el solver no puede imponer se declaran como limitación aunque esta vez
+  // se hayan cumplido: que saliera bien no significa que las vigilara.
+  const elegibilidad = candidateEligibility(input.compiled, r.w)
+
   return {
     method: 'maximumDiversification',
     modelVersion: MAX_DIVERSIFICATION_VERSION,
     weights: r.w,
     solver: { status: 'converged', iterations: r.iteraciones, residual: r.residual, tolerance: TOL },
-    violations: comprobar(input.compiled, r.w).map((v) => v.label),
+    violations: elegibilidad.breaches.map((b) => b.label),
     assumptions: [...SUPUESTOS_MAXDIV],
-    notCovered: [],
+    notCovered: elegibilidad.limitations,
+    eligibility: elegibilidad,
   }
 }
 
@@ -518,10 +538,10 @@ function maximaRentabilidad(mu: readonly number[], cajas: Cajas): number[] | nul
   return restante > 1e-9 ? null : w
 }
 
-function motivoDe(error: 'empty' | 'covariance' | 'infeasible'): string {
+function motivoDe(error: 'empty' | 'covariance' | 'infeasible', detalle?: string): string {
   if (error === 'empty') return 'No hay instrumentos.'
   if (error === 'covariance') {
-    return 'La matriz de covarianza no es utilizable: tiene que ser cuadrada, simétrica y con varianzas positivas.'
+    return detalle ?? 'La matriz de covarianza no es utilizable para optimizar.'
   }
   return 'Los límites por activo no admiten ninguna cartera que sume el 100 %.'
 }

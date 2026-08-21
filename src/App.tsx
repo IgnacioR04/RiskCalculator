@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppShell } from './components/shell/AppShell'
+import { FullAnalysisProvider } from './features/lab/fullAnalysis/FullAnalysisProvider'
 import { RedireccionLegacy } from './features/lab/components/RedireccionLegacy'
 import { isFeatureEnabled } from './lib/features/flags'
 import { lazyWithReload } from './lib/lazyChunk'
@@ -44,6 +45,10 @@ export function App() {
   const laboratorioVisible = isFeatureEnabled('labShell')
 
   return (
+    // El proveedor envuelve la shell entera: el diagnóstico automático empieza
+    // al abrir la aplicación, esté el usuario donde esté, y cualquier pantalla
+    // lee el mismo estado sin volver a calcularlo.
+    <FullAnalysisProvider>
     <AppShell>
       {/* Boundary por ruta: si una página lanza, la shell (navegación, divisa)
           sigue usable y al navegar a otra ruta el error se descarta solo.
@@ -104,5 +109,6 @@ export function App() {
         </Suspense>
       </ErrorBoundary>
     </AppShell>
+    </FullAnalysisProvider>
   )
 }

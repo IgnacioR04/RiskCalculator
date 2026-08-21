@@ -35,6 +35,8 @@ export interface SolverReport {
 }
 
 /** De qué criterio sale la candidata. */
+import type { CandidateEligibility } from './eligibility'
+
 export type CandidateMethod =
   | 'equalWeight'
   | 'contributionsOnly'
@@ -68,6 +70,14 @@ export interface PortfolioCandidate {
   readonly assumptions: readonly CandidateAssumption[]
   /** Lo que no se ha podido tener en cuenta, nombrado en vez de omitido. */
   readonly notCovered: readonly string[]
+  /**
+   * Si la candidata puede presentarse como factible (LAB-1103).
+   *
+   * Opcional porque las candidatas anteriores a LAB-1103 no la traen. Su
+   * ausencia significa **elegibilidad no evaluada**, no `true`: quien decida
+   * qué cartera es compatible con el perfil tiene que exigirla presente.
+   */
+  readonly eligibility?: CandidateEligibility
 }
 
 /** Aviso obligatorio: una candidata describe, no aconseja. */

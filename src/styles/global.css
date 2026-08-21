@@ -2802,7 +2802,14 @@ details.disclose .disclose-body {
 
 .rmatrix-cell.empty {
   background: var(--surface-inset);
-  color: var(--text-disabled);
+  /*
+   * El guion de «sin muestra común» es información, no un control desactivado.
+   * `--text-disabled` (#5e6264) sobre esta superficie da 2,87:1, muy por debajo
+   * del 4,5:1 de WCAG AA: justo la casilla que explica por qué falta un dato
+   * era la más difícil de leer. Lo encontró la auditoría automática en cuanto la
+   * matriz tuvo datos que pintar.
+   */
+  color: var(--text-secondary);
   font-family: var(--font-ui);
   font-size: 12px;
 }
