@@ -22,17 +22,32 @@ function proxyBase(): string | null {
   return `${url.replace(/\/$/, '')}/functions/v1/market-proxy`
 }
 
+/**
+ * Cabeceras de la llamada al proxy.
+ *
+ * **No exige sesión.** Antes sí, y eso significaba que en el modo local —el
+ * modo por defecto, sin cuenta— ninguna acción, ETF ni metal podía cotizarse
+ * jamás: la cartera se quedaba con precios escritos a mano y sin histórico,
+ * así que volatilidad, correlaciones y covarianzas aparecían siempre
+ * bloqueadas por «0 observaciones». La causa no era el cálculo, era esta
+ * función.
+ *
+ * Si hay sesión se manda igualmente, porque el proxy da un cupo por minuto más
+ * generoso a quien puede identificar. Sin ella se llama a pelo, y el cupo pasa
+ * a contarse por IP.
+ */
 async function authHeaders(): Promise<Record<string, string>> {
   const supabase = getSupabase()
-  if (supabase === null) {
-    throw new ProviderError('Inicia sesión para consultar acciones y ETF', 'not_configured')
+  if (supabase === null) return {}
+  try {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    return token === undefined ? {} : { Authorization: `Bearer ${token}` }
+  } catch {
+    // Un fallo leyendo la sesión no puede dejar sin precio a quien no la
+    // necesita: se sigue sin cabecera.
+    return {}
   }
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
-  if (token === undefined) {
-    throw new ProviderError('Inicia sesión para consultar acciones y ETF', 'not_configured')
-  }
-  return { Authorization: `Bearer ${token}` }
 }
 
 const TYPE_MAP: Record<string, AssetType> = {

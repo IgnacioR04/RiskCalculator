@@ -96,15 +96,44 @@ export async function refreshQuote(asset: Asset, force = false): Promise<Refresh
   }
 }
 
-/** Actualiza todas las cotizaciones (secuencial para respetar rate limits). */
+/**
+ * Espera entre llamadas que van a Twelve Data.
+ *
+ * Su plan gratuito admite **8 peticiones por minuto**. Una cartera de once
+ * posiciones lanza nueve seguidas, así que sin frenar aquí la mitad volvería
+ * con error de cupo y el usuario vería «no se pudo actualizar» sin que nada
+ * estuviera roto. 8 segundos deja el ritmo justo por debajo del límite.
+ *
+ * No afecta a CoinGecko ni al BCE, que admiten mucho más y son los que
+ * responden sin necesidad de proxy.
+ */
+const ESPERA_TWELVE_DATA_MS = 8_000
+
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Actualiza todas las cotizaciones.
+ *
+ * Secuencial y con freno: no es lentitud accidental, es lo que hace que la
+ * ronda termine entera en vez de agotar el cupo a la tercera posición. Corre en
+ * segundo plano y cada precio se guarda en cuanto llega, así que la pantalla se
+ * va poniendo al día sin esperar al final.
+ */
 export async function refreshAllQuotes(force = false): Promise<RefreshResult[]> {
   const { assets, transactions } = useAppStore.getState()
   const withPositions = assets.filter(
     (a) => !(a.isDemo === true) && transactions.some((t) => t.assetId === a.id),
   )
   const results: RefreshResult[] = []
+  let previaFueTwelveData = false
+
   for (const asset of withPositions) {
+    const usaTwelveData =
+      asset.providerIds?.['twelvedata'] !== undefined && twelveDataProvider.isConfigured()
+    if (previaFueTwelveData && usaTwelveData) await dormir(ESPERA_TWELVE_DATA_MS)
+
     results.push(await refreshQuote(asset, force))
+    previaFueTwelveData = usaTwelveData
   }
   return results
 }

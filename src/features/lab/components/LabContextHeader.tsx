@@ -32,13 +32,11 @@ export interface LabContextData {
 
 export interface LabContextHeaderProps {
   readonly context?: LabContextData
-  /** Crea un cálculo nuevo. Ausente ⇒ el botón se muestra deshabilitado. */
-  readonly onRefresh?: () => void
+  
   /**
    * Hay datos más recientes que los del resultado que se está leyendo. Nunca se
    * recalcula solo: se avisa y decide el usuario.
    */
-  readonly hasFresherData?: boolean
 }
 
 const ETIQUETA_IPS: Record<IpsStatus, string> = {
@@ -98,21 +96,6 @@ export function LabContextHeader(props: LabContextHeaderProps) {
         </Campo>
       </dl>
 
-      <div className="lab-context__acciones">
-        {props.hasFresherData === true && (
-          <p className="lab-context__aviso" role="status">
-            Hay datos más recientes; recalcular.
-          </p>
-        )}
-        <button
-          type="button"
-          className="btn"
-          onClick={props.onRefresh}
-          disabled={props.onRefresh === undefined}
-        >
-          Actualizar análisis
-        </button>
-      </div>
     </section>
   )
 }

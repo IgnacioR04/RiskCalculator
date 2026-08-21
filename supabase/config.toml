@@ -45,9 +45,19 @@ enable_signup = true
 enable_signup = true
 enable_confirmations = false
 
-# Declarado explícitamente: la Edge Function exige un JWT válido. La función
-# solo comprueba que la cabecera `Authorization` empiece por `Bearer`, así que
-# la verificación real depende de esta línea. Dejarlo al valor por defecto era
-# confiar en que nadie desplegara con `--no-verify-jwt`.
+# La Edge Function admite peticiones sin sesión, y es deliberado.
+#
+# Con `verify_jwt = true` la aplicación no podía cotizar ninguna acción, ETF ni
+# metal en su modo local sin cuenta, que es el modo por defecto: una cartera
+# real se quedaba con los precios que alguien escribió a mano semanas atrás y
+# con todas las métricas históricas bloqueadas. Exigir registro para ver el
+# precio de Microsoft contradice el principio de no pedir cuenta para lo
+# esencial.
+#
+# Lo que sigue protegiendo la clave no es esta línea: es que vive en los
+# secretos de la función, que solo se reenvían cuatro endpoints de una lista
+# blanca, y que quien llama sin sesión tiene un cupo por IP más estrecho que el
+# límite del propio plan de Twelve Data. Autorizado por el propietario el
+# 2026-08-21.
 [functions.market-proxy]
-verify_jwt = true
+verify_jwt = false

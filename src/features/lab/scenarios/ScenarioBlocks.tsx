@@ -26,8 +26,6 @@ export interface ScenarioPickerProps {
   readonly scenarios: readonly ScenarioDefinition[]
   readonly selectedId: string
   readonly onSelect: (id: string) => void
-  readonly onRun: () => void
-  readonly busy?: boolean
 }
 
 export function ScenarioPicker(props: ScenarioPickerProps) {
@@ -50,14 +48,6 @@ export function ScenarioPicker(props: ScenarioPickerProps) {
             ))}
           </select>
         </div>
-        <button
-          type="button"
-          className="btn primary"
-          onClick={props.onRun}
-          disabled={props.busy === true}
-        >
-          {props.busy === true ? 'Calculando…' : 'Ver qué pasaría'}
-        </button>
       </div>
 
       {elegido?.description !== undefined && <p className="muted tiny mb-0">{elegido.description}</p>}

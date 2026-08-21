@@ -64,8 +64,10 @@ export function LabScenariosPage() {
   const displayCurrency = store.settings.displayCurrency
 
   const escenarios = useMemo(() => builtinDeterministicScenarios(), [])
+  // Se calcula al elegir, no al pulsar. Un escenario determinista cuesta
+  // 0,23 ms medidos: no hay nada que diferir, y el botón solo servía para
+  // dejar la pantalla en blanco hasta que alguien lo encontrara.
   const [elegido, setElegido] = useState(escenarios[0]?.id ?? '')
-  const [ejecutado, setEjecutado] = useState<string | null>(null)
 
   const { posiciones, sinValorar } = useMemo(() => {
     const vista = buildPortfolioView({
@@ -108,7 +110,7 @@ export function LabScenariosPage() {
     [store.assets, posiciones],
   )
 
-  const { loaded, busy: descargando, run: descargar } = useStabilityAnalysis(
+  const { loaded, busy: descargando } = useStabilityAnalysis(
     candidatosHistoria,
     displayCurrency,
   )
@@ -133,8 +135,8 @@ export function LabScenariosPage() {
   }, [loaded, posiciones])
 
   const analisis = useMemo(() => {
-    if (ejecutado === null) return null
-    const definicion = escenarios.find((d) => d.id === ejecutado)
+    if (elegido === '') return null
+    const definicion = escenarios.find((d) => d.id === elegido)
     if (definicion === undefined) return null
 
     const hoy = new Date().toISOString().slice(0, 10)
@@ -160,7 +162,7 @@ export function LabScenariosPage() {
             }).outcome.changePct,
       ),
     }
-  }, [ejecutado, escenarios, posiciones, sinValorar, displayCurrency])
+  }, [elegido, escenarios, posiciones, sinValorar, displayCurrency])
 
   if (posiciones.length === 0) {
     return (
@@ -182,17 +184,9 @@ export function LabScenariosPage() {
         scenarios={escenarios}
         selectedId={elegido}
         onSelect={setElegido}
-        onRun={() => setEjecutado(elegido)}
       />
 
-      {analisis === null ? (
-        <Card title="Todavía no se ha calculado">
-          <p className="muted mb-0">
-            Elige un escenario y pulsa «Ver qué pasaría». No se muestra ninguna cifra antes de
-            calcularla.
-          </p>
-        </Card>
-      ) : (
+      {analisis === null ? null : (
         <>
           <ScenarioOutcomeBlock result={analisis.resultado} name={analisis.definicion.name} />
           <AssumptionsBlock assumptions={analisis.resultado.assumptions} />
@@ -214,18 +208,11 @@ export function LabScenariosPage() {
           title="Muchos futuros posibles"
           sub="Remuestreo por bloques de tu propia historia, no una campana de Gauss"
         >
-          <p className="muted">
-            Hace falta tu historial para remuestrearlo. No se descarga solo: es tráfico de red y
-            tiempo, y esta pantalla funciona sin él.
+          <p className="muted mb-0">
+            {descargando
+              ? 'Descargando tu historial para poder remuestrearlo.'
+              : 'Todavía no ha llegado historial de tus posiciones. Revisa en Cartera que estén enlazadas con un proveedor.'}
           </p>
-          <button
-            type="button"
-            className="btn primary"
-            onClick={() => void descargar()}
-            disabled={descargando}
-          >
-            {descargando ? 'Descargando…' : 'Descargar historial'}
-          </button>
         </Card>
       ) : (
         <BootstrapBlock

@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { labPath, type LabRouteId } from '../routes/labRoutes'
 import { LabShell, type LabShellProps } from './LabShell'
 
@@ -151,30 +151,12 @@ describe('LabShell · cabecera de contexto', () => {
     expect(screen.getAllByText('No disponible')).toHaveLength(2)
   })
 
-  it('no recalcula solo: avisa de que hay datos más recientes', () => {
-    montar({ routeId: 'lab.home', hasFresherData: true, onRefresh: () => {} })
-    expect(screen.getByRole('status')).toHaveTextContent('Hay datos más recientes')
-  })
-
-  it('el botón de actualizar queda deshabilitado si no hay acción', () => {
-    montar({ routeId: 'lab.home' })
-    expect(screen.getByRole('button', { name: 'Actualizar análisis' })).toBeDisabled()
-  })
-
-  it('el botón dispara la acción cuando existe', async () => {
-    const usuario = userEvent.setup()
-    const alActualizar = vi.fn()
-    montar({ routeId: 'lab.home', onRefresh: alActualizar })
-
-    await usuario.click(screen.getByRole('button', { name: 'Actualizar análisis' }))
-    expect(alActualizar).toHaveBeenCalledTimes(1)
-  })
 })
 
 describe('LabShell · teclado', () => {
-  it('empieza por las migas y alcanza el botón y el desplegable', async () => {
+  it('empieza por las migas y alcanza los controles de la pantalla', async () => {
     const usuario = userEvent.setup()
-    montar({ routeId: 'lab.stability.risk', onRefresh: () => {} })
+    montar({ routeId: 'lab.stability.risk' })
 
     await usuario.tab()
     expect(screen.getByRole('navigation', { name: 'Ruta' })).toContainElement(
@@ -187,20 +169,17 @@ describe('LabShell · teclado', () => {
       const activo = document.activeElement
       if (activo !== null && activo !== document.body) alcanzados.push(activo.tagName)
     }
-    expect(alcanzados).toContain('BUTTON')
+    // Antes se exigía además un BUTTON, y el único que había era «Actualizar
+    // análisis», que estaba siempre deshabilitado. La prueba comprobaba que se
+    // llegaba con el teclado a un control que no hacía nada.
+    expect(alcanzados).toContain('A')
     expect(alcanzados).toContain('SELECT')
   })
 
-  it('el botón deshabilitado queda fuera del orden de tabulación', async () => {
-    const usuario = userEvent.setup()
-    // Sin `onRefresh` no hay acción posible, así que el botón no debe robar
-    // una parada del tabulador.
+  it('la cabecera no mete ningún control muerto en el tabulador', async () => {
+    // Hubo un botón «Actualizar análisis» que salía en las diecisiete pantallas
+    // y **nunca** recibía acción: estaba siempre deshabilitado. Ya no está.
     montar({ routeId: 'lab.stability.risk' })
-
-    const boton = screen.getByRole('button', { name: 'Actualizar análisis' })
-    for (let i = 0; i < 20; i++) {
-      await usuario.tab()
-      expect(document.activeElement).not.toBe(boton)
-    }
+    expect(screen.queryByRole('button', { name: 'Actualizar análisis' })).not.toBeInTheDocument()
   })
 })

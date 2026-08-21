@@ -205,20 +205,18 @@ describe('elegir escenario', () => {
         scenarios={escenarios}
         selectedId={escenarios[0]!.id}
         onSelect={() => {}}
-        onRun={() => {}}
       />,
     )
     expect(screen.getByRole('combobox', { name: 'Escenario' })).toBeInTheDocument()
     expect(screen.getAllByRole('option')).toHaveLength(escenarios.length)
   })
 
-  it('describe el escenario elegido antes de calcular nada', () => {
+  it('describe el escenario elegido, que ya se calcula al elegirlo', () => {
     pintar(
       <ScenarioPicker
         scenarios={escenarios}
         selectedId={escenarios[0]!.id}
         onSelect={() => {}}
-        onRun={() => {}}
       />,
     )
     expect(screen.getByText(escenarios[0]!.description!)).toBeInTheDocument()

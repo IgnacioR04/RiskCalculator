@@ -4,9 +4,22 @@
  * - La clave TWELVE_DATA_API_KEY vive SOLO en los secretos de la funcion
  *   (supabase secrets set TWELVE_DATA_API_KEY=...); jamas en el navegador.
  * - Lista blanca de endpoints y parametros: nada mas se reenvia.
- * - Supabase verifica el JWT antes de ejecutar la funcion.
- * - Rate limiting simple por usuario y, como respaldo, IP.
+ * - Rate limiting por usuario y, para quien no tiene sesion, por IP.
  * - Cache HTTP corta para abaratar el plan gratuito.
+ *
+ * ## Por que se admiten peticiones sin sesion
+ *
+ * Hasta aqui la funcion exigia `Authorization` y `verify_jwt = true`. La
+ * consecuencia practica no se veia desde aqui: la aplicacion funciona **sin
+ * cuenta** por diseno, asi que en el modo local ninguna accion, ETF ni metal
+ * podia cotizarse jamas. Una cartera real se quedaba con once posiciones a
+ * precio manual de hacia tres semanas y con todas las metricas historicas
+ * bloqueadas por falta de observaciones. Exigir cuenta para ver el precio de
+ * Microsoft contradice el principio de no exigir registro para lo esencial.
+ *
+ * El coste esta asumido y es acotado: la clave sigue sin salir de aqui, la
+ * lista blanca sigue igual, y quien llama sin sesion tiene un cupo mas
+ * estrecho. Autorizado explicitamente por el propietario el 2026-08-21.
  *
  * Despliegue: supabase functions deploy market-proxy
  */
@@ -28,10 +41,6 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'GET') {
     return json({ error: 'Metodo no permitido' }, 405, cors)
   }
-  if (!req.headers.get('authorization')?.startsWith('Bearer ')) {
-    return json({ error: 'Sesion requerida' }, 401, cors)
-  }
-
   const apiKey = Deno.env.get('TWELVE_DATA_API_KEY')
   if (!apiKey) {
     return json({ error: 'TWELVE_DATA_API_KEY no configurada en el servidor' }, 503, cors)
@@ -102,7 +111,27 @@ function json(body: unknown, status: number, cors: Record<string, string>): Resp
 }
 
 const buckets = new Map<string, { count: number; resetAt: number }>()
-const LIMIT_PER_MINUTE = 30
+
+/**
+ * Cupos por minuto.
+ *
+ * Con sesion se identifica a una persona, asi que el cupo puede ser generoso.
+ * Sin sesion la unica identidad es la IP, que se comparte y se cambia, de modo
+ * que el cupo se ajusta a lo que de verdad necesita una cartera normal: una
+ * ronda completa son ~15 peticiones, y se refresca una vez por hora.
+ *
+ * El cliente ya se frena solo: espacia 8 s las llamadas a Twelve Data para no
+ * pasarse del limite del plan gratuito (8 por minuto). Este cupo es la red de
+ * seguridad para quien no use ese cliente, no el regulador del ritmo normal.
+ *
+ * Aviso honesto sobre el alcance: estos contadores viven en la memoria de la
+ * instancia. Un arranque en frio los reinicia y varias instancias no comparten
+ * cuenta, asi que esto **frena el abuso casual, no a un atacante decidido**. La
+ * proteccion dura sigue siendo que la clave no sale de aqui y que la lista
+ * blanca no deja pasar nada mas.
+ */
+const LIMIT_CON_SESION = 30
+const LIMIT_SIN_SESION = 20
 
 function allowRequest(req: Request): boolean {
   const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
@@ -110,10 +139,11 @@ function allowRequest(req: Request): boolean {
   try {
     subject = JSON.parse(atob(bearer.split('.')[1] ?? '')).sub ?? ''
   } catch {
-    // La plataforma ya verifica el JWT; aqui solo se extrae la clave del cupo.
+    // Sin sesion, o con un token que no es un JWT: se cuenta por IP.
   }
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  const key = subject || ip
+  const key = subject || `ip:${ip}`
+  const limite = subject ? LIMIT_CON_SESION : LIMIT_SIN_SESION
   const now = Date.now()
   const bucket = buckets.get(key)
   if (!bucket || now > bucket.resetAt) {
@@ -121,5 +151,5 @@ function allowRequest(req: Request): boolean {
     return true
   }
   bucket.count += 1
-  return bucket.count <= LIMIT_PER_MINUTE
+  return bucket.count <= limite
 }
