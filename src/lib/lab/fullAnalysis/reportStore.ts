@@ -75,16 +75,43 @@ export function saveReport(informe: PortfolioHealthReport): void {
 }
 
 /**
- * Recupera el informe de esa huella y ámbito, si existe.
+ * Recupera el informe de esa identidad y ámbito, si existe.
  *
  * Devuelve `null` cuando no hay ninguno **compatible**, que no es lo mismo que
- * cuando no hay ninguno: un informe de otra huella existe y no sirve.
+ * cuando no hay ninguno: un informe de otra identidad existe y no sirve.
  */
 export function loadReport(fingerprint: string, scope: PortfolioHealthReport['scope']): PortfolioHealthReport | null {
   const guardado = leerTodo()[`${fingerprint}:${scopeKey(scope)}`]
   if (guardado === undefined) return null
   if (guardado.version !== REPORT_STORE_VERSION) return null
   return guardado.report
+}
+
+/**
+ * Recupera **todos** los informes compatibles con una identidad.
+ *
+ * Recargar la página no puede obligar a recalcular cada cuenta: si la cartera no
+ * ha cambiado, los informes de ayer responden a la misma pregunta. Antes solo se
+ * recuperaba el consolidado y las cuentas volvían a descargar su historial.
+ *
+ * `cuentasVivas` filtra las que ya no existen. El informe de una cuenta borrada
+ * no es «viejo», es de algo que no está: enseñarlo sería inventar una cuenta.
+ */
+export function loadCompatibleReports(
+  fingerprint: string,
+  cuentasVivas: ReadonlySet<string>,
+): ReadonlyMap<string, PortfolioHealthReport> {
+  const salida = new Map<string, PortfolioHealthReport>()
+
+  for (const guardado of Object.values(leerTodo())) {
+    if (guardado.version !== REPORT_STORE_VERSION) continue
+    const informe = guardado.report
+    if (informe.fingerprint !== fingerprint) continue
+    if (informe.scope.kind === 'account' && !cuentasVivas.has(informe.scope.accountId)) continue
+    salida.set(scopeKey(informe.scope), informe)
+  }
+
+  return salida
 }
 
 /** Cuántos hay guardados. Para diagnóstico y pruebas. */

@@ -71,7 +71,7 @@ export function AnalysisProgress(props: AnalysisProgressProps) {
         <div>
           <dt>Mayor posición</dt>
           <dd>
-            {report.concentration.status === 'available'
+            {report.concentration.status === 'available' && report.concentration.value.top1 !== null
               ? `${(report.concentration.value.top1 * 100).toFixed(1).replace('.', ',')} %`
               : '—'}
           </dd>

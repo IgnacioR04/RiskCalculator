@@ -20,8 +20,11 @@ import { useFullAnalysis, type FullAnalysisState } from './useFullAnalysis'
 
 const VACIO: FullAnalysisState = {
   fingerprint: '',
+  structuralFingerprint: '',
+  valuationVersion: '',
   reports: new Map<string, PortfolioHealthReport>(),
   running: false,
+  failures: new Map<string, string>(),
 }
 
 const Contexto = createContext<FullAnalysisState>(VACIO)

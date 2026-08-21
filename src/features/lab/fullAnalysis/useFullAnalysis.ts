@@ -1,100 +1,150 @@
 /**
- * Arranque automático del análisis (LAB-1205).
+ * Arranque automático del análisis (LAB-1205, rediseñado en LAB-1213).
  *
  * ## Dónde se engancha, y por qué no en la importación
  *
- * El encargo pide que el análisis empiece al terminar una importación. Engancharlo
- * ahí cubriría **ese** camino y dejaría fuera los otros seis: editar una
- * operación, sincronizar con la nube, cambiar de divisa, cambiar el benchmark,
- * cambiar la política o cambiar de ámbito.
+ * Engancharlo al evento de importación cubriría ese camino y dejaría fuera los
+ * otros seis: editar una operación, sincronizar, cambiar de divisa, de
+ * benchmark, de política o de ámbito. Aquí se vigila **la identidad del
+ * análisis**, que es lo que todos tienen en común. Un evento repetido no
+ * dispara nada porque la identidad no se mueve, así que la deduplicación sale
+ * gratis en vez de llevar un registro de eventos vistos.
  *
- * Aquí se vigila la **huella** de la cartera, que es lo que todos esos caminos
- * tienen en común. Si cambia, hay una pregunta nueva; si no cambia, no la hay,
- * venga de donde venga el evento. Un evento duplicado no dispara nada porque la
- * huella no se ha movido, así que la deduplicación sale gratis en vez de
- * hacerse con un registro de eventos vistos.
+ * Vive montado en la shell: **no hace falta visitar ninguna pantalla**.
  *
- * Vive montado en la shell, no en el Laboratorio: **no hace falta visitar
- * ninguna pantalla** para que el análisis empiece.
+ * ## La política de precios, que antes se contradecía
  *
- * ## Cancelación
+ * La primera versión decía que las cotizaciones no entraban en la huella, y a la
+ * vez derivaba los pesos de `quotes` dentro de un `useMemo` del que dependía el
+ * efecto. Resultado: un tick **sí** relanzaba el análisis, y el informe nuevo se
+ * guardaba con el mismo `runId` que el anterior teniendo pesos distintos.
  *
- * Cada ejecución se queda con un número de generación. Al publicar cualquier
- * etapa comprueba que siga siendo la vigente; si no lo es, tira su resultado. Es
- * el mismo testigo que usa `useStabilityAnalysis`, y consigue lo único que
- * importa: que una respuesta tardía nunca pise a un informe nuevo.
+ * La política ahora es explícita y se cumple en las dos direcciones:
+ *
+ * 1. **La valoración se congela por fecha.** El disparador es
+ *    `estructura + configuración + fecha de valoración`. Un tick intradía no
+ *    relanza nada: los pesos del informe de hoy son los del momento en que se
+ *    calculó, y se identifican.
+ * 2. **Si aun así se recalcula, la identidad cambia.** Los precios usados se
+ *    capturan al arrancar y producen una `valuationVersion` que forma parte de
+ *    la identidad completa. Dos informes con pesos distintos no pueden compartir
+ *    clave, pase lo que pase aguas arriba.
+ *
+ * Al cruzar medianoche cambia la fecha de valoración, así que la aplicación
+ * abierta desde ayer recalcula sola.
+ *
+ * ## Tres cosas distintas que no son «cancelar»
+ *
+ * - `requestAborted`: se abortan las descargas pendientes de una ejecución
+ *   caduca. Es lo que ahorra tiempo y cuota.
+ * - `resultDiscarded`: llegó un resultado de una generación anterior y se tira.
+ * - `taskFailed`: un ámbito falló. Los demás continúan.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildPortfolioView } from '../../../lib/portfolio'
 import type { AnalysisScope, PortfolioHealthReport } from '../../../lib/lab/fullAnalysis/contracts'
 import { FULL_ANALYSIS_MODEL_VERSION, scopeKey } from '../../../lib/lab/fullAnalysis/contracts'
-import { buildFingerprint } from '../../../lib/lab/fullAnalysis/fingerprint'
-import { planScopes, runQueue } from '../../../lib/lab/fullAnalysis/analysisQueue'
-import { loadReport, saveReport } from '../../../lib/lab/fullAnalysis/reportStore'
 import {
-  runFullAnalysis,
-  type DatedReturn,
-  type FullAnalysisInput,
-} from '../../../lib/lab/fullAnalysis/runFullAnalysis'
+  analysisIdentity,
+  modelConfigFingerprint,
+  structuralFingerprint,
+  valuationVersion,
+} from '../../../lib/lab/fullAnalysis/fingerprint'
+import { planScopes, runQueue } from '../../../lib/lab/fullAnalysis/analysisQueue'
+import {
+  createMarketSeriesAdapter,
+  ADAPTADOR_VACIO,
+  AnalysisAbortedError,
+  type MarketSeriesAdapter,
+} from '../../../lib/lab/fullAnalysis/marketSeriesAdapter'
+import { loadCompatibleReports, saveReport } from '../../../lib/lab/fullAnalysis/reportStore'
+import { runFullAnalysis, type FullAnalysisInput } from '../../../lib/lab/fullAnalysis/runFullAnalysis'
+import { EXPECTED_RETURNS_VERSION } from '../../../lib/lab/candidates/expectedReturns'
+import { ECONOMIC_CLASS_VERSION } from '../../../lib/lab/candidates/economicClass'
 import { useAppStore } from '../../../state/store'
 
 /**
  * Espera antes de arrancar tras un cambio.
  *
  * Escribir una operación dispara varias actualizaciones del store seguidas
- * —cantidad, precio, fecha—, y cada una cambiaría la huella. Sin esta pausa, el
- * análisis arrancaría y se cancelaría a sí mismo cuatro veces por edición.
+ * —cantidad, precio, fecha—, y cada una cambiaría la identidad. Sin esta pausa
+ * el análisis arrancaría y se abortaría a sí mismo cuatro veces por edición.
  */
 export const DEBOUNCE_MS = 600
 
+/** Cada cuánto se comprueba si ha cambiado el día. */
+export const COMPROBACION_DE_FECHA_MS = 60_000
+
 export interface FullAnalysisState {
+  /** Identidad completa vigente. */
   readonly fingerprint: string
-  /** Informe por ámbito. El consolidado vive en la clave `portfolio`. */
+  readonly structuralFingerprint: string
+  readonly valuationVersion: string
   readonly reports: ReadonlyMap<string, PortfolioHealthReport>
   readonly running: boolean
+  /** Ámbitos que fallaron, con su motivo. Uno roto no detiene a los demás. */
+  readonly failures: ReadonlyMap<string, string>
 }
 
 export interface FullAnalysisOptions {
-  /** Cuenta que el usuario tiene delante: se analiza la segunda, no la última. */
   readonly visibleAccountId?: string
   /**
-   * Series históricas por activo. Inyectado para poder probar el orquestador
-   * entero sin red y para compartir caché entre ámbitos.
+   * Adaptador de históricos. **En producción no se pasa**: se construye el real.
+   * Existe para poder probar el orquestador sin red, y su ausencia ya no
+   * significa «sin series».
    */
-  readonly seriesFor?: (
-    assetIds: readonly string[],
-  ) => Promise<ReadonlyMap<string, readonly DatedReturn[]>>
+  readonly adapterFactory?: (opciones: {
+    signal: AbortSignal
+    baseCurrency: string
+  }) => MarketSeriesAdapter
   readonly debounceMs?: number
 }
-
-const SIN_SERIES = async (): Promise<ReadonlyMap<string, readonly DatedReturn[]>> => new Map()
 
 export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysisState {
   const assets = useAppStore((s) => s.assets)
   const accounts = useAppStore((s) => s.accounts)
   const transactions = useAppStore((s) => s.transactions)
-  const quotes = useAppStore((s) => s.quotes)
-  const fxRates = useAppStore((s) => s.fxRates)
   const displayCurrency = useAppStore((s) => s.settings.displayCurrency)
 
   const [reports, setReports] = useState<ReadonlyMap<string, PortfolioHealthReport>>(new Map())
+  const [failures, setFailures] = useState<ReadonlyMap<string, string>>(new Map())
   const [running, setRunning] = useState(false)
 
-  const asOf = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  /**
+   * Fecha de valoración, revisada cada minuto.
+   *
+   * Sin esto, una aplicación abierta desde ayer seguiría analizando con la fecha
+   * de ayer indefinidamente. Es barato y es lo que hace que la política de
+   * «valoración congelada por día» tenga un día que congelar.
+   */
+  const [asOf, setAsOf] = useState(() => new Date().toISOString().slice(0, 10))
+  useEffect(() => {
+    const t = setInterval(() => {
+      const hoy = new Date().toISOString().slice(0, 10)
+      setAsOf((previo) => (previo === hoy ? previo : hoy))
+    }, COMPROBACION_DE_FECHA_MS)
+    return () => clearInterval(t)
+  }, [])
 
-  const fingerprint = useMemo(
+  /* ── Identidad ───────────────────────────────────────────────────────────── */
+
+  const estructural = useMemo(
     () =>
-      buildFingerprint({
+      structuralFingerprint({
         scope: { kind: 'portfolio' },
-        asOf,
-        baseCurrency: displayCurrency,
         transactions: transactions.map((t) => ({
           id: t.id,
           assetId: t.assetId,
           accountId: t.accountId,
-          kind: t.type,
-          quantity: String(t.quantity),
-          date: t.datetime,
+          type: t.type,
+          datetime: t.datetime,
+          quantity: t.quantity,
+          investedAmount: t.investedAmount,
+          investedCurrency: t.investedCurrency,
+          executionPrice: t.executionPrice,
+          quoteCurrency: t.quoteCurrency,
+          fee: t.fee,
+          feeCurrency: t.feeCurrency,
         })),
         assets: assets.map((a) => ({
           id: a.id,
@@ -102,43 +152,93 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
           assetType: a.assetType,
           quoteCurrency: a.quoteCurrency,
         })),
-        modelVersion: FULL_ANALYSIS_MODEL_VERSION,
+        accountIds: accounts.map((c) => c.id),
       }),
-    [assets, transactions, displayCurrency, asOf],
+    [assets, accounts, transactions],
   )
 
-  /** Solo la generación vigente puede publicar. */
+  const configModelo = useMemo(
+    () =>
+      modelConfigFingerprint({
+        modelVersions: {
+          analysis: FULL_ANALYSIS_MODEL_VERSION,
+          expectedReturns: EXPECTED_RETURNS_VERSION,
+          economicClass: ECONOMIC_CLASS_VERSION,
+        },
+      }),
+    [],
+  )
+
+  /**
+   * Disparador.
+   *
+   * **No incluye los precios.** Esa es la política: la valoración se congela por
+   * día. Los precios sí entran en la identidad del informe, pero se leen al
+   * arrancar, no aquí.
+   */
+  const disparador = `${estructural}.${configModelo}.${asOf}`
+
+  const [identidad, setIdentidad] = useState({ full: '', structural: '', valuation: '' })
+
+  /* ── Ejecución ───────────────────────────────────────────────────────────── */
+
   const generacion = useRef(0)
+  const abortoActual = useRef<AbortController | null>(null)
   const visible = opciones.visibleAccountId
   const espera = opciones.debounceMs ?? DEBOUNCE_MS
 
-  /**
-   * El proveedor de series vive en una referencia y **no** en las dependencias.
-   *
-   * Si entrara, quien lo pase en línea —que es lo natural— cambiaría su
-   * identidad en cada render: el efecto se relanzaría, publicaría, provocaría
-   * otro render y vuelta a empezar. Se vio en las pruebas antes de que ninguna
-   * lo buscara: ocho rondas completas de análisis para una sola cartera, con
-   * sus ocho descargas. Lo que importa de esta función es lo que hace, no
-   * cuándo se creó.
-   */
-  const seriesRef = useRef(opciones.seriesFor ?? SIN_SERIES)
-  seriesRef.current = opciones.seriesFor ?? SIN_SERIES
+  const fabricaRef = useRef(opciones.adapterFactory)
+  fabricaRef.current = opciones.adapterFactory
 
-  const posiciones = useMemo(() => {
+  const arrancar = useCallback(async () => {
+    const mia = generacion.current + 1
+    generacion.current = mia
+    const vigente = () => generacion.current === mia
+
+    // `requestAborted`: se cortan las descargas de la ejecución anterior. No es
+    // lo mismo que descartar su resultado, y la diferencia se nota en la cuota
+    // del proveedor y en dos minutos de espera.
+    abortoActual.current?.abort()
+    const aborto = new AbortController()
+    abortoActual.current = aborto
+
+    setReports((previos) => {
+      const salida = new Map(previos)
+      for (const [clave, informe] of salida) salida.set(clave, { ...informe, status: 'stale' })
+      return salida
+    })
+    setFailures(new Map())
+
+    // Los precios se leen **ahora**, no reactivamente: es lo que congela la
+    // valoración y lo que permite identificarla.
+    const estado = useAppStore.getState()
     const vista = buildPortfolioView({
-      assets,
-      accounts,
-      transactions,
-      quotes,
-      fxRates,
+      assets: estado.assets,
+      accounts: estado.accounts,
+      transactions: estado.transactions,
+      quotes: estado.quotes,
+      fxRates: estado.fxRates,
       displayCurrency,
     })
-    // Una posición del mismo activo puede estar repartida entre cuentas, así que
-    // se abre por cuenta. Colapsarla en una sola con `accountIds[0]` atribuiría
-    // a una cuenta el valor que está en otra, y el informe de cuenta dejaría de
-    // corresponder a nada que el usuario pueda ver.
-    return vista.positions
+
+    const valoracion = valuationVersion({
+      asOf,
+      baseCurrency: displayCurrency,
+      prices: Object.values(estado.quotes).map((q) => ({
+        assetId: q.assetId,
+        price: q.price,
+        currency: q.currency,
+        asOf: q.timestamp,
+      })),
+      fx: estado.fxRates.map((r) => ({ pair: `${r.base}/${r.quote}`, rate: String(r.rate) })),
+    })
+
+    const id = analysisIdentity(estructural, valoracion, configModelo)
+    if (vigente()) setIdentidad({ full: id.full, structural: id.structural, valuation: id.valuation })
+
+    // Una posición del mismo activo repartida entre cuentas se abre por cuenta:
+    // colapsarla atribuiría a una cuenta el valor que está en otra.
+    const posiciones = vista.positions
       .filter((p) => p.quantity.gt(0))
       .flatMap((p) =>
         p.accountBreakdown
@@ -152,90 +252,106 @@ export function useFullAnalysis(opciones: FullAnalysisOptions = {}): FullAnalysi
             quantity: Number(b.quantity.toString()),
           })),
       )
-  }, [assets, accounts, transactions, quotes, fxRates, displayCurrency])
-
-  const arrancar = useCallback(async () => {
-    const mia = generacion.current + 1
-    generacion.current = mia
-    const vigente = () => generacion.current === mia
-
-    // El informe anterior queda obsoleto en cuanto la huella cambia. Marcarlo
-    // en vez de borrarlo permite seguir enseñándolo mientras se recalcula, con
-    // la etiqueta puesta.
-    setReports((previos) => {
-      const salida = new Map(previos)
-      for (const [clave, informe] of salida) salida.set(clave, { ...informe, status: 'stale' })
-      return salida
-    })
 
     if (posiciones.length === 0) {
       if (vigente()) setReports(new Map())
       return
     }
 
-    // Si ya hay un informe de esta misma huella guardado, se enseña de
-    // inmediato. Recargar la página no puede costar una ronda de descargas, y
-    // la huella —no la antigüedad— es lo que dice si sigue respondiendo a la
-    // misma pregunta.
-    const guardado = loadReport(fingerprint, { kind: 'portfolio' })
-    if (guardado !== null && vigente()) {
-      setReports((previos) => new Map(previos).set('portfolio', guardado))
+    // Se recuperan **todos** los informes compatibles, no solo el consolidado:
+    // recargar la página no puede obligar a recalcular cada cuenta.
+    const cuentasVivas = new Set(estado.accounts.map((c) => c.id))
+    const guardados = loadCompatibleReports(id.full, cuentasVivas)
+    if (guardados.size > 0 && vigente()) {
+      setReports((previos) => new Map([...previos, ...guardados]))
     }
 
     setRunning(true)
-    const cuentas = [...new Set(posiciones.map((p) => p.accountId).filter((id) => id !== ''))]
+    const cuentas = [...new Set(posiciones.map((p) => p.accountId).filter((c) => c !== ''))]
     const tareas = planScopes(cuentas, visible)
 
-    // Caché compartida entre ámbitos: la mayoría de las series que necesita una
-    // cuenta ya las pidió el consolidado.
-    const cache = new Map<string, readonly DatedReturn[]>()
-    const seriesCompartidas = async (ids: readonly string[]) => {
-      const faltan = ids.filter((id) => !cache.has(id))
-      if (faltan.length > 0) {
-        const nuevas = await seriesRef.current(faltan)
-        for (const [id, serie] of nuevas) cache.set(id, serie)
-      }
-      return new Map(ids.flatMap((id) => (cache.has(id) ? [[id, cache.get(id)!] as const] : [])))
-    }
+    // Un adaptador por ejecución: su caché se comparte entre ámbitos y no
+    // arrastra series de una valoración anterior.
+    const adaptador =
+      fabricaRef.current?.({ signal: aborto.signal, baseCurrency: displayCurrency }) ??
+      (estado.assets.length === 0
+        ? ADAPTADOR_VACIO
+        : createMarketSeriesAdapter({
+            assets: estado.assets,
+            baseCurrency: displayCurrency,
+            signal: aborto.signal,
+          }))
+
+    const fallos = new Map<string, string>()
 
     try {
       await runQueue(
         tareas,
         async (scope: AnalysisScope) => {
           const entrada: FullAnalysisInput = {
-            runId: `${fingerprint}:${scopeKey(scope)}`,
-            fingerprint,
+            runId: `${id.full}:${scopeKey(scope)}`,
+            fingerprint: id.full,
+            structuralFingerprint: id.structural,
+            valuationVersion: id.valuation,
+            modelConfigFingerprint: id.modelConfig,
             scope,
             asOf,
             baseCurrency: displayCurrency,
             positions: posiciones,
-            seriesFor: seriesCompartidas,
+            seriesFor: adaptador.seriesFor,
+            seriesFailures: adaptador.failures,
           }
-          return runFullAnalysis(entrada, (parcial) => {
-            // Publicación por etapas: la concentración aparece sin esperar a la
-            // red. Cada parcial comprueba la generación por su cuenta.
-            if (!vigente()) return
-            setReports((previos) => new Map(previos).set(scopeKey(scope), parcial))
-          })
+          try {
+            return await runFullAnalysis(entrada, (parcial) => {
+              if (!vigente()) return // resultDiscarded
+              setReports((previos) => new Map(previos).set(scopeKey(scope), parcial))
+            })
+          } catch (error) {
+            if (error instanceof AnalysisAbortedError) throw error
+            // `taskFailed`: este ámbito no sale, los demás siguen.
+            fallos.set(scopeKey(scope), error instanceof Error ? error.message : 'Error desconocido.')
+            return null
+          }
         },
         (scope, informe) => {
-          // Solo se guardan los terminados: un informe parcial no responde
-          // todavía a la pregunta, y recuperarlo al recargar daría una respuesta
-          // a medias con aspecto de completa.
+          if (informe === null) return
           saveReport(informe)
           setReports((previos) => new Map(previos).set(scopeKey(scope), informe))
         },
         vigente,
       )
+    } catch (error) {
+      // El aborto es una salida normal, no un fallo que haya que enseñar.
+      if (!(error instanceof AnalysisAbortedError)) {
+        fallos.set('portfolio', error instanceof Error ? error.message : 'Error desconocido.')
+      }
     } finally {
-      if (vigente()) setRunning(false)
+      // `running` termina aunque una etapa falle: dejarlo encendido convertiría
+      // un fallo puntual en una barra de progreso eterna.
+      if (vigente()) {
+        setFailures(fallos)
+        setRunning(false)
+      }
     }
-  }, [asOf, displayCurrency, fingerprint, posiciones, visible])
+  }, [asOf, configModelo, displayCurrency, estructural, visible])
 
   useEffect(() => {
-    const temporizador = setTimeout(() => void arrancar(), espera)
+    const temporizador = setTimeout(() => {
+      void arrancar()
+    }, espera)
     return () => clearTimeout(temporizador)
-  }, [arrancar, espera])
+    // `disparador` está en las dependencias a propósito aunque no se use dentro:
+    // es lo que define cuándo hay una pregunta nueva.
+  }, [arrancar, espera, disparador])
 
-  return { fingerprint, reports, running }
+  useEffect(() => () => abortoActual.current?.abort(), [])
+
+  return {
+    fingerprint: identidad.full,
+    structuralFingerprint: identidad.structural,
+    valuationVersion: identidad.valuation,
+    reports,
+    running,
+    failures,
+  }
 }

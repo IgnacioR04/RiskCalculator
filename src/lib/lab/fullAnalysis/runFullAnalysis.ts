@@ -1,26 +1,37 @@
 /**
- * Pipeline del análisis automático (LAB-1204).
+ * Pipeline del análisis automático (LAB-1204, endurecido en LAB-1212).
  *
  * ## La propiedad que gobierna el orden de las etapas
  *
  * **Lo que se puede calcular sin red se publica antes de tocar la red.** La
- * concentración de una cartera sale de los pesos, y los pesos ya están en el
- * dispositivo: hacer esperar ese número a que termine una descarga de historial
- * es regalar diez segundos de pantalla vacía a cambio de nada.
+ * concentración sale de los pesos, y los pesos ya están en el dispositivo: hacer
+ * esperar ese número a una descarga es regalar diez segundos de pantalla vacía a
+ * cambio de nada.
  *
  * De ahí que `onStage` reciba un informe **completo y utilizable** en cada
- * etapa, no un porcentaje. Lo que todavía no se sabe va marcado como
- * `insufficient`, que se pinta distinto de un cero.
+ * etapa, no un porcentaje. Lo que todavía no se sabe va marcado, y se pinta
+ * distinto de un cero.
  *
- * ## Lo que no hace este módulo
+ * ## Ni un cero inventado
  *
- * No descarga. Recibe `seriesFor` inyectado, y esa es la razón de que se pueda
- * probar entero sin red y de que la cola pueda compartir una caché entre la
- * cartera consolidada y cada cuenta. Un pipeline que sabe de proveedores no se
- * puede ejecutar dos veces sin pedir dos veces.
+ * Es la regla que más código ocupa aquí y la que más se nota en pantalla. Un
+ * HHI de 0 significaría «reparto infinitamente diversificado»; un drawdown de 0,
+ * «esta cartera nunca ha caído»; un peso de 0, «esta posición no pesa nada». Las
+ * tres son afirmaciones, y ninguna es lo que quiere decir un dato que falta.
  *
- * Tampoco optimiza ni simula: esas etapas llegan con las fases siguientes y hoy
- * salen declaradas como pendientes en vez de omitidas.
+ * Lo mismo con la cobertura por valor: dividir el valor conocido entre sí mismo
+ * daba **100 % con la mitad de la cartera sin precio**. Ahora es `null` cuando
+ * no se puede calcular, y se ofrece la cobertura por número, que sí se conoce.
+ *
+ * ## Lo que este módulo no hace
+ *
+ * No descarga: recibe `seriesFor` inyectado. Por eso se puede probar entero sin
+ * red y la cola puede compartir una caché entre ámbitos.
+ *
+ * Y no calcula casi nada de lo que llegará: covarianza, correlaciones,
+ * contribuciones al riesgo, Sharpe, Sortino, VaR, CVaR, beta, alpha, escenarios,
+ * bootstrap, optimización y robustez siguen **pendientes y declaradas como
+ * tales**. Esto no es un diagnóstico completo todavía.
  */
 import { annualizedVolatility, maxDrawdown, type SeriesPoint } from '../../finance/historical'
 import { concentration } from '../../finance/metrics'
@@ -49,29 +60,44 @@ export interface DatedReturn {
 
 export interface FullAnalysisInput {
   readonly runId: string
+  /** Identidad completa: estructura + valoración + configuración de modelo. */
   readonly fingerprint: string
+  readonly structuralFingerprint: string
+  readonly valuationVersion: string
+  readonly modelConfigFingerprint: string
   readonly scope: AnalysisScope
   readonly asOf: string
   readonly baseCurrency: Currency
   /** Todas las posiciones de la cartera; el ámbito filtra aquí dentro. */
   readonly positions: readonly AnalysisPosition[]
-  /**
-   * Devuelve las series de los activos pedidos. Inyectado a propósito: así el
-   * pipeline no sabe que existen los proveedores y la cola puede compartir una
-   * caché entre ámbitos.
-   */
-  readonly seriesFor: (assetIds: readonly string[]) => Promise<ReadonlyMap<string, readonly DatedReturn[]>>
+  readonly seriesFor: (
+    assetIds: readonly string[],
+  ) => Promise<ReadonlyMap<string, readonly DatedReturn[]>>
+  /** Instrumentos que el adaptador no pudo traer, con su motivo. */
+  readonly seriesFailures?: ReadonlyMap<string, string>
 }
 
-/** Mínimo de observaciones comunes para dar riesgo por bueno. */
+/** Mínimo de observaciones comunes para dar el riesgo por bueno. */
 export const MIN_OBSERVACIONES_RIESGO = 60
 
 /**
- * Ejecuta el análisis publicando resultados por etapas.
+ * Lo que este análisis todavía no calcula.
  *
- * `onStage` se llama con el informe entero cada vez que una etapa termina, y el
- * informe devuelto al final es el mismo objeto de la última llamada.
+ * Se declara pieza a pieza y no como «faltan cosas»: una limitación concreta se
+ * puede comprobar y se puede tachar; una genérica se queda para siempre.
  */
+export const MODULOS_PENDIENTES = [
+  'covarianza y correlación',
+  'contribuciones al riesgo',
+  'Sharpe y Sortino',
+  'VaR y CVaR',
+  'beta, alpha y R²',
+  'escenarios de estrés',
+  'bootstrap por bloques',
+  'optimización y frontera',
+  'robustez y fuera de muestra',
+] as const
+
 export async function runFullAnalysis(
   input: FullAnalysisInput,
   onStage?: (informe: PortfolioHealthReport, etapa: AnalysisStage) => void,
@@ -95,26 +121,25 @@ export async function runFullAnalysis(
   const posiciones = input.positions.filter((p) =>
     input.scope.kind === 'portfolio' ? true : p.accountId === input.scope.accountId,
   )
-  const snapshot = construirSnapshot(posiciones, input.asOf, input.baseCurrency)
+  const snapshot = construirSnapshot(posiciones, input)
   publicar(
     {
       snapshot:
-        snapshot.positions.length === 0
+        posiciones.length === 0
           ? insufficient(
               'empty_portfolio',
               'No hay posiciones en este ámbito, así que no hay nada que analizar.',
             )
-          : available(snapshot, input.asOf, { coverage: cobertura(posiciones) }),
+          : available(snapshot, input.asOf, { coverage: coberturaPorNumero(posiciones) }),
     },
     'snapshot',
   )
 
-  if (snapshot.positions.length === 0) {
-    return { ...informe, status: 'insufficient' }
-  }
+  if (posiciones.length === 0) return { ...informe, status: 'insufficient' }
 
   /* Etapa 2 — métricas locales. No esperan a la red, y esa es toda la gracia. */
-  publicar({ concentration: available(medirConcentracion(snapshot), input.asOf) }, 'localMetrics')
+  const conc = medirConcentracion(snapshot)
+  publicar({ concentration: estadoConcentracion(conc, input.asOf) }, 'localMetrics')
 
   /* Etapa 3 — datos de mercado. */
   const conValor = snapshot.positions.filter((p) => p.value !== null && p.value > 0)
@@ -122,30 +147,27 @@ export async function runFullAnalysis(
   publicar({}, 'marketData')
 
   /* Etapa 4 — cobertura. */
-  const calidad = medirCalidad(snapshot, series)
+  const calidad = medirCalidad(snapshot, series, input.seriesFailures)
   publicar({ quality: available(calidad, input.asOf) }, 'quality')
 
-  /* Etapa 5 — riesgo. Depende de la etapa anterior; las demás no. */
+  /* Etapa 5 — riesgo. Depende de la anterior; las demás no dependen de esta. */
   publicar({ risk: medirRiesgo(snapshot, series, input.asOf) }, 'riskAndDependence')
 
   /* Etapa 6 — diagnóstico. */
-  const informeFinal = publicar(
-    { findings: diagnosticar(snapshot, medirConcentracion(snapshot), calidad) },
-    'diagnosis',
-  )
-
-  return informeFinal
+  return publicar({ findings: diagnosticar(snapshot, conc, calidad) }, 'diagnosis')
 }
 
 /* ── Etapas ────────────────────────────────────────────────────────────────── */
 
 function informeInicial(input: FullAnalysisInput): PortfolioHealthReport {
-  const pendiente = <T>() =>
-    insufficient<T>('not_calculated_yet', 'Todavía no se ha calculado.')
+  const pendiente = <T>() => insufficient<T>('not_calculated_yet', 'Todavía no se ha calculado.')
 
   return {
     runId: input.runId,
     fingerprint: input.fingerprint,
+    structuralFingerprint: input.structuralFingerprint,
+    valuationVersion: input.valuationVersion,
+    modelConfigFingerprint: input.modelConfigFingerprint,
     scope: input.scope,
     asOf: input.asOf,
     createdAt: new Date().toISOString(),
@@ -159,10 +181,9 @@ function informeInicial(input: FullAnalysisInput): PortfolioHealthReport {
     findings: [],
     limitations: [
       {
-        code: 'stages_pending',
-        message:
-          'Optimización, escenarios, simulación y robustez todavía no forman parte del análisis automático: llegan en fases siguientes.',
-        affects: ['optimization', 'stress', 'simulation', 'robustness'],
+        code: 'modules_pending',
+        message: `Este análisis todavía no incluye: ${MODULOS_PENDIENTES.join(', ')}. No es un diagnóstico completo.`,
+        affects: [...MODULOS_PENDIENTES],
       },
     ],
   }
@@ -170,56 +191,100 @@ function informeInicial(input: FullAnalysisInput): PortfolioHealthReport {
 
 function construirSnapshot(
   posiciones: readonly AnalysisPosition[],
-  asOf: string,
-  baseCurrency: Currency,
+  input: FullAnalysisInput,
 ): PortfolioSnapshot {
-  const conValor = posiciones.filter((p) => p.value !== null && p.value > 0)
-  const total = conValor.reduce((s, p) => s + (p.value ?? 0), 0)
+  const conocido = posiciones
+    .filter((p) => p.value !== null && p.value > 0)
+    .reduce((s, p) => s + (p.value ?? 0), 0)
 
   return {
-    asOf,
-    baseCurrency,
+    asOf: input.asOf,
+    baseCurrency: input.baseCurrency,
     positions: posiciones,
-    totalValue: total,
-    // Se nombran, no se cuentan como cero: una posición sin precio no vale
-    // cero, es que no se sabe cuánto vale.
+    knownValue: conocido,
     unvalued: posiciones.filter((p) => p.value === null).map((p) => p.symbol),
-    weights: posiciones.map((p) => (total > 0 ? (p.value ?? 0) / total : 0)),
+    // `null` y no 0: no se sabe cuánto pesa, que no es lo mismo que no pesar.
+    weights: posiciones.map((p) =>
+      p.value === null || conocido <= 0 ? null : p.value / conocido,
+    ),
+    valuationVersion: input.valuationVersion,
   }
 }
 
 function medirConcentracion(snapshot: PortfolioSnapshot): ConcentrationSummary {
-  const valores = snapshot.positions.flatMap((p) => (p.value !== null && p.value > 0 ? [p.value] : []))
+  const valores = snapshot.positions.flatMap((p) =>
+    p.value !== null && p.value > 0 ? [p.value] : [],
+  )
   const r = concentration(valores)
-  const ordenados = [...snapshot.weights].sort((a, b) => b - a)
+
+  if (r.hhi === null || r.effectivePositions === null) {
+    return {
+      top1: null,
+      top5: null,
+      hhi: null,
+      effectivePositions: null,
+      positions: valores.length,
+      reasonCode: 'no_positive_values',
+    }
+  }
+
+  const ordenados = snapshot.weights
+    .flatMap((w) => (w === null ? [] : [w]))
+    .sort((a, b) => b - a)
 
   return {
-    top1: ordenados[0] ?? 0,
-    top5: ordenados.slice(0, 5).reduce((s, w) => s + w, 0),
-    hhi: r.hhi === null ? 0 : r.hhi.toNumber(),
-    effectivePositions: r.effectivePositions === null ? 0 : r.effectivePositions.toNumber(),
+    top1: ordenados[0] ?? null,
+    top5: ordenados.length === 0 ? null : ordenados.slice(0, 5).reduce((s, w) => s + w, 0),
+    hhi: r.hhi.toNumber(),
+    effectivePositions: r.effectivePositions.toNumber(),
     positions: valores.length,
   }
+}
+
+function estadoConcentracion(
+  conc: ConcentrationSummary,
+  asOf: string,
+): PortfolioHealthReport['concentration'] {
+  if (conc.hhi === null) {
+    return insufficient(
+      'no_positive_values',
+      'Ninguna posición tiene valor conocido, así que no se puede medir la concentración.',
+      ['Precio de al menos una posición'],
+    )
+  }
+  return available(conc, asOf)
 }
 
 function medirCalidad(
   snapshot: PortfolioSnapshot,
   series: ReadonlyMap<string, readonly DatedReturn[]>,
+  fallos: ReadonlyMap<string, string> | undefined,
 ): DataQualitySummary {
-  const total = snapshot.totalValue
+  const total = snapshot.positions.length
+  const conPrecio = snapshot.positions.filter((p) => p.value !== null && p.value > 0)
+  const haySinValorar = snapshot.unvalued.length > 0
+
   const valorCon = (predicado: (p: AnalysisPosition) => boolean) =>
-    total > 0
-      ? snapshot.positions.filter(predicado).reduce((s, p) => s + (p.value ?? 0), 0) / total
+    snapshot.knownValue > 0
+      ? conPrecio.filter(predicado).reduce((s, p) => s + (p.value ?? 0), 0) / snapshot.knownValue
       : 0
 
+  const porSimbolo = new Map(snapshot.positions.map((p) => [p.assetId, p.symbol]))
+
   return {
-    pricedCoverage: valorCon((p) => p.value !== null && p.value > 0),
-    historyCoverage: valorCon(
-      (p) => (series.get(p.assetId)?.length ?? 0) >= MIN_OBSERVACIONES_RIESGO,
-    ),
-    missingSeries: snapshot.positions
+    // Si falta el valor de alguna posición, el denominador correcto —el valor
+    // total— es justo el que no se conoce. Decir 100 % aquí sería tranquilizador
+    // y falso.
+    pricedCoverage: haySinValorar ? null : 1,
+    pricedCoverageByCount: total === 0 ? 0 : conPrecio.length / total,
+    historyCoverage: valorCon((p) => (series.get(p.assetId)?.length ?? 0) >= MIN_OBSERVACIONES_RIESGO),
+    missingSeries: conPrecio
       .filter((p) => (series.get(p.assetId)?.length ?? 0) < MIN_OBSERVACIONES_RIESGO)
       .map((p) => p.symbol),
+    failures: [...(fallos ?? new Map())].map(([assetId, reason]) => ({
+      symbol: porSimbolo.get(assetId) ?? assetId,
+      reason,
+    })),
     stalestPriceDays: null,
   }
 }
@@ -239,7 +304,10 @@ function medirRiesgo(
 ): PortfolioHealthReport['risk'] {
   const conSerie = snapshot.positions.flatMap((p, i) => {
     const s = series.get(p.assetId)
-    return s === undefined || s.length === 0 ? [] : [{ peso: snapshot.weights[i]!, serie: s }]
+    const peso = snapshot.weights[i]
+    return s === undefined || s.length === 0 || peso === null || peso === undefined
+      ? []
+      : [{ peso, serie: s }]
   })
 
   if (conSerie.length === 0) {
@@ -263,7 +331,7 @@ function medirRiesgo(
 
   const pesoTotal = conSerie.reduce((s, c) => s + c.peso, 0)
   if (pesoTotal <= 0) {
-    return insufficient('no_value', 'Las posiciones con historial no tienen valor.')
+    return insufficient('no_value', 'Las posiciones con historial no tienen valor conocido.')
   }
 
   const cartera = comunes.map((fecha) =>
@@ -275,8 +343,8 @@ function medirRiesgo(
     return insufficient(vol.reason, 'No se puede medir la volatilidad con estas observaciones.')
   }
 
-  // Se reconstruye la riqueza para el drawdown: `maxDrawdown` trabaja con
-  // niveles, no con rendimientos.
+  // Se reconstruye la riqueza porque `maxDrawdown` trabaja con niveles, no con
+  // rendimientos.
   let nivel = 100
   const niveles: SeriesPoint[] = comunes.map((fecha, i) => {
     nivel *= 1 + cartera[i]!
@@ -287,7 +355,8 @@ function medirRiesgo(
   return available(
     {
       annualizedVolatility: vol.value,
-      maxDrawdown: dd.ok ? dd.value.maxDrawdown : 0,
+      // `null` si no se pudo medir: un 0 diría que nunca ha caído.
+      maxDrawdown: dd.ok ? dd.value.maxDrawdown : null,
       observations: comunes.length,
     },
     asOf,
@@ -314,11 +383,24 @@ function diagnosticar(
       code: 'unvalued_positions',
       severity: 'critical',
       confidence: 'high',
-      claim: `${snapshot.unvalued.length} ${snapshot.unvalued.length === 1 ? 'posición no tiene precio' : 'posiciones no tienen precio'}: ${snapshot.unvalued.join(', ')}. Todo lo demás se calcula sin ellas.`,
+      claim: `${snapshot.unvalued.length} ${snapshot.unvalued.length === 1 ? 'posición no tiene precio' : 'posiciones no tienen precio'}: ${snapshot.unvalued.join(', ')}. No se sabe cuánto pesan, así que las demás cifras describen solo el resto.`,
       evidenceIds: ['snapshot.unvalued'],
       actionType: 'complete_data',
       route: '/cartera',
-      limitations: ['Los pesos y la concentración se calculan sobre el valor conocido.'],
+      limitations: ['La cobertura por valor no se puede calcular mientras falte un precio.'],
+    })
+  }
+
+  if (calidad.failures.length > 0) {
+    salida.push({
+      code: 'series_failures',
+      severity: 'attention',
+      confidence: 'high',
+      claim: `No llegó el historial de ${calidad.failures.length}: ${calidad.failures.map((f) => f.symbol).join(', ')}.`,
+      evidenceIds: ['quality.failures'],
+      actionType: 'complete_data',
+      route: '/laboratorio/estabilidad/datos',
+      limitations: ['El riesgo se mide solo con las posiciones cuya serie sí llegó.'],
     })
   }
 
@@ -327,21 +409,21 @@ function diagnosticar(
       code: 'insufficient_history_coverage',
       severity: 'critical',
       confidence: 'high',
-      claim: `Solo el ${Math.round(calidad.historyCoverage * 100)} % de tu cartera tiene historial suficiente, así que el riesgo medido no representa al conjunto.`,
+      claim: `Solo el ${Math.round(calidad.historyCoverage * 100)} % del valor conocido tiene historial suficiente, así que el riesgo medido no representa al conjunto.`,
       evidenceIds: ['quality.historyCoverage'],
       affectedWeight: 1 - calidad.historyCoverage,
       actionType: 'complete_data',
       route: '/laboratorio/estabilidad/datos',
-      limitations: ['Volatilidad, correlaciones y caída máxima solo cubren la parte con historial.'],
+      limitations: ['Volatilidad y caída máxima solo cubren la parte con historial.'],
     })
   }
 
-  if (conc.top1 > 0.3) {
+  if (conc.top1 !== null && conc.top1 > 0.3) {
     salida.push({
       code: 'high_single_position',
       severity: conc.top1 > 0.5 ? 'critical' : 'attention',
       confidence: 'high',
-      claim: `Tu mayor posición es el ${Math.round(conc.top1 * 100)} % de la cartera.`,
+      claim: `Tu mayor posición es el ${Math.round(conc.top1 * 100)} % del valor conocido.`,
       evidenceIds: ['concentration.top1'],
       affectedWeight: conc.top1,
       actionType: 'review_concentration',
@@ -352,12 +434,16 @@ function diagnosticar(
     })
   }
 
-  if (conc.effectivePositions > 0 && conc.effectivePositions < conc.positions / 2) {
+  if (
+    conc.effectivePositions !== null &&
+    conc.positions > 0 &&
+    conc.effectivePositions < conc.positions / 2
+  ) {
     salida.push({
       code: 'low_effective_positions',
       severity: 'attention',
       confidence: 'medium',
-      claim: `Tienes ${conc.positions} posiciones, pero el reparto equivale a ${conc.effectivePositions.toFixed(1)}.`,
+      claim: `Tienes ${conc.positions} posiciones valoradas, pero el reparto equivale a ${conc.effectivePositions.toFixed(1)}.`,
       evidenceIds: ['concentration.effectivePositions'],
       actionType: 'review_concentration',
       route: '/laboratorio/estabilidad/exposicion',
@@ -368,10 +454,10 @@ function diagnosticar(
   return salida
 }
 
-const cobertura = (posiciones: readonly AnalysisPosition[]): number => {
-  const total = posiciones.length
-  return total === 0 ? 0 : posiciones.filter((p) => p.value !== null).length / total
-}
+const coberturaPorNumero = (posiciones: readonly AnalysisPosition[]): number =>
+  posiciones.length === 0
+    ? 0
+    : posiciones.filter((p) => p.value !== null).length / posiciones.length
 
 /** Cuántas etapas tiene el análisis. Para pintar «3 de 6» sin saberse la lista. */
 export const TOTAL_STAGES = ANALYSIS_STAGES.length

@@ -208,32 +208,71 @@ export interface PortfolioSnapshot {
   readonly asOf: string
   readonly baseCurrency: Currency
   readonly positions: readonly AnalysisPosition[]
-  readonly totalValue: number
+  /** Suma del valor **conocido**. No es el valor de la cartera si falta alguno. */
+  readonly knownValue: number
   /** Símbolos sin precio. Se nombran, no se cuentan como cero. */
   readonly unvalued: readonly string[]
-  readonly weights: readonly number[]
+  /**
+   * Peso de cada posición, `null` cuando no se conoce su valor.
+   *
+   * Un peso de 0 diría que esa posición no pesa nada en la cartera. Lo que
+   * ocurre es que no se sabe cuánto pesa, y son cosas distintas: la primera
+   * invita a ignorarla, la segunda a completarla.
+   */
+  readonly weights: readonly (number | null)[]
+  /** Identidad de la valoración usada, para no mezclar dos conjuntos de precios. */
+  readonly valuationVersion: string
 }
 
+/**
+ * Concentración.
+ *
+ * Los campos son anulables **a propósito**. `concentration()` devuelve `null`
+ * cuando no hay valores positivos, y la primera versión de este módulo
+ * convertía ese `null` en `0`. Un HHI de 0 significaría «reparto infinitamente
+ * diversificado», que es lo contrario de «no se sabe»: exactamente el tipo de
+ * cero inventado que el resto del Laboratorio existe para evitar.
+ */
 export interface ConcentrationSummary {
-  readonly top1: number
-  readonly top5: number
-  readonly hhi: number
-  readonly effectivePositions: number
+  readonly top1: number | null
+  readonly top5: number | null
+  readonly hhi: number | null
+  readonly effectivePositions: number | null
+  /** Cuántas posiciones entraron en el cálculo, con valor conocido. */
   readonly positions: number
+  /** Por qué falta lo que falta. Vacío si está todo. */
+  readonly reasonCode?: string
 }
 
 export interface DataQualitySummary {
-  /** Fracción del valor con precio conocido. */
-  readonly pricedCoverage: number
-  /** Fracción del valor con historia suficiente. */
+  /**
+   * Cobertura por valor, o `null` si no se puede calcular.
+   *
+   * `null` cuando hay posiciones sin valorar: el denominador tendría que ser el
+   * valor total de la cartera, y precisamente ese es el que no se conoce.
+   * Dividir el valor conocido entre sí mismo daba **100 % con la mitad de la
+   * cartera sin precio**, que es la peor cifra posible: tranquilizadora y falsa.
+   */
+  readonly pricedCoverage: number | null
+  /** Cobertura por número de posiciones. Siempre calculable. */
+  readonly pricedCoverageByCount: number
+  /** Fracción del valor conocido con historia suficiente. */
   readonly historyCoverage: number
   readonly missingSeries: readonly string[]
+  /** Instrumentos que se pidieron y no llegaron, con su motivo. */
+  readonly failures: readonly { readonly symbol: string; readonly reason: string }[]
   readonly stalestPriceDays: number | null
 }
 
 export interface RiskSummary {
   readonly annualizedVolatility: number
-  readonly maxDrawdown: number
+  /**
+   * Caída máxima, o `null` si no se pudo medir.
+   *
+   * Un fallo de `maxDrawdown` no puede convertirse en `0`: diría que la cartera
+   * nunca ha caído, que es una afirmación fuerte y probablemente falsa.
+   */
+  readonly maxDrawdown: number | null
   readonly observations: number
 }
 
@@ -246,7 +285,17 @@ export interface RiskSummary {
  */
 export interface PortfolioHealthReport {
   readonly runId: string
+  /**
+   * Identidad completa: estructura, valoración y configuración de modelo.
+   *
+   * Dos informes con pesos distintos **no pueden** compartirla. Es lo que
+   * garantiza que un informe nuevo no se guarde encima de otro que respondía a
+   * otra pregunta.
+   */
   readonly fingerprint: string
+  readonly structuralFingerprint: string
+  readonly valuationVersion: string
+  readonly modelConfigFingerprint: string
   readonly scope: AnalysisScope
   readonly asOf: string
   readonly createdAt: string

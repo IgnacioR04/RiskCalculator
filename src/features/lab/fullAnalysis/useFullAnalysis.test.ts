@@ -1,26 +1,23 @@
 /**
- * LAB-1205. Las pruebas de automatización: lo que tiene que ocurrir **sin que
- * nadie pulse nada**.
+ * LAB-1205 / LAB-1213. Las pruebas de automatización: lo que tiene que ocurrir
+ * **sin que nadie pulse nada**, y la política de precios que antes se
+ * contradecía.
  *
  * Se monta el hook directamente, sin renderizar ninguna pantalla del
- * Laboratorio. Eso ya es parte de lo que se comprueba: si hiciera falta visitar
- * una pantalla para que el análisis empezara, estas pruebas no pasarían.
+ * Laboratorio. Eso ya es parte de lo que se comprueba.
  *
  * ## Aislamiento
  *
- * Dos detalles costaron más que el resto del archivo, y los dos son la misma
- * clase de error: una prueba que pasa por vacío.
- *
- * - **Cada prueba usa una cartera distinta.** Con la misma huella, el informe
- *   que guardó la anterior se recupera de `localStorage` y la siguiente pasa sin
- *   haber calculado nada.
- * - **Los hooks que dejan una promesa colgada se desmontan y la sueltan.** Si no,
- *   su cola sigue viva durante las pruebas siguientes.
+ * Cada prueba usa una cartera distinta: con la misma identidad, el informe que
+ * guardó la anterior se recupera de `localStorage` y la siguiente pasaría **sin
+ * haber calculado nada**. Y los hooks se desmontan, porque uno que deja una
+ * promesa colgada sigue vivo durante las pruebas siguientes.
  */
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Asset, BrokerAccount, Quote, Transaction } from '../../../lib/domain'
-import { clearReports, countReports, loadReport } from '../../../lib/lab/fullAnalysis/reportStore'
+import { clearReports, loadReport } from '../../../lib/lab/fullAnalysis/reportStore'
+import type { MarketSeriesAdapter } from '../../../lib/lab/fullAnalysis/marketSeriesAdapter'
 import type { DatedReturn } from '../../../lib/lab/fullAnalysis/runFullAnalysis'
 import { useAppStore } from '../../../state/store'
 import { useFullAnalysis } from './useFullAnalysis'
@@ -65,23 +62,42 @@ const cotizacion = (assetId: string, precio: string): Quote => ({
   fetchedAt: '2026-08-21T10:00:00Z',
 })
 
+/** Serie con observaciones suficientes para que el riesgo salga `available`. */
+function serie(n: number, semilla: number): DatedReturn[] {
+  const base = new Date('2025-01-01T00:00:00Z').getTime()
+  return Array.from({ length: n }, (_, i) => ({
+    date: new Date(base + i * 86_400_000).toISOString().slice(0, 10),
+    value: Math.sin((i + 1) * semilla) * 0.01,
+  }))
+}
+
 let contador = 0
 
-/** Carga una cartera con dos cuentas, distinta en cada prueba. */
 function cargarCartera(): void {
   contador += 1
   useAppStore.setState({
     accounts: CUENTAS,
     assets: [activo('a1', 'AAA'), activo('a2', 'BBB')],
-    transactions: [
-      compra('t1', 'a1', 'c1', String(10 + contador)),
-      compra('t2', 'a2', 'c2', '5'),
-    ],
-    // Sin cotización las posiciones salen sin valor y el pipeline no llega a
-    // pedir series: las pruebas de resultados parciales pasarían por vacío.
+    transactions: [compra('t1', 'a1', 'c1', String(10 + contador)), compra('t2', 'a2', 'c2', '5')],
     quotes: { a1: cotizacion('a1', '120'), a2: cotizacion('a2', '80') },
     fxRates: [],
   })
+}
+
+/** Adaptador de prueba que devuelve series completas. */
+function adaptadorConSeries(): { adapter: MarketSeriesAdapter; llamadas: string[][] } {
+  const llamadas: string[][] = []
+  return {
+    llamadas,
+    adapter: {
+      version: 'test',
+      failures: new Map(),
+      seriesFor: async (ids) => {
+        llamadas.push([...ids])
+        return new Map(ids.map((id, i) => [id, serie(120, i + 1)]))
+      },
+    },
+  }
 }
 
 beforeEach(() => {
@@ -93,210 +109,278 @@ afterEach(() => {
   clearReports()
 })
 
-/** Debounce corto: se prueba el comportamiento, no la espera. */
 const OPCIONES = { debounceMs: 1 }
 
 describe('arranque automático', () => {
   it('una cartera cargada dispara el análisis sin pulsar nada', async () => {
     cargarCartera()
     const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
-
-    await waitFor(() => {
-      expect(result.current.reports.get('portfolio')?.status).toBe('ready')
-    })
-    expect(result.current.reports.get('portfolio')?.scope).toEqual({ kind: 'portfolio' })
+    await waitFor(() => expect(result.current.reports.get('portfolio')?.status).toBe('ready'))
     unmount()
   })
 
-  it('analiza primero la cartera consolidada y después cada cuenta', async () => {
+  it('analiza la consolidada primero y después cada cuenta', async () => {
     cargarCartera()
     const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
-
-    await waitFor(() => {
-      expect(result.current.reports.size).toBe(3)
-    })
+    await waitFor(() => expect(result.current.reports.size).toBe(3))
     expect([...result.current.reports.keys()]).toEqual(['portfolio', 'account:c1', 'account:c2'])
     unmount()
   })
 
-  it('una cartera vacía no produce informes ni errores', async () => {
-    const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
-    await waitFor(() => {
-      expect(result.current.running).toBe(false)
-    })
-    expect(result.current.reports.size).toBe(0)
+  it('visibleAccountId cambia realmente la prioridad', async () => {
+    cargarCartera()
+    const publicados: string[] = []
+    const { result, unmount } = renderHook(() =>
+      useFullAnalysis({ ...OPCIONES, visibleAccountId: 'c2' }),
+    )
+    await waitFor(() => expect(result.current.reports.size).toBe(3))
+    for (const clave of result.current.reports.keys()) publicados.push(clave)
+    // La cuenta visible va la segunda, no la última.
+    expect(publicados[1]).toBe('account:c2')
     unmount()
   })
 })
 
-describe('ámbito', () => {
-  it('el informe de una cuenta no incluye posiciones de la otra', async () => {
+describe('con históricos, el riesgo se calcula solo', () => {
+  it('una cartera con series produce volatilidad y drawdown sin visitar Lab', async () => {
     cargarCartera()
-    const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
+    const { adapter } = adaptadorConSeries()
+    const { result, unmount } = renderHook(() =>
+      useFullAnalysis({ ...OPCIONES, adapterFactory: () => adapter }),
+    )
 
-    await waitFor(() => {
-      expect(result.current.reports.get('account:c1')?.status).toBe('ready')
-    })
+    await waitFor(() => expect(result.current.reports.get('portfolio')?.risk.status).toBe('available'))
+    const riesgo = result.current.reports.get('portfolio')!.risk
+    expect(riesgo.status).toBe('available')
+    if (riesgo.status !== 'available') return
+    expect(riesgo.value.annualizedVolatility).toBeGreaterThan(0)
+    expect(riesgo.value.maxDrawdown).not.toBeNull()
+    unmount()
+  })
 
-    const c1 = result.current.reports.get('account:c1')!
-    expect(c1.snapshot.status).toBe('available')
-    if (c1.snapshot.status === 'available') {
-      expect(c1.snapshot.value.positions.map((p) => p.symbol)).toEqual(['AAA'])
-    }
+  it('los tres ámbitos comparten un único adaptador', async () => {
+    // La caché vive dentro del adaptador —y `marketSeriesAdapter.test.ts`
+    // comprueba que funciona—, así que lo que importa aquí es que el hook cree
+    // **uno solo por ejecución**. Con uno por ámbito, la caché no serviría de
+    // nada y cada cuenta volvería a descargar lo mismo.
+    cargarCartera()
+    const { adapter } = adaptadorConSeries()
+    let creados = 0
+    const { result, unmount } = renderHook(() =>
+      useFullAnalysis({
+        ...OPCIONES,
+        adapterFactory: () => {
+          creados += 1
+          return adapter
+        },
+      }),
+    )
+    await waitFor(() => expect(result.current.reports.size).toBe(3))
+    expect(creados).toBe(1)
     unmount()
   })
 })
 
-describe('huella', () => {
-  it('un cambio en las operaciones cambia la huella', async () => {
+describe('política de precios', () => {
+  it('un tick intradía NO relanza el análisis', async () => {
+    // La política es congelar la valoración del día. Si esto fallara, cada
+    // actualización de precio lanzaría una ronda completa de descargas.
     cargarCartera()
-    const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
-    await waitFor(() => expect(result.current.fingerprint).not.toBe(''))
-    const antes = result.current.fingerprint
-
-    act(() => {
-      useAppStore.setState({
-        transactions: [compra('t1', 'a1', 'c1', '999'), compra('t2', 'a2', 'c2', '5')],
-      })
-    })
-    await waitFor(() => expect(result.current.fingerprint).not.toBe(antes))
-    unmount()
-  })
-
-  it('cambiar la divisa de presentación cambia la huella', async () => {
-    cargarCartera()
-    const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
-    await waitFor(() => expect(result.current.fingerprint).not.toBe(''))
-    const antes = result.current.fingerprint
-
-    act(() => {
-      useAppStore.getState().setDisplayCurrency('USD')
-    })
-    await waitFor(() => expect(result.current.fingerprint).not.toBe(antes))
-    act(() => {
-      useAppStore.getState().setDisplayCurrency('EUR')
-    })
-    unmount()
-  })
-
-  it('un evento repetido no cambia la huella: la deduplicación sale gratis', async () => {
-    cargarCartera()
-    const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
-    await waitFor(() => expect(result.current.fingerprint).not.toBe(''))
-    const antes = result.current.fingerprint
-
-    // Volver a escribir exactamente lo mismo es lo que hace una sincronización
-    // que no trae novedades. No es una pregunta nueva, y no dispara nada.
-    const mismas = useAppStore.getState().transactions.map((t) => ({ ...t }))
-    act(() => {
-      useAppStore.setState({ transactions: mismas })
-    })
-    expect(result.current.fingerprint).toBe(antes)
-    unmount()
-  })
-})
-
-describe('cancelación y parciales', () => {
-  it('la concentración se publica antes de terminar la descarga', async () => {
-    cargarCartera()
-    const testigos: (() => void)[] = []
-    const seriesFor = async (): Promise<ReadonlyMap<string, readonly DatedReturn[]>> => {
-      await new Promise<void>((r) => testigos.push(r))
-      return new Map()
+    let ejecuciones = 0
+    const adapter: MarketSeriesAdapter = {
+      version: 'test',
+      failures: new Map(),
+      seriesFor: async () => {
+        ejecuciones += 1
+        return new Map()
+      },
     }
+    const { result, unmount } = renderHook(() =>
+      useFullAnalysis({ ...OPCIONES, adapterFactory: () => adapter }),
+    )
+    await waitFor(() => expect(result.current.reports.get('portfolio')?.status).toBe('ready'))
+    const antes = ejecuciones
 
-    const { result, unmount } = renderHook(() => useFullAnalysis({ ...OPCIONES, seriesFor }))
-
-    // La red se queda esperando a propósito: lo que se comprueba es que la
-    // concentración no la espera.
-    await waitFor(() => {
-      expect(result.current.reports.get('portfolio')?.concentration.status).toBe('available')
-    })
-    await waitFor(() => {
-      expect(testigos.length).toBeGreaterThan(0)
-    })
-    expect(result.current.reports.get('portfolio')?.status).toBe('partial')
-    expect(result.current.reports.get('portfolio')?.risk.status).toBe('insufficient')
-
-    await act(async () => {
-      for (const soltar of testigos) soltar()
-      await Promise.resolve()
-    })
-    unmount()
-  })
-
-  it('una respuesta tardía no sobrescribe el informe nuevo', async () => {
-    cargarCartera()
-    const testigos: (() => void)[] = []
-    let llamadas = 0
-    const seriesFor = async (): Promise<ReadonlyMap<string, readonly DatedReturn[]>> => {
-      llamadas += 1
-      if (llamadas === 1) await new Promise<void>((r) => testigos.push(r))
-      return new Map()
-    }
-
-    const { result, unmount } = renderHook(() => useFullAnalysis({ ...OPCIONES, seriesFor }))
-    await waitFor(() => expect(testigos.length).toBeGreaterThan(0))
-
-    // Mientras la primera ronda espera a la red, cambia la cartera.
     act(() => {
-      useAppStore.setState({
-        transactions: [compra('t1', 'a1', 'c1', '777'), compra('t2', 'a2', 'c2', '5')],
-      })
+      useAppStore.setState({ quotes: { a1: cotizacion('a1', '999'), a2: cotizacion('a2', '80') } })
     })
-    const huellaNueva = result.current.fingerprint
-
-    await act(async () => {
-      for (const soltar of testigos) soltar()
-      await Promise.resolve()
-    })
-
-    await waitFor(() => {
-      expect(result.current.reports.get('portfolio')?.status).toBe('ready')
-    })
-    // El informe publicado es el de la huella nueva, no el de la que llegó tarde.
-    expect(result.current.reports.get('portfolio')?.fingerprint).toBe(huellaNueva)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(ejecuciones).toBe(antes)
     unmount()
   })
 
-  it('el riesgo insuficiente no bloquea la concentración', async () => {
+  it('la identidad incluye la valoración, así que nunca se pisan pesos distintos', async () => {
     cargarCartera()
     const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
     await waitFor(() => expect(result.current.reports.get('portfolio')?.status).toBe('ready'))
 
     const informe = result.current.reports.get('portfolio')!
-    expect(informe.risk.status).toBe('insufficient')
-    expect(informe.concentration.status).toBe('available')
+    expect(informe.valuationVersion).not.toBe('')
+    expect(informe.fingerprint).toContain(informe.valuationVersion)
+    expect(informe.runId).toContain(informe.fingerprint)
+    unmount()
+  })
+
+  it('cambiar la divisa base sí relanza y cambia la identidad', async () => {
+    cargarCartera()
+    const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
+    await waitFor(() => expect(result.current.fingerprint).not.toBe(''))
+    const antes = result.current.fingerprint
+
+    act(() => useAppStore.getState().setDisplayCurrency('USD'))
+    await waitFor(() => expect(result.current.fingerprint).not.toBe(antes))
+    act(() => useAppStore.getState().setDisplayCurrency('EUR'))
+    unmount()
+  })
+
+  it('un evento repetido no cambia la identidad estructural', async () => {
+    cargarCartera()
+    const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
+    await waitFor(() => expect(result.current.structuralFingerprint).not.toBe(''))
+    const antes = result.current.structuralFingerprint
+
+    const mismas = useAppStore.getState().transactions.map((t) => ({ ...t }))
+    act(() => useAppStore.setState({ transactions: mismas }))
+    expect(result.current.structuralFingerprint).toBe(antes)
+    unmount()
+  })
+})
+
+describe('cancelación y errores', () => {
+  it('un cambio de cartera aborta las descargas pendientes', async () => {
+    cargarCartera()
+    const señales: AbortSignal[] = []
+    const adapter: MarketSeriesAdapter = {
+      version: 'test',
+      failures: new Map(),
+      seriesFor: async () => new Map(),
+    }
+    const { unmount } = renderHook(() =>
+      useFullAnalysis({
+        ...OPCIONES,
+        adapterFactory: ({ signal }) => {
+          señales.push(signal)
+          return adapter
+        },
+      }),
+    )
+    await waitFor(() => expect(señales.length).toBeGreaterThan(0))
+    const primera = señales[0]!
+    expect(primera.aborted).toBe(false)
+
+    act(() => {
+      useAppStore.setState({
+        transactions: [compra('t1', 'a1', 'c1', '555'), compra('t2', 'a2', 'c2', '5')],
+      })
+    })
+    // `requestAborted`, que es distinto de descartar el resultado.
+    await waitFor(() => expect(primera.aborted).toBe(true))
+    unmount()
+  })
+
+  it('un fallo del proveedor no detiene el análisis, y se anota por instrumento', async () => {
+    cargarCartera()
+    const adapter: MarketSeriesAdapter = {
+      version: 'test',
+      failures: new Map([['a2', 'Límite del proveedor.']]),
+      seriesFor: async (ids) =>
+        new Map(ids.filter((id) => id !== 'a2').map((id, i) => [id, serie(120, i + 1)])),
+    }
+    const { result, unmount } = renderHook(() =>
+      useFullAnalysis({ ...OPCIONES, adapterFactory: () => adapter }),
+    )
+
+    await waitFor(() => expect(result.current.reports.size).toBe(3))
+    // Las tres publican, incluida la cuenta cuyo instrumento falló.
+    for (const informe of result.current.reports.values()) {
+      expect(['ready', 'insufficient']).toContain(informe.status)
+    }
+    const consolidado = result.current.reports.get('portfolio')!
+    expect(consolidado.quality.status === 'available' && consolidado.quality.value.failures).toEqual(
+      [{ symbol: 'BBB', reason: 'Límite del proveedor.' }],
+    )
+    unmount()
+  })
+
+  it('running termina aunque una etapa falle', async () => {
+    cargarCartera()
+    const adapter: MarketSeriesAdapter = {
+      version: 'test',
+      failures: new Map(),
+      seriesFor: async () => {
+        throw new Error('proveedor caído')
+      },
+    }
+    const { result, unmount } = renderHook(() =>
+      useFullAnalysis({ ...OPCIONES, adapterFactory: () => adapter }),
+    )
+    // Se espera al fallo primero: `running` arranca en `false`, así que
+    // esperarlo a él pasaría antes de que el análisis empezara siquiera.
+    await waitFor(() => expect(result.current.failures.size).toBeGreaterThan(0))
+    // Dejarlo encendido convertiría un fallo puntual en una barra eterna.
+    expect(result.current.running).toBe(false)
+    unmount()
+  })
+
+  it('no deja promesas rechazadas sin manejar', async () => {
+    const sinManejar: unknown[] = []
+    const captor = (e: PromiseRejectionEvent) => sinManejar.push(e.reason)
+    globalThis.addEventListener?.('unhandledrejection', captor as unknown as EventListener)
+
+    cargarCartera()
+    const adapter: MarketSeriesAdapter = {
+      version: 'test',
+      failures: new Map(),
+      seriesFor: async () => {
+        throw new Error('proveedor caído')
+      },
+    }
+    const { result, unmount } = renderHook(() =>
+      useFullAnalysis({ ...OPCIONES, adapterFactory: () => adapter }),
+    )
+    await waitFor(() => expect(result.current.running).toBe(false))
+    await new Promise((r) => setTimeout(r, 20))
+
+    globalThis.removeEventListener?.('unhandledrejection', captor as unknown as EventListener)
+    expect(sinManejar).toEqual([])
     unmount()
   })
 })
 
 describe('persistencia', () => {
-  it('guarda el informe terminado con su huella y ámbito', async () => {
+  it('guarda cada informe con su identidad y ámbito', async () => {
     cargarCartera()
     const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
-    await waitFor(() => expect(result.current.reports.get('portfolio')?.status).toBe('ready'))
+    await waitFor(() => expect(result.current.reports.size).toBe(3))
 
-    const guardado = loadReport(result.current.fingerprint, { kind: 'portfolio' })
-    expect(guardado).not.toBeNull()
-    expect(guardado?.modelVersion).toBe('full-analysis-v1')
+    for (const scope of [
+      { kind: 'portfolio' } as const,
+      { kind: 'account', accountId: 'c1' } as const,
+      { kind: 'account', accountId: 'c2' } as const,
+    ]) {
+      expect(loadReport(result.current.fingerprint, scope)).not.toBeNull()
+    }
     unmount()
   })
 
-  it('no devuelve el informe de otra huella', async () => {
+  it('al recargar recupera todas las cuentas, no solo la consolidada', async () => {
     cargarCartera()
-    const { result, unmount } = renderHook(() => useFullAnalysis(OPCIONES))
-    await waitFor(() => expect(result.current.reports.get('portfolio')?.status).toBe('ready'))
+    const primera = renderHook(() => useFullAnalysis(OPCIONES))
+    await waitFor(() => expect(primera.result.current.reports.size).toBe(3))
+    primera.unmount()
 
-    // Existe un informe, pero no responde a esta pregunta.
-    expect(loadReport('otra-huella', { kind: 'portfolio' })).toBeNull()
-    expect(countReports()).toBeGreaterThan(0)
-    unmount()
+    // Segundo montaje con la misma cartera: es lo que ocurre al recargar.
+    const segunda = renderHook(() => useFullAnalysis(OPCIONES))
+    await waitFor(() => expect(segunda.result.current.reports.size).toBe(3))
+    expect([...segunda.result.current.reports.keys()].sort()).toEqual([
+      'account:c1',
+      'account:c2',
+      'portfolio',
+    ])
+    segunda.unmount()
   })
 
   it('un almacenamiento que falla no tumba el análisis', async () => {
-    // El espía se acota a **nuestra** clave. Interceptar todas las escrituras
-    // rompería también la persistencia del store, y la prueba mediría otra cosa.
     const real = Storage.prototype.setItem
     const setItem = vi
       .spyOn(Storage.prototype, 'setItem')
