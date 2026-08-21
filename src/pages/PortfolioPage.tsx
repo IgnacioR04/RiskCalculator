@@ -40,14 +40,10 @@ import {
 } from '../lib/format'
 import { convertAmount } from '../lib/fx'
 import type { AssetMatch } from '../lib/market/provider'
-import {
-  historicalDailyPrice,
-  refreshAllQuotes,
-  refreshFx,
-  searchAssets,
-} from '../lib/market/service'
+import { historicalDailyPrice, refreshFx, searchAssets } from '../lib/market/service'
 import { buildPortfolioView, type PortfolioView } from '../lib/portfolio'
 import { useAppStore } from '../state/store'
+import { antiguedadLegible } from '../components/shell/AppShell'
 import { TableWrap } from '../components/TableWrap'
 
 type PortfolioTab = 'overview' | 'manage'
@@ -309,40 +305,48 @@ function PositionsCard(props: { view: PortfolioView; currency: Currency }) {
   )
 }
 
+/**
+ * Estado de los datos de mercado.
+ *
+ * Ya no hay botón de «Actualizar todo». Los precios se refrescan solos al
+ * abrir, al volver a la pestaña y cada hora (`useMarketAutoSync`): pedirle a
+ * quien usa la aplicación que se acuerde de pulsar un botón para que las
+ * cifras no mientan es trasladarle un trabajo que hace mejor la máquina.
+ *
+ * Lo que queda aquí es lo único que una persona sí tiene que decidir: qué
+ * hacer con las posiciones que **ningún proveedor sabe identificar**. Esas no
+ * se arreglan esperando.
+ */
 function MarketRefreshSection() {
+  const assets = useAppStore((state) => state.assets)
   const transactions = useAppStore((state) => state.transactions)
-  const [busy, setBusy] = useState(false)
-  const [messages, setMessages] = useState<string[]>([])
+  const quotes = useAppStore((state) => state.quotes)
   if (transactions.length === 0) return null
 
-  async function refresh() {
-    setBusy(true)
-    setMessages([])
-    try {
-      const [fx, results] = await Promise.all([refreshFx(), refreshAllQuotes(true)])
-      const notes = results.flatMap((result) => result.message ?? [])
-      if (fx.message !== undefined) notes.push(fx.message)
-      notes.unshift(
-        `${results.filter((result) => result.ok).length}/${results.length} precios actualizados.`,
-      )
-      setMessages(notes)
-    } finally {
-      setBusy(false)
-    }
-  }
+  const conPosicion = assets.filter(
+    (asset) => asset.isDemo !== true && transactions.some((t) => t.assetId === asset.id),
+  )
+  const sinProveedor = conPosicion.filter(
+    (asset) => Object.keys(asset.providerIds ?? {}).length === 0,
+  )
+  const ultimo = Object.values(quotes)
+    .map((q) => q.fetchedAt)
+    .sort()
+    .at(-1)
 
   return (
     <Card title="Datos de mercado">
-      <div className="row spread">
-        <p className="muted mb-0">
-          Actualiza precios, histórico y EUR/USD. Los fallos conservan el último dato conocido.
-        </p>
-        <button type="button" className="btn primary" onClick={() => void refresh()} disabled={busy}>
-          {busy ? 'Actualizando…' : 'Actualizar todo'}
-        </button>
-      </div>
-      {messages.length > 0 && (
-        <Note kind="info">{messages.map((message) => <div key={message}>{message}</div>)}</Note>
+      <p className="muted">
+        Los precios se actualizan solos: al abrir, al volver a esta pestaña y cada hora. Último
+        dato de mercado {antiguedadLegible(ultimo)}. Cripto por CoinGecko, EUR/USD por el BCE,
+        acciones y ETF por Twelve Data.
+      </p>
+      {sinProveedor.length > 0 && (
+        <Note kind="warning">
+          Sin proveedor: {sinProveedor.map((a) => a.symbol).join(", ")}. Su precio se queda en el
+          último que escribiste, y sin histórico no hay volatilidad, correlaciones ni covarianzas
+          para esas posiciones. Búscalas por su ticker al editarlas para enlazarlas.
+        </Note>
       )}
     </Card>
   )

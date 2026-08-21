@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import type { Currency } from '../../lib/domain'
 import { endDemoSession, getDemoSession } from '../../lib/demoAuth'
 import { isFeatureEnabled } from '../../lib/features/flags'
+import { useMarketAutoSync } from '../../lib/market/autoSync'
 import { signOutAndClearCloudSession } from '../../lib/sync'
 import { useAppStore } from '../../state/store'
 import { MOBILE_SECTIONS, SECTIONS, sectionByPath } from './sections'
@@ -20,9 +21,33 @@ function initials(label: string): string {
   return label.split('@')[0]!.slice(0, 2).toUpperCase()
 }
 
+/**
+ * Antigüedad del dato de mercado, en palabras.
+ *
+ * Antes ponía «actualizados» o «sin actualizar», y las dos mentían por
+ * omisión: «actualizados» valía igual para un precio de hace un minuto que
+ * para uno de hace tres semanas, y «sin actualizar» no distinguía «no hay
+ * proveedor» de «hoy no ha habido suerte». Lo que hace falta saber es **de
+ * cuándo es la cifra que estás mirando**.
+ */
+export function antiguedadLegible(fetchedAt: string | undefined, ahora = Date.now()): string {
+  if (fetchedAt === undefined) return 'sin datos de mercado'
+  const minutos = Math.floor((ahora - new Date(fetchedAt).getTime()) / 60_000)
+  if (!Number.isFinite(minutos) || minutos < 0) return 'sin datos de mercado'
+  if (minutos < 2) return 'ahora mismo'
+  if (minutos < 60) return `hace ${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  if (horas < 24) return `hace ${horas} h`
+  const dias = Math.floor(horas / 24)
+  return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`
+}
+
 export function AppShell(props: { children: ReactNode; leaf?: string }) {
   const location = useLocation()
   const section = sectionByPath(location.pathname)
+  // Los precios se mantienen solos: al abrir, al volver a la pestaña y cada
+  // hora. Vive en la shell porque es lo único que está montado siempre.
+  useMarketAutoSync()
   const displayCurrency = useAppStore((s) => s.settings.displayCurrency)
   const setDisplayCurrency = useAppStore((s) => s.setDisplayCurrency)
   const quotes = useAppStore((s) => s.quotes)
@@ -105,9 +130,9 @@ export function AppShell(props: { children: ReactNode; leaf?: string }) {
             </div>
             <span
               className="meta"
-              title="Cripto: CoinGecko. EUR/USD: BCE. Acciones y ETF: precio manual mientras el proveedor esta desactivado."
+              title="Cripto: CoinGecko. EUR/USD: BCE. Acciones y ETF: Twelve Data. Se actualizan solos al abrir, al volver a la pestaña y cada hora."
             >
-              {lastFetched !== undefined ? 'precios · actualizados' : 'precios · sin actualizar'}
+              precios · {antiguedadLegible(lastFetched)}
             </span>
             <span className="meta" title={cloudSync.message}>
               {cloudSync.userId === null ? 'datos · local' : `nube · ${syncLabel}`}
